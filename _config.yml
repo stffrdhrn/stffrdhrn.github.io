@@ -1,0 +1,6 @@
+name: Staffords Porjects
+markdown: redcarpet
+pygments: true
+github: [Repository metadata]
+safe: true
+lsi: false

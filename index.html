@@ -1,7 +1,13 @@
-<html>
-<head><title>Stafford's Page</title></head>
-<body>
-<h2>Working Title</h2>
-Blog get
-</body>
-</html>
+---
+layout: default
+title: Stafford Projects
+---
+
+<div id="home">
+  <h1>Blog</h1>
+  <ul class="posts">
+    {% for post in site.posts %}
+      <li><span>{{ post.date | date_to_string }}</span> &raquo; <a href="{{ post.url }}">{{ post.title }}</a></li>
+    {% endfor %}
+  </ul>
+</div>
