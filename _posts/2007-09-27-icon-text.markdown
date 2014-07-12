@@ -1,0 +1,46 @@
+---
+layout: post
+status: publish
+published: true
+title: Icon Text
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 87
+wordpress_url: http://blog.shorne-pla.net/?p=87
+date: !binary |-
+  MjAwNy0wOS0yNyAyMDoxMzoxNyArMDkwMA==
+date_gmt: !binary |-
+  MjAwNy0wOS0yNyAxMzoxMzoxNyArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments: []
+---
+<p> Icon titles seem to be shortened up a bit in e17 fileman. This doesnt work so well for me.  Attached is a patch to fix that:</p>
+<h2>Problem Label</h2>
+<p><img src="http://blog.shorne-pla.net/wp-content/uploads/2007/09/text-short.png" alt="Text Before" /></p>
+<h2>Fixed Label</h2>
+<p><img src="http://blog.shorne-pla.net/wp-content/uploads/2007/09/text-long.png" alt="Text After" /></p>
+<pre>
+Index: default_fileman.edc
+===================================================================
+RCS file: /cvs/e/e17/apps/e/data/themes/default_fileman.edc,v
+retrieving revision 1.63
+diff -u -r1.63 default_fileman.edc
+--- default_fileman.edc 19 Sep 2007 19:38:25 -0000      1.63
++++ default_fileman.edc 27 Sep 2007 12:58:16 -0000
+@@ -7267,7 +7267,7 @@
+               text:     "No Title";
+               size:     10;
+                font: "Sans:style=Bold,Edje-Vera-Bold";
+-              min:      0 1;
++              min:      1 1;
+               align:    0.5 1.0;
+               elipsis:  0.0;
+               text_class: "desktop_fileman_icon";</pre>

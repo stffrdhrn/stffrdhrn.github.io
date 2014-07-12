@@ -1,0 +1,107 @@
+---
+layout: post
+status: publish
+published: true
+title: Last FM
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 76
+wordpress_url: http://blog.shorne-pla.net/?p=76
+date: !binary |-
+  MjAwNy0wNS0yNiAxMDoxNjowNSArMDkwMA==
+date_gmt: !binary |-
+  MjAwNy0wNS0yNiAwMzoxNjowNSArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments:
+- id: 20
+  author: J
+  author_email: ketts@gmail.com
+  author_url: ''
+  date: !binary |-
+    MjAwNy0wNi0wMSAxNzowODo1OCArMDkwMA==
+  date_gmt: !binary |-
+    MjAwNy0wNi0wMSAxMDowODo1OCArMDkwMA==
+  content: I know you, computer geek!!
+- id: 296
+  author: Wahoo
+  author_email: johnsd@wahoo.com
+  author_url: http://www.wahoo.com/
+  date: !binary |-
+    MjAwNy0xMC0wNiAwOTozMDoxMCArMDkwMA==
+  date_gmt: !binary |-
+    MjAwNy0xMC0wNiAwMjozMDoxMCArMDkwMA==
+  content: Thank you for sharing!
+- id: 12467
+  author: slot machines
+  author_email: maxim-1980@bk.ru
+  author_url: http://ucsae.com/
+  date: !binary |-
+    MjAwOS0wNC0wNyAxNDoxNTozNSArMDkwMA==
+  date_gmt: !binary |-
+    MjAwOS0wNC0wNyAwNzoxNTozNSArMDkwMA==
+  content: http://www.planetpapers.com/Assets/85727.php  <a href="http://www.planetpapers.com/Assets/85727.php"
+    rel="nofollow"> Cialis pharmacy </a>  [url=http://www.planetpapers.com/Assets/85727.php]
+    Cialis pharmacy [/url]  http://www.planetpapers.com/Assets/85727.php  <a href="http://www.planetpapers.com/Assets/85727.php"
+    rel="nofollow"> Cialis </a>  [url=http://www.planetpapers.com/Assets/85727.php]
+    Cialis [/url]  http://www.planetpapers.com/Assets/85727.php  <a href="http://www.planetpapers.com/Assets/85727.php"
+    rel="nofollow"> cheap Cialis </a>  [url=http://www.planetpapers.com/Assets/85727.php]
+    cheap Cialis [/url]  http://www.planetpapers.com/Assets/93913.php  <a href="http://www.planetpapers.com/Assets/93913.php"
+    rel="nofollow"> Levitra without a prescription </a>  [url=http://www.planetpapers.com/Assets/93913.php]
+    Levitra without a prescription [/url]  http://www.planetpapers.com/Assets/93913.php  <a
+    href="http://www.planetpapers.com/Assets/93913.php" rel="nofollow"> buy Levitra
+    without prescription </a>  [url=http://www.planetpapers.com/Assets/93913.php]
+    buy Levitra without prescription [/url]  http://www.planetpapers.com/Assets/93913.php  <a
+    href="http://www.planetpapers.com/Assets/93913.php" rel="nofollow"> Levitra without
+    prescription </a>  [url=http://www.planetpapers.com/Assets/93913.php] Levitra
+    without prescription [/url]  http://www.planetpapers.com/Assets/93913.php  <a
+    href="http://www.planetpapers.com/Assets/93913.php" rel="nofollow"> Levitra online
+    </a>  [url=http://www.planetpapers.com/Assets/93913.php] Levitra online [/url]  http://www.planetpapers.com/Assets/93913.php  <a
+    href="http://www.planetpapers.com/Assets/93913.php" rel="nofollow"> order Levitra
+    </a>  [url=http://www.planetpapers.com/Assets/93913.php] order Levitra [/url]  http://www.planetpapers.com/Assets/93913.php  <a
+    href="http://www.planetpapers.com/Assets/93913.php" rel="nofollow"> order Levitra
+    online </a>  [url=http://www.planetpapers.com/Assets/93913.php] order Levitra
+    online [/url]  http://www.planetpapers.com/Assets/93913.php  <a href="http://www.planetpapers.com/Assets/93913.php"
+    rel="nofollow"> buy Levitra </a>  [url=http://www.planetpapers.com/Assets/93913.php]
+    buy Levitra [/url]  http://www.planetpapers.com/Assets/94608.php  <a href="http://www.planetpapers.com/Assets/94608.php"
+    rel="nofollow"> car insurance companies </a>  [url=http://www.planetpapers.com/Assets/94608.php]
+    car insurance companies [/url]  http://www.planetpapers.com/Assets/94561.php  <a
+    href="http://www.planetpapers.com/Assets/94561.php" rel="nofollow"> Home Insurance
+    rates </a>  [url=http://www.planetpapers.com/Assets/94561.php] Home Insurance
+    rates [/url]  http://www.planetpapers.com/Assets/94717.php  <a href="http://www.planetpapers.com/Assets/94717.php"
+    rel="nofollow"> Health Insurance rates </a>  [url=http://www.planetpapers.com/Assets/94717.php]
+    Health Insurance rates [/url]  http://www.planetpapers.com/Assets/94774.php  <a
+    href="http://www.planetpapers.com/Assets/94774.php" rel="nofollow"> Life Insurance
+    companies </a>  [url=http://www.planetpapers.com/Assets/94774.php] Life Insurance
+    companies [/url]  http://www.planetpapers.com/Assets/94406.php  <a href="http://www.planetpapers.com/Assets/94406.php"
+    rel="nofollow"> Auto Insurance Companies </a>  [url=http://www.planetpapers.com/Assets/94406.php]
+    Auto Insurance Companies [/url]  maxim-1980@bk.ru
+---
+<p>Two postings in a day, I am going mad. This is cool:</p>
+<style type="text/css">table.lastfmWidget td {margin:0 !important;padding:0 !important;border:0 !important;}tr.lastfmHead a:hover {background:url(http://panther1.last.fm/widgets/images/en/header/chart/recenttracks_regular_red.gif) no-repeat 0 0 !important;}tr.lastfmEmbed object {float:left;}tr.lastfmFoot td.config a:hover {background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat 0 0 !important;;}tr.lastfmFoot td.view a:hover {background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat -85px 0 !important;}tr.lastfmFoot td.popup a:hover {background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat -159px 0 !important;}</style>
+<table class="lastfmWidget" cellpadding="0" cellspacing="0" border="0" style="width:184px;">
+<tr class="lastfmHead">
+<td><a title="stffrdhrn: Recently Listened Tracks" href="http://www.last.fm/user/stffrdhrn/" target="_blank" style="display:block;overflow:hidden;height:20px;width:184px;background:url(http://panther1.last.fm/widgets/images/en/header/chart/recenttracks_regular_red.gif) no-repeat 0 -20px;text-decoration:none;"></a></td>
+</tr>
+<tr class="lastfmEmbed">
+<td><object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" width="184" height="179" codebase="http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab%23version=7,0,0,0" style="float:left;"><param name="bgcolor" value="d01f3c" /><param name="movie" value="http://panther1.last.fm/widgets/chart/2.swf" /><param name="quality" value="high" /><param name="allowScriptAccess" value="sameDomain" /><param name="FlashVars" value="type=recenttracks&amp;user=stffrdhrn&amp;theme=red" /><embed src="http://panther1.last.fm/widgets/chart/2.swf" type="application/x-shockwave-flash" name="widgetPlayer" bgcolor="d01f3c" width="184" height="179" quality="high" pluginspage="http://www.macromedia.com/go/getflashplayer"  FlashVars="type=recenttracks&amp;user=stffrdhrn&amp;theme=red" allowScriptAccess="sameDomain"></embed></object></td>
+</tr>
+<tr class="lastfmFoot">
+<td style="background:url(http://panther1.last.fm/widgets/images/footer_bg/red.gif) repeat-x 0 0;text-align:right;">
+<table cellspacing="0" cellpadding="0" border="0" style="width:184px;">
+<tr>
+<td class="config"><a href="http://www.last.fm/widgets/?widget=chart&amp;colour=red&amp;chartType=recenttracks&amp;user=stffrdhrn&amp;from=widget" title="Get your own" target="_blank" style="display:block;overflow:hidden;width:85px;height:20px;float:right;background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat 0 -20px;text-decoration:none;"></a></td>
+<td class="view" style="width:74px;"><a href="http://www.last.fm/user/stffrdhrn/" title="View stffrdhrn's profile" target="_blank" style="display:block;overflow:hidden;width:74px;height:20px;background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat -85px -20px;text-decoration:none;"></a></td>
+<td class="popup"style="width:25px;"><a href="http://www.last.fm/widgets/popup/?widget=chart&amp;colour=red&amp;chartType=recenttracks&amp;user=stffrdhrn&amp;from=widget&amp;resize=1" title="Load this chart in a pop up" target="_blank" style="display:block;overflow:hidden;width:25px;height:20px;background:url(http://panther1.last.fm/widgets/images/en/footer/red.gif) no-repeat -159px -20px;text-decoration:none;" onclick="window.open(this.href + '&amp;resize=0','lastfm_popup','height=279,width=234,resizable=yes,scrollbars=yes'); return false;"></a></td>
+</tr>
+</table>
+</td>
+</tr>
+</table>

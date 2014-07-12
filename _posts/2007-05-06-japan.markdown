@@ -1,0 +1,25 @@
+---
+layout: post
+status: publish
+published: true
+title: Japan
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 68
+wordpress_url: /?p=68
+date: !binary |-
+  MjAwNy0wNS0wNiAxMTowMTowNSArMDkwMA==
+date_gmt: !binary |-
+  MjAwNy0wNS0wNiAwNDowMTowNSArMDkwMA==
+categories:
+- Life Stories
+tags: []
+comments: []
+---
+<p>Well I moved to Japan.  I actually moved in December 2006.  So I havent updated this blog in a while.  There is a new picture up at the top.  But I need to get a new one.</p>

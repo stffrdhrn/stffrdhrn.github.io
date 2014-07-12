@@ -1,0 +1,28 @@
+---
+layout: post
+status: publish
+published: true
+title: E17 Fonts II
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 37
+wordpress_url: /wordpress/?p=37
+date: !binary |-
+  MjAwNi0wMy0xOCAxMTo1NDo1NCArMDkwMA==
+date_gmt: !binary |-
+  MjAwNi0wMy0xOCAwMzo1NDo1NCArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments: []
+---
+<p>I have started to learn a bit more about evas fonts. Actually, evas loads fonts using a name such as "Vera". If font fallbacks are wanted in evas they are encoded into the font name, like "fonts/Edje Vera Bold,ZYSong,Kochi-Gothic,Baekmuk-Dotum".  The font configuration interface is just the <strong>evas_object_text</strong> interface. Fonts are found by name in the Evas font path. The evas font path is setup using <strong>evas_font_path_append</strong>. So, evas does not use the font file name to load fonts at the evas API level.</p>
+<p>As I stated before, I am working on getting fontconfig to work in the EFL. Previously I made an error saying evas loads fonts using the font filename and that edje and ecore need to be exxtended.  This is not true, evas implements the higher level font interface, only evas needs to be extended.  Later, edje will have to be aware that evas supports fontconfig, this way edje could bypass having to setup font paths and font sources if desired.</p>
+<h2>New Plan</h2>
+<p>My thoughts now, as advised by <a title="The Rasterman" href="http://www.rasterman.com">raster</a>, are to add fontconfig directly into evas. This will of course be a compile time option via configure.  The evas api will not change. However, evas fonts will be easier to use. If using fontconfig there will be no need to setup the Evas font path. Also, there will be no need to send a complete fallback list to the evas_object_text. This will be handled by fontconfig.</p>

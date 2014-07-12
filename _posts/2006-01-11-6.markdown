@@ -1,0 +1,26 @@
+---
+layout: post
+status: publish
+published: true
+title: Me
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 6
+wordpress_url: /wordpress/?p=6
+date: !binary |-
+  MjAwNi0wMS0xMSAyMjo0NzoyMiArMDkwMA==
+date_gmt: !binary |-
+  MjAwNi0wMS0xMSAxNDo0NzoyMiArMDkwMA==
+categories:
+- Uncategorized
+tags: []
+comments: []
+---
+<p><img width="96" height="96" id="image5" alt="Me Looking Stupid" src="/wp-content/uploads/2006/01/Stafford-pose.thumbnail.png" /></p>
+<p>Just testing some features. Please have fun checking out my new phot gallery.</p>

@@ -1,0 +1,39 @@
+---
+layout: post
+status: publish
+published: true
+title: E17 Fonts
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 36
+wordpress_url: /wordpress/?p=36
+date: !binary |-
+  MjAwNi0wMy0xNSAyMjoxMjo0NSArMDkwMA==
+date_gmt: !binary |-
+  MjAwNi0wMy0xNSAxNDoxMjo0NSArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments: []
+---
+<p>A few weeks ago re-compiled a few libraries and programs (GTK, Gimp, etc.) to take advantage of all of the new features, stability and eye candy. One of the programs that I compiled was fontconfig. After installing I noticed that all of my fonts had changed. I have figured out now that when compiling fontconfig my old configuration files in /etc/fonts were overwritten with the compile time defaults.</p>
+<p>Eventually, I learned how to configure fontconfig and I was able to get much better results than what I had before. As a part time developer on the <a title="Enlightenment" href="http://www.enlightenment.org">enlightenment project</a> I have dealed with fonts before. I developed e17's font text class and font fallbacks configuration interfaces and have expirimented with asian language fonts.  Currently, e17 and all of the efl have a very rudimentary where all fonts are shipped with programs or packaged in the edj theme files. This means that fonts get re-installed all of the time; just run <em>locate *.ttf</em>.</p>
+<p>This is where fontconfig comes in; from the fontconfig RPM spec:</p>
+<p><em>Fontconfig is designed to locate fonts within the system and select them according to requirements specified by applications.</em></p>
+<p>This sounds like the efl could put this to good use. I have now started to write a wrapper for fontconfig which will go into ecore, this should be called ecore_fontconfig or ecore_fc.</p>
+<ul>
+<li>Ecore - Provides efl API style wrappers and helper functions for useful routines. ecore_fontconfig will provived an interface which, when gived a font familiy name. Will return a list of font files which implement this font.</li>
+<li>FontConfig - Will be used to locate fonts given a font family name. The returned data will either be the font data or just the file name.</li>
+<li>Evas - Evas currently loads fonts from a file name. This should not need to be changed.</li>
+<li>Edje - Edje uses fonts similar to the way HTML does. Currently edjes are shipped with fonts, this causes a big problem because we get loads of duplicate fonts with every edje install. I propose that we add ecore_fontconfig support to edje for finding fonts. Including inline fonts will still be supported.</li>
+<li>E17 - enlightenment 17 currently has a font fallback configuration interface. These fallbacks are used when the edje build-in fonts dont provide the correct glyphs.  When fontconfig fonts are used in edje the enlightenment font fallbacks will not be needed.</li>
+<li>FreeType - Evas uses freetype to render fonts. Evas and Freetype are platform independant and should stay this way.</li>
+<li>Xft - The X freetype interface, this is not needed</li>
+<li>Xfs - The X font server, supplies font data to display servers, this is not needed</li>
+</ul>

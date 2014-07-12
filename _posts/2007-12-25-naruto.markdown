@@ -1,0 +1,28 @@
+---
+layout: post
+status: publish
+published: true
+title: Naruto
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 92
+wordpress_url: http://blog.shorne-pla.net/?p=92
+date: !binary |-
+  MjAwNy0xMi0yNSAwNjo1NTo1MSArMDkwMA==
+date_gmt: !binary |-
+  MjAwNy0xMi0yNCAyMzo1NTo1MSArMDkwMA==
+categories:
+- Life Stories
+tags: []
+comments: []
+---
+<p>Well, its Christmas day.  Happy Christmas.</p>
+<p>Now, for all my friends back home who usually read manga, I have a present.  I don't really read manga but I have found its helpful when studying Japanese.</p>
+<p>First page of Naruto 382:</p>
+<p><a href="/wp-content/uploads/2007/12/img_8277.JPG" title="Natuto-382-p1">Natuto-382-p1</a></p>

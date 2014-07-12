@@ -1,0 +1,28 @@
+---
+layout: post
+status: publish
+published: true
+title: X-Face
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 69
+wordpress_url: http://blog.shorne-pla.net/?p=69
+date: !binary |-
+  MjAwNy0wNS0xMyAwNjoxODoyMyArMDkwMA==
+date_gmt: !binary |-
+  MjAwNy0wNS0xMiAyMzoxODoyMyArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments: []
+---
+<p>Today I received a mail on the enlightenment file list and I was suprised to see a little icon displayed in the mail header.  As you may know, I have working on mail filtering servers before, so I am very familiar with how e-mail works and the various headers.</p>
+<p>I was supprised to discover the <a href="http://en.wikipedia.org/wiki/X-Face" title="X Face it Up!"> X-Face</a> header.  It seems to be a pretty neat idea but its rather limited, See below.  Anyway, I was just wondering what happens if I try to clear up the image a bit.  I applied a 5.0 px gaussian blut and I got what looks like ablurred photograph.</p>
+<p>Now, if everyone placed their own faces in their emails using this technique I might be inclined to write a patch for my mail client, Sylpheed, to automatically apply the blur. The only problem is that this is not very popular at all.</p>
+<p><img src="/wp-content/uploads/2007/05/xface.gif" alt="Xface image - me" /> <img src="http://blog.shorne-pla.net/wp-content/uploads/2007/05/blur.png" alt="X Face - me (blurred)" /></p>

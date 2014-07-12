@@ -1,0 +1,31 @@
+---
+layout: post
+status: publish
+published: true
+title: Jedi Name?
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 47
+wordpress_url: /wordpress/?p=47
+date: !binary |-
+  MjAwNi0wNC0wNSAwNzo1MToyNiArMDkwMA==
+date_gmt: !binary |-
+  MjAwNi0wNC0wNCAyMzo1MToyNiArMDkwMA==
+categories:
+- Uncategorized
+tags: []
+comments: []
+---
+<table align="center" style="background: black none repeat scroll 0% 50%; -moz-background-clip: -moz-initial; -moz-background-origin: -moz-initial; -moz-background-inline-policy: -moz-initial; color: #e6de22; font-family: Trebuchet MS,Tahoma,Helvetica,Arial">
+<tr>
+<td align="center">I am casting off my old name! <strong>My Jedi name is</strong></p>
+<h2>HORST CAEL  of the planet X!</h2>
+<p><a style="color: #e6de22" href="http://www.xach.com/misc/jedi.html">Find <strong>your</strong> Jedi Name!</a></td>
+</tr>
+</table>

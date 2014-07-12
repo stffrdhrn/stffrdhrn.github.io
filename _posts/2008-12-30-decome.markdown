@@ -1,0 +1,38 @@
+---
+layout: post
+status: publish
+published: true
+title: Decome
+author:
+  display_name: shorne
+  login: admin
+  email: shorne@gmail.com
+  url: http://blog.shorne-pla.net
+author_login: admin
+author_email: shorne@gmail.com
+author_url: http://blog.shorne-pla.net
+wordpress_id: 124
+wordpress_url: http://blog.shorne-pla.net/?p=124
+date: !binary |-
+  MjAwOC0xMi0zMCAwNToyMDowMiArMDkwMA==
+date_gmt: !binary |-
+  MjAwOC0xMi0yOSAyMjoyMDowMiArMDkwMA==
+categories:
+- Tech Stories
+tags: []
+comments: []
+---
+<p>It looks like google <a href="http://gmail.google.com">gmail</a> now supports Japanese decome (ãƒ‡ã‚³ãƒ¡) or decorated mails. These are small charset extensions added by Japanese mobile companies to allow cell phone users to exchange emotional icons in their email. </p>
+<h3>Example with a peace sign</h3>
+<p><a href="/wp-content/uploads/2008/12/decmo.png"><img src="/wp-content/uploads/2008/12/decmo.png" alt="decmo" title="decmo" width="509" height="402" class="alignnone size-full wp-image-130" /></a></p>
+<p>Decome is specific to japan so most computers will not support this natively. To implement this It seems google have a public image repository which is referenced to display the pictures.  This should prove useful for 3rd party mash-up applications as well.</p>
+<h3>Code example</h3>
+<p>[code lang="html"]<br />
+<br><br />
+ä»Šå¸°ã‚‹ã®ã§ã€Checkã—ã¦ã¿ã¾ã™<br />
+<img src="https://mail.google.com/mail/e/docomo_ne_jp/B94"<br />
+     goomoji="docomo_ne_jp.B94"<br />
+     style="margin: 0pt 0.2ex; vertical-align: middle;"><br />
+<br><br />
+[/code]</p>
+<p>Pretty nice stuff. </p>
