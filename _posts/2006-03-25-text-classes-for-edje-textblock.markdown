@@ -26,4 +26,4 @@ comments: []
 <p>This code right now is solid but it could use a touch of optimization. Currently the styles are recalculated whenever an edje is loaded. This is a problem because the edjes are loaded all of the time. I hope raster can give me some ideas on this once CVS comes back online.</p>
 <h2>Screenshot</h2>
 <p>The screenshot says it all.</p>
-<p><a href="/wp-content/uploads/2006/03/fontconfig_tb.png" class="imagelink" title="fontconfig_tb.png"><img src="/wp-content/uploads/2006/03/fontconfig_tb.thumbnail.png" id="image41" alt="fontconfig_tb.png" height="96" width="128" /></a></p>
+<p><a href="/content/2006/03/fontconfig_tb.png" class="imagelink" title="fontconfig_tb.png"><img src="/content/2006/03/fontconfig_tb.thumbnail.png" id="image41" alt="fontconfig_tb.png" height="96" width="128" /></a></p>

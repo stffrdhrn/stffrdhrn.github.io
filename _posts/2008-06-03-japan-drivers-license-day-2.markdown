@@ -22,6 +22,6 @@ categories:
 tags: []
 comments: []
 ---
-<p>Well,Â  day 2 is over and I passed.Â  It was not so hard.Â  Here are some tips: drive slowly, look around and listen to the instructor.Â  The wait was pretty long and it overlaps with lunch hour so you might want to bring some food.</p>
+<p>Well,  day 2 is over and I passed.  It was not so hard.  Here are some tips: drive slowly, look around and listen to the instructor.  The wait was pretty long and it overlaps with lunch hour so you might want to bring some food.</p>
 <p>Here we are:<br />
-<img src="/wp-content/uploads/2008/06/shorne-dl.jpg" alt="Drivers License" /></p>
+<img src="/content/2008/06/shorne-dl.jpg" alt="Drivers License" /></p>

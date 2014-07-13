@@ -32,4 +32,4 @@ comments:
   content: ! "This one is not good? hehe, here is my Blog, http://blog.bjdvder.com/user1/130/index.html\r\nbut
     it didn't make by myself........."
 ---
-<p>Well, how stupid this wordpress blogger software is.Â  I was changing some options and the whole thing doesn't work. I would think that they would put some validation before I change options.Â  Anyway, I got it to work again by changing my apache root and manually editing the options though mysql. I think I will try another blogger software.</p>
+<p>Well, how stupid this wordpress blogger software is.  I was changing some options and the whole thing doesn't work. I would think that they would put some validation before I change options.  Anyway, I got it to work again by changing my apache root and manually editing the options though mysql. I think I will try another blogger software.</p>

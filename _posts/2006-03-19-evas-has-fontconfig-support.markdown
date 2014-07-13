@@ -38,5 +38,5 @@ REPLY &lt;- END
 [shorne@Asus themes]$ enlightenment_remote -font-fallback-list
 REPLY &lt;- BEGIN
 REPLY &lt;- END</pre>
-<p><a href="/wp-content/uploads/2006/03/FontConfig.png" class="imagelink" title="FontConfig"><img src="/wp-content/uploads/2006/03/FontConfig.thumbnail.png" id="image38" alt="FontConfig" height="96" width="128" /></a><br />
+<p><a href="/content/2006/03/FontConfig.png" class="imagelink" title="FontConfig"><img src="/content/2006/03/FontConfig.thumbnail.png" id="image38" alt="FontConfig" height="96" width="128" /></a><br />
 Screenshot</p>

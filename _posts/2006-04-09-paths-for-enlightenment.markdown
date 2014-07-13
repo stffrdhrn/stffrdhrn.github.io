@@ -24,4 +24,4 @@ comments: []
 ---
 <p>I took a few moments to put together a configuration dialog for the <a href="http://www.enlightenment.org">enlightenment</a> search paths. The entry for new directories is still just a plain text, I would like to see an entry with tab completion for directories but that will have to come later.</p>
 <p><strong>Screener</strong></p>
-<p><a title="path_config.png" class="imagelink" href="/wp-content/uploads/2006/04/path_config.png"><img width="126" height="96" alt="path_config.png" id="image48" src="/wp-content/uploads/2006/04/path_config.thumbnail.png" /></a></p>
+<p><a title="path_config.png" class="imagelink" href="/content/2006/04/path_config.png"><img width="126" height="96" alt="path_config.png" id="image48" src="/content/2006/04/path_config.thumbnail.png" /></a></p>

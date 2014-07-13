@@ -24,6 +24,6 @@ comments: []
 ---
 <p>I guess the way I scaled the face of the clock was bothering some people.  I have used cubic scaling and now it works better.</p>
 <p>Have a look below and download the new theme if you like.</p>
-<p><a title="better-scale.png" class="imagelink" href="/wp-content/uploads/2006/07/better-scale.png"><img width="68" height="96" alt="better-scale.png" id="image59" src="/wp-content/uploads/2006/07/better-scale.thumbnail.png" /></a></p>
+<p><a title="better-scale.png" class="imagelink" href="/content/2006/07/better-scale.png"><img width="68" height="96" alt="better-scale.png" id="image59" src="/content/2006/07/better-scale.thumbnail.png" /></a></p>
 <p>Download:</p>
 <p><a href="/uploads/shorne-etheme-0.3.edj">EDJ </a></p>

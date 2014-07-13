@@ -33,4 +33,4 @@ comments:
     are well in China :)"
 ---
 <p>I wrote a language / Locale configuration dialog.  Its just a simple idea right now but it does the basics. Right now it only supports la_CN.enc@mod format. See below for a screener:</p>
-<p><a class="imagelink" title="language-selector.png" href="http://blog.shorne-pla.net/wp-content/uploads/2006/09/language-selector.png"><img width="128" height="79" id="image65" alt="language-selector.png" src="http://blog.shorne-pla.net/wp-content/uploads/2006/09/language-selector.png" /></a></p>
+<p><a class="imagelink" title="language-selector.png" href="/content/2006/09/language-selector.png"><img width="128" height="79" id="image65" alt="language-selector.png" src="/content/2006/09/language-selector.png" /></a></p>

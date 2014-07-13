@@ -25,4 +25,4 @@ comments: []
 <p>After adding font classes configuration I needed to add the font fallbacks configuration to be complete.</p>
 <p>It was a struggle to get a good looking UI. I think this looks good now. I think later the "Move Up" and "Move Down" buttons should be replaced with Drag n' Drop.</p>
 <p><strong> ScreenShot</strong></p>
-<p><a title="font-config-fallbacks.png" class="imagelink" href="/wp-content/uploads/2006/04/font-config-fallbacks.png"><img width="98" height="96" alt="font-config-fallbacks.png" id="image45" src="/wp-content/uploads/2006/04/font-config-fallbacks.thumbnail.png" /></a></p>
+<p><a title="font-config-fallbacks.png" class="imagelink" href="/content/2006/04/font-config-fallbacks.png"><img width="98" height="96" alt="font-config-fallbacks.png" id="image45" src="/content/2006/04/font-config-fallbacks.thumbnail.png" /></a></p>

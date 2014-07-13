@@ -24,9 +24,9 @@ comments: []
 ---
 <p> Icon titles seem to be shortened up a bit in e17 fileman. This doesnt work so well for me.  Attached is a patch to fix that:</p>
 <h2>Problem Label</h2>
-<p><img src="http://blog.shorne-pla.net/wp-content/uploads/2007/09/text-short.png" alt="Text Before" /></p>
+<p><img src="/content/2007/09/text-short.png" alt="Text Before" /></p>
 <h2>Fixed Label</h2>
-<p><img src="http://blog.shorne-pla.net/wp-content/uploads/2007/09/text-long.png" alt="Text After" /></p>
+<p><img src="/content/2007/09/text-long.png" alt="Text After" /></p>
 <pre>
 Index: default_fileman.edc
 ===================================================================

@@ -22,9 +22,9 @@ categories:
 tags: []
 comments: []
 ---
-<p>Just recently, in America, google and t-mobile released the G1.Â  This new phone takes advantage of googles new <a href="http://code.google.com/android/">android </a>mobile OS.</p>
-<p>I have been waiting to see if this phone is worth the wait, if not I will buy the iPhone.Â  So far things look bad. There is no sign of a Japan release and the first edition from the US does not look so promising. One <a href="http://www.macworld.co.uk/ipod-itunes/news/index.cfm?newsid=22985&amp;pagtype=allchandate">review </a>sums up G1 pretty well with 10 shortcomings. From my perspective only 5 of these issues are valid, lets see why:</p>
-<p><strong>Â Doesn't bother me</strong></p>
+<p>Just recently, in America, google and t-mobile released the G1.  This new phone takes advantage of googles new <a href="http://code.google.com/android/">android </a>mobile OS.</p>
+<p>I have been waiting to see if this phone is worth the wait, if not I will buy the iPhone.  So far things look bad. There is no sign of a Japan release and the first edition from the US does not look so promising. One <a href="http://www.macworld.co.uk/ipod-itunes/news/index.cfm?newsid=22985&amp;pagtype=allchandate">review </a>sums up G1 pretty well with 10 shortcomings. From my perspective only 5 of these issues are valid, lets see why:</p>
+<p><strong> Doesn't bother me</strong></p>
 <ul>
 <li>No exchange - I dont use exchange for personal mail, neither should most people</li>
 <li>Desktop synching - This phone is meant to privide access to web services, the desktop is obsolete</li>

@@ -24,4 +24,4 @@ comments: []
 ---
 <p>Well, sick and tired of e_remote I decided I better try my way with config dialogs.  So I started to work on a font config dialog.  I also need to do Path config and Language config.</p>
 <p>Fonts</p>
-<p><a title="font_config-0.1.png" class="imagelink" href="/wp-content/uploads/2006/04/font_config-0.1.png"><img width="128" height="96" alt="font_config-0.1.png" id="image43" src="/wp-content/uploads/2006/04/font_config-0.1.thumbnail.png" /></a></p>
+<p><a title="font_config-0.1.png" class="imagelink" href="/content/2006/04/font_config-0.1.png"><img width="128" height="96" alt="font_config-0.1.png" id="image43" src="/content/2006/04/font_config-0.1.thumbnail.png" /></a></p>

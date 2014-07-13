@@ -31,6 +31,6 @@ comments:
     MjAwNi0wMS0wOSAwNjoyNjo0MSArMDkwMA==
   content: Hi, Stafford, go to sleep early!!! Take care youself.
 ---
-<p>å¤§å®¶å¥½ï¼Œ</p>
-<p>I am just writting this in the morning at 1:20AM.Â  I got back from a good sushi dinner with my friend yaping and decided to try out this blogging software.Â  Seems to work great so far.</p>
+<p>大家好，</p>
+<p>I am just writting this in the morning at 1:20AM.  I got back from a good sushi dinner with my friend yaping and decided to try out this blogging software.  Seems to work great so far.</p>
 <p>Lets chat more later.</p>

@@ -26,7 +26,7 @@ comments: []
 <p>Download the theme and save it into your theme path, Enable the theme using:</p>
 <pre>$ enlightenment_remote -theme-set theme/modules/clock shorne-etheme.edj
 $ enlightenment_remote -restart</pre>
-<p><a class="imagelink" title="Rolex-eClock.png" href="/wp-content/uploads/2006/07/Rolex-eClock.png"><img width="68" height="96" id="image53" alt="Rolex-eClock.png" src="/wp-content/uploads/2006/07/Rolex-eClock.png" /></a></p>
+<p><a class="imagelink" title="Rolex-eClock.png" href="/content/2006/07/Rolex-eClock.png"><img width="68" height="96" id="image53" alt="Rolex-eClock.png" src="/content/2006/07/Rolex-eClock.png" /></a></p>
 <p><strong>Downloads:</strong><br />
 <a href="/uploads/rolex-face.xcf">XCF</a><br />
 <a href="/uploads/shorne-etheme.edj">EDJ</a></p>

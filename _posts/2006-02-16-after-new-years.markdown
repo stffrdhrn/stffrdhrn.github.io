@@ -24,7 +24,7 @@ comments: []
 ---
 <p>Well, the Chinese new years vacation is over. I have come back to work, and everything is reallycrazy. We have to create a new software release and new bugs are coming in every day.  Well, that software engineering for you. "If the code was not tested by the developers, it doesn't work". Also, "Its not my bug"<br />
 During the vacation I went to <a href="http://www.town.yuzawa.niigata.jp/english/" title="Yuzawa Town">Yuzawa</a> Japan for snow and to meet with Asami. I had a great time with her and we enjoyed snowboarding for one day.</p>
-<p><a href="/wp-content/uploads/2006/02/yuzawa-stafford.jpg" title="High Snow" class="imagelink"><img src="/wp-content/uploads/2006/02/yuzawa-stafford.thumbnail.jpg" alt="High Snow" id="image32" height="96" width="128" /></a></p>
+<p><a href="/content/2006/02/yuzawa-stafford.jpg" title="High Snow" class="imagelink"><img src="/content/2006/02/yuzawa-stafford.thumbnail.jpg" alt="High Snow" id="image32" height="96" width="128" /></a></p>
 <p>This is the sidewalk. Thats just snow on both sides of me, its not a wall.<br />
-<a href="/wp-content/uploads/2006/02/yuzawa-top_view.JPG" title="Top View" class="imagelink"><img src="/wp-content/uploads/2006/02/yuzawa-top_view.thumbnail.JPG" alt="Top View" id="image31" height="96" width="128" /></a></p>
+<a href="/content/2006/02/yuzawa-top_view.JPG" title="Top View" class="imagelink"><img src="/content/2006/02/yuzawa-top_view.thumbnail.JPG" alt="Top View" id="image31" height="96" width="128" /></a></p>
 <p>The view from the ski resort.</p>

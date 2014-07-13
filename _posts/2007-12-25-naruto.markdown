@@ -25,4 +25,4 @@ comments: []
 <p>Well, its Christmas day.  Happy Christmas.</p>
 <p>Now, for all my friends back home who usually read manga, I have a present.  I don't really read manga but I have found its helpful when studying Japanese.</p>
 <p>First page of Naruto 382:</p>
-<p><a href="/wp-content/uploads/2007/12/img_8277.JPG" title="Natuto-382-p1">Natuto-382-p1</a></p>
+<p><a href="/content/2007/12/img_8277.JPG" title="Natuto-382-p1">Natuto-382-p1</a></p>

@@ -69,50 +69,49 @@ Since I was using hibernate and spring <a href="http://static.springsource.org/s
 <p>The code used for the implementation is packaged as <a href="http://www.shorne-pla.net/uploads/auth.jar">auth.jar</a> with class and source files for your reference. Please do with it as you like (BSD license). The contents of the archive are described below:</p>
 <h4>net.shornepla.auth</h4>
 <ul>
-<li><a href="/?page_id=171">Authority.java</a> - a userw authority (i.e. USER_ROLE)  Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/userdetails/UserDetails.html">UserDetails</a></li>
-<li><a href="/?page_id=169">User.java</a> - a user, having user name and password. Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/GrantedAuthority.html">GrantedAuthority</a></li>
-<li><a href="/?page_id=162">UserDetailProvider.java</a> - Uses hibernate to provide the user details service. Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/userdetails/UserDetailsService.html">UserDetailsService</a></li>
+<li><a href="/page/authority.html">Authority.java</a> - a userw authority (i.e. USER_ROLE)  Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/userdetails/UserDetails.html">UserDetails</a></li>
+<li><a href="/page/user.html">User.java</a> - a user, having user name and password. Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/GrantedAuthority.html">GrantedAuthority</a></li>
+<li><a href="/page/userdetailprovider.html">UserDetailProvider.java</a> - Uses hibernate to provide the user details service. Implements <a href="http://www.acegisecurity.org/acegi-security/apidocs/org/acegisecurity/userdetails/UserDetailsService.html">UserDetailsService</a></li>
 <li><a href="http://www.shorne-pla.net/uploads/model.hbm.xml">model.hbm.xml</a> - Hibernate model description for User and Authority</li>
 </ul>
 <p>Together these small classes provide the groundwork for our authentication layer.  Next, the hard part is dealing with all of the Acegi spring configuration.</p>
 <h3>ApplicationContext.xml</h3>
 <p>Acegi is loaded via two spring application context xml files.  This first one is pretty basic, first it initialises my hibernate authentication implementation.  Next it initialises the authentication provider.  </p>
-<p>[code lang="xml"]<br />
-<?xml version="1.0" encoding="UTF-8"?><br />
-<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd"><br />
-<beans default-autowire="autodetect"></p>
-<p>  <!-- Load the hibernate model for authentication --><br />
-  <bean id="sessionFactory"<br />
-class="org.springframework.orm.hibernate3.LocalSessionFactoryBean" ></p>
-<property name="mappingResources">
-<list>
+
+{% highlight xml %}
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans default-autowire="autodetect">
+  <!-- Load the hibernate model for authentication -->
+  <bean id="sessionFactory" 
+    class="org.springframework.orm.hibernate3.LocalSessionFactoryBean" >
+    <property name="mappingResources">
+      <list>
 	<value>net/shornepla/auth/model.hbm.xml</value>
       </list>
     </property>
-  </bean></p>
-<p>  <!-- The hibernate backed implementation for UserDetailService --><br />
-  <bean  id="userDetailProvider"<br />
-class="net.shornepla.auth.UserDetailProvider"<br />
-   ></p>
-<property name="sessionFactory" ref="sessionFactory" />
-  </bean></p>
-<p>  <!-- Just use MD5 password hashing --><br />
-  <bean id="passwordEncoder"<br />
-class="org.acegisecurity.providers.encoding.Md5PasswordEncoder"<br />
-  /></p>
-<p> <!-- Tie together with the DaoAuthenticationProvider --><br />
- <bean id="daoAuthenticationProvider"<br />
-class="org.acegisecurity.providers.dao.DaoAuthenticationProvider"<br />
-  ></p>
-<property name="userDetailsService">
+  </bean>
+  <!-- The hibernate backed implementation for UserDetailService -->
+  <bean  id="userDetailProvider"
+    class="net.shornepla.auth.UserDetailProvider" >
+    <property name="sessionFactory" ref="sessionFactory" />
+  </bean>
+  <!-- Just use MD5 password hashing -->
+  <bean id="passwordEncoder"
+    class="org.acegisecurity.providers.encoding.Md5PasswordEncoder" />
+  <!-- Tie together with the DaoAuthenticationProvider -->
+  <bean id="daoAuthenticationProvider"
+    class="org.acegisecurity.providers.dao.DaoAuthenticationProvider" >
+    <property name="userDetailsService">
        <ref local="userDetailProvider"/>
     </property>
-<property name="passwordEncoder">
+    <property name="passwordEncoder">
       <ref local="passwordEncoder"/>
     </property>
- </bean></p>
-<p></beans><br />
-[/code]</p>
+  </bean>
+</beans>
+{% endhighlight %}
+
 <h3>applicationContext-acegi-security.xml</h3>
 <p>
 The second application context config is <a href="http://www.shorne-pla.net/uploads/applicationContext-acegi-security.xml">applicationContext-acegi-security.xml</a>.  This is mostly copied directly out of the acegi example and simplified as much as possible.</p>

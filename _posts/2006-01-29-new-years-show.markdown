@@ -23,5 +23,5 @@ tags: []
 comments: []
 ---
 <p>As many of you may know today is <a href="http://www.chinapage.com/newyear.html">Chinese New Year</a>.  This is the year ofr the Dog and among other things this is the first year that firecrackers are legal in Beijing after a <a href="http://english.gov.cn/2006-01/22/content_167557.htm">12 year ban</a>.  What does that mean? I means that the night sky is lit up like <a href="http://en.wikipedia.org/wiki/Baghdad">Baghdad</a> during <a href="http://www.desert-storm.com">Desert Storm</a>.</p>
-<p><a href="/wp-content/uploads/2006/01/boom0.jpg"><img id="image11" alt="Fire cracker just starting to go" src="/wp-content/uploads/2006/01/sc_boom0.jpg" /></a>Fireworks were being set-off right in the center of my 3-building apartment complex.  I got a free show all night.</p>
-<p><a href="/wp-content/uploads/2006/01/boom1.jpg"> <img id="image12" src="/wp-content/uploads/2006/01/sc_boom1.jpg" /></a>One of the better photos, notice that I didn't need to use the flash.</p>
+<p><a href="/content/2006/01/boom0.jpg"><img id="image11" alt="Fire cracker just starting to go" src="/content/2006/01/sc_boom0.jpg" /></a>Fireworks were being set-off right in the center of my 3-building apartment complex.  I got a free show all night.</p>
+<p><a href="/content/2006/01/boom1.jpg"> <img id="image12" src="/content/2006/01/sc_boom1.jpg" /></a>One of the better photos, notice that I didn't need to use the flash.</p>
