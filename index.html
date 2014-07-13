@@ -4,7 +4,6 @@ title: Stafford Projects
 ---
 
 <div id="home">
-  <h1>Blog</h1>
   {% for post in paginator.posts %}
   <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
   <span>{{ post.date | date_to_string }}</span>

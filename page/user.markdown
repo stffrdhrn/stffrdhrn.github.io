@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 status: publish
 published: true
 title: User
@@ -22,71 +22,71 @@ categories:
 tags: []
 comments: []
 ---
-<p>[code lang="java"]<br />
-package net.shornepla.auth;</p>
-<p>import org.acegisecurity.GrantedAuthority;<br />
-import org.acegisecurity.userdetails.UserDetails;</p>
-<p>/**<br />
- * Model object for representing and User object used for authentication. This<br />
- * object should be used for storing to the DB using hibernate.<br />
- *<br />
- * @author shorne<br />
- * @since Mar 4, 2008<br />
- */<br />
-public class User implements UserDetails {<br />
-    private static final long serialVersionUID = 4313286145927366498L;</p>
-<p>    private int id;<br />
-    private String username;<br />
-    private String password;<br />
-    private GrantedAuthority[] authorities;<br />
-    private boolean enabled;</p>
-<p>    public int getId() {<br />
-        return id;<br />
-    }</p>
-<p>    public void setId(int id) {<br />
-        this.id = id;<br />
-    }</p>
-<p>    public String getUsername() {<br />
-        return username;<br />
-    }</p>
-<p>    public String getPassword() {<br />
-        return password;<br />
-    }</p>
-<p>    public GrantedAuthority[] getAuthorities() {<br />
-        return authorities;<br />
-    }</p>
-<p>    public boolean isEnabled() {<br />
-        return enabled;<br />
-    }</p>
-<p>    public void setUsername(String username) {<br />
-        this.username = username;<br />
-    }</p>
-<p>    public void setPassword(String password) {<br />
-        this.password = password;<br />
-    }</p>
-<p>    public void setAuthorities(GrantedAuthority[] authorities) {<br />
-        this.authorities = authorities;<br />
-    }</p>
-<p>    public void setEnabled(boolean enabled) {<br />
-        this.enabled = enabled;<br />
-    }</p>
-<p>    /**<br />
-     * Not implemented, always return true<br />
-     */<br />
-    public boolean isAccountNonExpired() {<br />
-        return true;<br />
-    }</p>
-<p>    /**<br />
-     * Not implemented, always return true<br />
-     */<br />
-    public boolean isAccountNonLocked() {<br />
-        return true;<br />
-    }</p>
-<p>    /**<br />
-     * Not implemented, always return true<br />
-     */<br />
-    public boolean isCredentialsNonExpired() {<br />
-        return true;<br />
-    }<br />
-}<br />
-[/code]</p>
+{% highlight java %}
+package net.shornepla.auth;
+import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.userdetails.UserDetails;
+/**
+ * Model object for representing and User object used for authentication. This
+ * object should be used for storing to the DB using hibernate.
+ *
+ * @author shorne
+ * @since Mar 4, 2008
+ */
+public class User implements UserDetails {
+    private static final long serialVersionUID = 4313286145927366498L;
+    private int id;
+    private String username;
+    private String password;
+    private GrantedAuthority[] authorities;
+    private boolean enabled;
+    public int getId() {
+        return id;
+    }
+    public void setId(int id) {
+        this.id = id;
+    }
+    public String getUsername() {
+        return username;
+    }
+    public String getPassword() {
+        return password;
+    }
+    public GrantedAuthority[] getAuthorities() {
+        return authorities;
+    }
+    public boolean isEnabled() {
+        return enabled;
+    }
+    public void setUsername(String username) {
+        this.username = username;
+    }
+    public void setPassword(String password) {
+        this.password = password;
+    }
+    public void setAuthorities(GrantedAuthority[] authorities) {
+        this.authorities = authorities;
+    }
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+    /**
+     * Not implemented, always return true
+     */
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+    /**
+     * Not implemented, always return true
+     */
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+    /**
+     * Not implemented, always return true
+     */
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+}
+{% endhighlight %}

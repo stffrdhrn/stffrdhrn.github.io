@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 status: publish
 published: true
 title: UserDetailProvider
@@ -22,35 +22,35 @@ categories:
 tags: []
 comments: []
 ---
-<p>[code lang="java"]<br />
-package net.shornepla.auth;</p>
-<p>import org.acegisecurity.userdetails.UserDetails;<br />
-import org.acegisecurity.userdetails.UserDetailsService;<br />
-import org.acegisecurity.userdetails.UsernameNotFoundException;<br />
-import org.hibernate.Session;<br />
-import org.springframework.dao.DataAccessException;<br />
-import org.springframework.orm.hibernate3.support.HibernateDaoSupport;</p>
-<p>/**<br />
- * Provides an UserDesailsService implementation based on Hibernate.<br />
- * This ties hibernate and acegi together.<br />
- *<br />
- * @author shorne<br />
- * @since Feb 13, 2009<br />
- */<br />
-public class UserDetailProvider extends HibernateDaoSupport implements UserDetailsService {</p>
-<p>    public UserDetails loadUserByUsername(String username)<br />
-            throws UsernameNotFoundException, DataAccessException {</p>
-<p>        Object object = null;</p>
-<p>        Session session = this.getSession();<br />
-        session.beginTransaction();</p>
-<p>        object = session.createQuery("from User o where o.username=:username")<br />
-                 .setString("username", username).uniqueResult();</p>
-<p>        session.getTransaction().commit();</p>
-<p>        if (object == null) {<br />
-            throw new UsernameNotFoundException("User " + username + "was not found");<br />
-        } else {<br />
-            return (UserDetails) object;<br />
-        }<br />
-    }</p>
-<p>}<br />
-[/code]</p>
+{% highlight java %}
+package net.shornepla.auth;
+import org.acegisecurity.userdetails.UserDetails;
+import org.acegisecurity.userdetails.UserDetailsService;
+import org.acegisecurity.userdetails.UsernameNotFoundException;
+import org.hibernate.Session;
+import org.springframework.dao.DataAccessException;
+import org.springframework.orm.hibernate3.support.HibernateDaoSupport;
+/**
+ * Provides an UserDesailsService implementation based on Hibernate.
+ * This ties hibernate and acegi together.
+ *
+ * @author shorne
+ * @since Feb 13, 2009
+ */
+public class UserDetailProvider extends HibernateDaoSupport implements UserDetailsService {
+    public UserDetails loadUserByUsername(String username)
+            throws UsernameNotFoundException, DataAccessException {
+        Object object = null;
+        Session session = this.getSession();
+        session.beginTransaction();
+        object = session.createQuery("from User o where o.username=:username")
+                 .setString("username", username).uniqueResult();
+        session.getTransaction().commit();
+        if (object == null) {
+            throw new UsernameNotFoundException("User " + username + "was not found");
+        } else {
+            return (UserDetails) object;
+        }
+    }
+}
+{% endhighlight %}
