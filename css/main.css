@@ -237,8 +237,8 @@ img {
 
 /* standard */
 .post pre {
-  border: 1px solid #ddd;
-  background-color: #eef;
+  border: 1px solid #999;
+  background-color: #ddd;
   padding: 0 .4em;
 }
 
@@ -247,8 +247,10 @@ img {
 }
 
 .post code {
-  border: 1px solid #ddd;
-  background-color: #eef;
+  font-family: monospace;
+  border: 1px solid #999;
+  background-color: #ddd;
+  color: #444;
   padding: 0 .2em;
 }
 
