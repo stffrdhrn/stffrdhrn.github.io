@@ -1,9 +1,16 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <meta name="description" content="Stafford Horne's (shorne, stffrdhrn) Computer Engineering blog and home page.">
+        {% if page.categories %}
+        <meta name="keywords" content="{{page.categories | join: ','}}" />
+        {% else %}
+        <meta name="keywords" content="{{site.keywords | join: ','}}" />
+        {% endif %}
+
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-        <title>{{ page.title }}</title>
+        <title>{{site.name}} - {{ page.title }}</title>
         <meta name="viewport" content="width=device-width">
 
         <!-- syntax highlighting CSS -->
