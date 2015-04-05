@@ -238,7 +238,7 @@ img {
 /* standard */
 .post pre {
   border: 1px solid #999;
-  background-color: #ddd;
+  background-color: #eee;
   padding: 0 .4em;
 }
 
@@ -249,7 +249,7 @@ img {
 .post code {
   font-family: monospace;
   border: 1px solid #999;
-  background-color: #ddd;
+  background-color: #eee;
   color: #444;
   padding: 0 .2em;
 }

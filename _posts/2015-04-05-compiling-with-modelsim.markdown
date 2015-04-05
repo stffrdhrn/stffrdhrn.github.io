@@ -15,20 +15,21 @@ The `vlog` compiler included with [ModelSim](http://en.wikipedia.org/wiki/ModelS
 can be used to quickly compile your HDL.
 
 {% highlight bash %}
-    # Add module sim onto your path
-    $ PATH=$PATH:/usr/share/altera/14.0/modelsim_ase/bin
+ # Add module sim onto your path
+ $ PATH=$PATH:/usr/share/altera/14.0/modelsim_ase/bin
 
-    # Create a library directory used by 'vlog', by default it looks for 'work'
-    $ vlib work
+ # Create a library directory used by 'vlog', by default it looks for 
+ # the 'work' library
+ $ vlib work
 
-    # Perform the verilog compile
-    $ vlog dram_controller.v
+ # Perform the verilog compile
+ $ vlog dram_controller.v
 
-    Model Technology ModelSim ALTERA vlog 10.1e Compiler 2013.06 Jun 12 2013
-    -- Compiling module dram_controller
+ Model Technology ModelSim ALTERA vlog 10.1e Compiler 2013.06 Jun 12 2013
+ -- Compiling module dram_controller
 
-    Top level modules:
-	    dram_controller
+ Top level modules:
+    dram_controller
 {% endhighlight %}
 
 You can find more details on using ModelSim's command line utilties at the [ncsu 
