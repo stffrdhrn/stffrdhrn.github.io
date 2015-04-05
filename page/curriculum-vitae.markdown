@@ -174,7 +174,7 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <li>Graded lab reports including assembly code and schematic diagrams</li>
 </ul>
 <h2>General Experience</h2>
-<p>As an avid linux and open source enthusiest. I have spent many years of my free time administering home computers and learning the ins and outs of the Linux OS kernel, filesystems and general arhitecture.</p>
+<p>As an avid linux and open source enthusiast. I have spent many years of my free time administering home computers and learning the ins and outs of the Linux OS kernel, file systems and general architecture.</p>
 <h2>Projects Worked On</h2>
 <ul>
 <li>RiskFilter - <a href="http://www.surfcontrol.com/Default.aspx?id=767&amp;mnuid=1.2.2">WWW</a></li>
