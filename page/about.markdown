@@ -40,7 +40,7 @@ comments: []
 <li><strong>Hair Color</strong>: Red</li>
 <li><strong>Home Town</strong>: <a href="http://www.cityofelcentro.org/">El Centro</a> California, USA</li>
 <li><strong>Current Home</strong>: Tokyo, Japan</li>
-<li><strong>Occupation</strong>: Software Engineer <em>(Professional <a href="http://jargon.watson-net.com/section.asp?f=meaning-of-hack.html" title="The Jargon File">Hacker</a>)</em></li>
+<li><strong>Occupation</strong>: Software Engineer <em>(Professional <a href="http://www.catb.org/jargon/html/meaning-of-hack.html" title="The Jargon File">Hacker</a>)</em></li>
 <li><strong>Hobbies</strong>: Guitar, Bike Riding, Snowboarding, Open Source Software, Reading, Movies, Learning</li>
 <li><strong>Resume/CV</strong>: <a href="/page/curriculum-vitae.html">available</a></li>
 </ul>
