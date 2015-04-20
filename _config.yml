@@ -1,6 +1,6 @@
 name: shorne in japan
 markdown: redcarpet
-pygments: true
+highlighter: pygments
 github: [Repository metadata]
 safe: true
 lsi: false

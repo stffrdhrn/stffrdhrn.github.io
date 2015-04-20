@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 status: publish
 published: true
 title: E17 Font Configuration
