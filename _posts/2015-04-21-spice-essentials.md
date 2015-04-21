@@ -5,15 +5,15 @@ date: 2015-04-21 23:56
 categories: [electronics]
 ---
 
-Did you ever get stuck figuring out how to run SPICE? The essential spice tips will get you on your way.
+Did you ever get stuck figuring out how to run spice? These essential spice tips will get you on your way.
 
-Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  SPICE is widely known in circuit simulation. Below are my tips of the essentials to get started with SPICE. This also includes how to perform graphical plotting with nutmeg.  All the below demos are using ```ngspice``` and ```ngnutmeg```. 
+Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. Below are my tips of the essentials to get started with spice. This also includes how to perform graphical plotting with nutmeg.  All the below demos are using ```ngspice``` and ```ngnutmeg```. 
 
-When analyzing a circuit one needs to use the analysis commands.  These are usually placed at the end of your circuit description. 
+When analyzing a circuit we need to use the spice analysis commands.  These are usually placed at the end of your circuit netlist. In this post, I assume you know the basics of writing or generating spice netlists. 
 
 ## Using OP
 
-The first analysis command one should know is the ```OP``` command. It provides the dc operating point voltage dumpof all nodes with capacitors fully charged (no current) and inductors fully inducting (shorted). 
+The first and most simple analysis command you should know is the `OP` command. It provides the dc operating point voltage dump of all nodes with capacitors fully charged (no current) and inductors fully inducting (shorted). 
 
 **Usage**
 
@@ -199,8 +199,8 @@ These guides have been very help:
 
 * [bwrcs.eecs.berkeley.edu](http://bwrcs.eecs.berkeley.edu/Classes/IcBook/SPICE/UserGuide/analyses_fr.html) - great reference, this links directly into analysis
 * [www.allaboutcircuits.com](http://www.allaboutcircuits.com/vol_5/chpt_7/8.html) - simple intro to netlists
-* [vision.lakeheadu.ca/eng4136/spice/op\_ac\_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/op_ac_analysis.html) - tutorial on running ngspice ```op``` analysis
-* [vision.lakeheadu.ca/eng4136/spice/transient_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/transient_analysis.html) - tutorial on running ngspice ```tran``` analysis
+* [vision.lakeheadu.ca/eng4136/spice/op\_ac\_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/op_ac_analysis.html) - tutorial on running ngspice`op` analysis
+* [vision.lakeheadu.ca/eng4136/spice/transient_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/transient_analysis.html) - tutorial on running ngspice `tran` analysis
 * [www.seas.upenn.edu](http://www.seas.upenn.edu/~jan/spice/spice.filter.html) - good example of ac analysis
 * [dev.man-online.org](http://dev.man-online.org/man1/ngnutmeg/) - ngnutmeg manual
 
