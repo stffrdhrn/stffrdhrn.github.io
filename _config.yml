@@ -5,3 +5,5 @@ github: [Repository metadata]
 safe: true
 lsi: false
 paginate: 5
+gems:
+ - jekyll-sitemap
