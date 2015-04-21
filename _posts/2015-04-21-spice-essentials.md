@@ -199,8 +199,8 @@ These guides have been very help:
 
 * [bwrcs.eecs.berkeley.edu](http://bwrcs.eecs.berkeley.edu/Classes/IcBook/SPICE/UserGuide/analyses_fr.html) - great reference, this links directly into analysis
 * [www.allaboutcircuits.com](http://www.allaboutcircuits.com/vol_5/chpt_7/8.html) - simple intro to netlists
-* [vision.lakeheadu.ca/eng4136/spice/op\_ac\_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/op_ac_analysis.html) - tutorial on running ngspice`op` analysis
-* [vision.lakeheadu.ca/eng4136/spice/transient_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/transient_analysis.html) - tutorial on running ngspice `tran` analysis
+* [vision.lakeheadu.ca op\_ac\_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/op_ac_analysis.html) - tutorial on running ngspice`op` analysis
+* [vision.lakeheadu.ca transient_analysis.html](http://vision.lakeheadu.ca/eng4136/spice/transient_analysis.html) - tutorial on running ngspice `tran` analysis
 * [www.seas.upenn.edu](http://www.seas.upenn.edu/~jan/spice/spice.filter.html) - good example of ac analysis
 * [dev.man-online.org](http://dev.man-online.org/man1/ngnutmeg/) - ngnutmeg manual
 
