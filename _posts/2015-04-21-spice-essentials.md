@@ -11,7 +11,7 @@ Recently I have been searching for good [linux tools to simulate circuits](http:
 
 We will cover the basics of:
 
-- Analysis with `OP` abd `TRAN`
+- Analysis with `OP` and `TRAN`
 - Controlling spice output
 - Running `ngspice` and `ngnutmeg`
 
