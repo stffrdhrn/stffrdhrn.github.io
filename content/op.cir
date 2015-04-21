@@ -1,0 +1,6 @@
+* OP analysis of Voltage divider 
+V1 2 0 DC 10V
+R1  2 1 50K             
+R2  1 0 20K             
+.op
+.end

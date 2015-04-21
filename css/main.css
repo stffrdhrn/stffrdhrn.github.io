@@ -237,9 +237,11 @@ img {
 
 /* standard */
 .post pre {
-  border: 1px solid #999;
-  background-color: #eee;
-  padding: 0 .4em;
+  //border: 1px solid #999;
+  background-color: #f5f5f5;
+  box-shadow: 0px 1px 10px rgba(0, 0, 0, 0.3) inset, 0px 1px 0px rgba(255, 255, 255, 0.1), 0px -1px 0px rgba(0, 0, 0, 0.5);
+  //padding: 0 .4em;
+  border-radius: 5px;
 }
 
 .post ul, .post ol {
@@ -248,8 +250,8 @@ img {
 
 .post code {
   font-family: monospace;
-  border: 1px solid #999;
-  background-color: #eee;
+  //border: 1px solid #999;
+  background-color: #f5f5f5;
   color: #444;
   padding: 0 .2em;
 }
