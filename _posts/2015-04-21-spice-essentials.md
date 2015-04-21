@@ -7,7 +7,7 @@ categories: [electronics]
 
 Did you ever get stuck figuring out how to run spice? These essential spice tips will get you on your way.
 
-Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. This short guide should help you get started, including how to perform graphical plotting with nutmeg.  All the below demos are using `ngspice` and `ngnutmeg`. In this post, I assume you know the basics of writing or generating spice netlists. 
+Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. This short guide should help you get started; including how to perform graphical plotting with nutmeg.  All the below demos are using `ngspice` and `ngnutmeg`. In this post I assume you know the basics of writing or generating spice netlists. 
 
 We will cover the basics of:
 
@@ -62,12 +62,11 @@ No. of Data Rows : 1
 
 ### Using TRAN
 
-The next analysis command to know is the ```TRAN``` command. 
+The next analysis command to know is the `TRAN` command. 
 
-```TRAN``` will run the circuit for a fixed time and take interval measurements.  The below ```.tran 0.1m 5m``` will measure for 5 milliseconds and output every 0.1 milliseconds.  It should print 50 readings.   You should choose your measurements based on the frequency of the input source to allow you to see the full wave, 
+`TRAN` will run the circuit for a fixed time and take interval measurements.  The below `.tran 0.1m 5m` will measure for 5 milliseconds and output every 0.1 milliseconds.  It should print 50 readings.   You should choose your measurements based on the frequency of the input source to allow you to see the full wave, 
 
 **Usage**
-
 
 ```.tran STEP END <START> <MAX>```
 
