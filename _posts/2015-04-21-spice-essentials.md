@@ -7,11 +7,18 @@ categories: [electronics]
 
 Did you ever get stuck figuring out how to run spice? These essential spice tips will get you on your way.
 
-Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. Below are my tips of the essentials to get started with spice. This also includes how to perform graphical plotting with nutmeg.  All the below demos are using ```ngspice``` and ```ngnutmeg```. 
+Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. This short guide should help you get started, including how to perform graphical plotting with nutmeg.  All the below demos are using `ngspice` and `ngnutmeg`. In this post, I assume you know the basics of writing or generating spice netlists. 
 
-When analyzing a circuit we need to use the spice analysis commands.  These are usually placed at the end of your circuit netlist. In this post, I assume you know the basics of writing or generating spice netlists. 
+We will cover the basics of:
+- Analysis with `OP` abd `TRAN`
+- Controlling spice output
+- Running `ngspice` and `ngnutmeg`
 
-## Using OP
+## Analysis
+
+When analyzing a circuit we need to use spice analysis commands.  These are usually placed at the end of your netlist.
+
+### Using OP
 
 The first and most simple analysis command you should know is the `OP` command. It provides the dc operating point voltage dump of all nodes with capacitors fully charged (no current) and inductors fully inducting (shorted). 
 
@@ -52,7 +59,7 @@ No. of Data Rows : 1
         v1#branch                        -1.42857e-04
 ```
 
-## Using TRAN
+### Using TRAN
 
 The next analysis command to know is the ```TRAN``` command. 
 
