@@ -10,6 +10,7 @@ Did you ever get stuck figuring out how to run spice? These essential spice tips
 Recently I have been searching for good [linux tools to simulate circuits](http://en.wikipedia.org/wiki/List_of_free_electronics_circuit_simulators).  Spice is widely known in circuit simulation. This short guide should help you get started, including how to perform graphical plotting with nutmeg.  All the below demos are using `ngspice` and `ngnutmeg`. In this post, I assume you know the basics of writing or generating spice netlists. 
 
 We will cover the basics of:
+
 - Analysis with `OP` abd `TRAN`
 - Controlling spice output
 - Running `ngspice` and `ngnutmeg`
