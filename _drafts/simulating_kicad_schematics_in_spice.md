@@ -16,4 +16,60 @@ First we will need to start off with a schematic. I will choose a circuit which 
 
 Lets pick a simple inverting op amp circuit.  We can use the spice models from vendors like ti to plug into our schematics. 
 
-![kicad amp for demo]({{site.url}}/content/kikcad-spidedemo-2015-04-23_07-56-40.png)
+![kicad amp for demo]({{site.url}}/content/kikcad-spicedemo-2015-04-23_07-56-40.png)
+
+Create a `components.cir`
+
+```
+* Components and subcircuits for use in spicedemo.cir
+
+.INCLUDE LMV981.MOD
+
+* 4 0 1 PWR_IN
+*              + g -     
+.subckt PWR_IN 1 2 3
+  Vneg 1 2  3.3V
+  Vpos 2 3 3.3V
+.ends PWR_IN
+
+* 7 6 0 4 1 OPAMP
+*             o - + p n
+.subckt OPAMP 1 2 3 4 5
+  * PINOUT ORDER  1   3   6  2  4   5
+  * PINOUT ORDER +IN -IN +V -V OUT NSD
+  Xopamp 3 2 4 5 1 NSD LMV981
+.ends OPAMP
+
+*               s x g
+.subckt JACK_IN 1 2 3
+  *** Simulate mic input A-note
+  Vmic  3 1 ac SIN(0 0.02 440)
+.ends JACK_IN
+
+*                s x g
+.subckt JACK_OUT 1 2 3
+  Rwire  1 2   10ohm
+.ends JACK_OUT
+
+```
+
+Download your components spice model
+
+http://www.ti.com/product/lmv981-n
+
+Run the `OP` analsysis, to make sure nothing is shorted
+
+Run the `TRAN` analsysis, to make sure it works
+
+```
+> tran 0.3m 1m
+> plot V(2) V(7)
+```
+
+Run the `AC` analysis, to analysis the performance
+
+```
+> ac dec 10 1 100K
+No. of Data Rows : 51
+> plot V(2) V(7)
+```
