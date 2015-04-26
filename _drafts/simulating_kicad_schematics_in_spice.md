@@ -135,3 +135,7 @@ No. of Data Rows : 51
 ```
 
 ![Ac analysis results]({{site.url}}/content/kicad-spicedemo-ac.png)
+
+## Further Reading
+
+- [Mathat Konar Quick Guide](http://mithatkonar.com/wiki/doku.php/kicad:kicad_spice_quick_guide) Short guide explains using libraries and `+PSPICE` `-PSPICE`
