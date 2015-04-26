@@ -14,6 +14,8 @@ First we will need to start off with a schematic. I will choose a circuit which 
 - Perform Transient Analysis
 - Simulate an input signal
 
+## Layout Circuit and Generate Netlist
+
 Lets pick a simple inverting op amp circuit.  We can use the spice models from vendors like [ti](http://www.ti.com/) to plug into our schematics. This also means we can easily, virtually, swap out components like op amps to see how they perform in our design. 
 
 Below we can see our completed for a non-inverting op amp with a dual power supply, the input will be amplified 25 times. For more details on drawing schematics in kicad refer to the [getting started tutorials](http://www.kicad-pcb.org/display/KICAD/Tutorials). 
@@ -26,10 +28,10 @@ Once out circuit is complete we can generate a spice netlist by navigating to **
 
 Some comments on the Netlist options:
 
-* I have selected *Prefix references 'U' and 'IC' with 'X'*, this is needed for `ngspice` as it recognizes 'X' components as subcircuits. 
-* Test 
+* The *Default format* option does not seem to do anything 
+* I have selected *Prefix references 'U' and 'IC' with 'X'*, this is needed for `ngspice` as it recognizes 'X' components as subcircuits. However for the Jack and Power interfaces annotated with `J*` and `P*` it would be nice to prefix with X as we will implement these with subcircuits as well. 
 
-This will generate a netlist like the following:
+Once the options are selected click **Netlist** to save your netlist. This will generate a netlist like the following:
 
 ```
 * EESchema Netlist Version 1.1 (Spice format) creation date: Sat 25 Apr 2015 07:04:41 AM JST
@@ -47,16 +49,13 @@ R3  0 3 2K
 P1  4 0 1 PWR_IN               
 
 .end
-
 ```
 
-Create a `components.cir`
+## Setup Inputs and Outputs for Simulation
 
-Download your components spice model
+In order to simulate the circuit we need to plug in our virtual power supplies, signal generators and oscilloscope probes.  To do this I have chosen to use subcircuits to contain each or these test components. 
 
-http://www.ti.com/product/lmv981-n
-
-![TI Spice Models]({{site.url}}/content/kicad-spicedemo-timodel.png)
+Create a `components.cir` like the following:
 
 ```
 * Components and subcircuits for use in spicedemo.cir
@@ -90,6 +89,15 @@ http://www.ti.com/product/lmv981-n
 .ends JACK_OUT
 
 ```
+This first subcircuit is the `PWR_IN` connector in our kicad circuit.  This is a 3pin connector with a positive rail, negative rail and ground.  Here we use two DC power supplies to generate the positive and negative rails.  Be sure to double check pin numbers with your generated netlist. 
+
+Next we have the `OPAMP` subcircuit. This we have 
+
+Download your components spice model
+
+http://www.ti.com/product/lmv981-n
+
+![TI Spice Models]({{site.url}}/content/kicad-spicedemo-timodel.png)
 
 
 Modify the generated netlist slightly to include the `components.cir` and perform the analysis we wish to do. 
