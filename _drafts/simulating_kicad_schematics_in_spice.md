@@ -89,15 +89,19 @@ Create a `components.cir` like the following:
 .ends JACK_OUT
 
 ```
+### Setting up Power `PWR_IN`
+
 This first subcircuit is the `PWR_IN` connector in our kicad circuit.  This is a 3pin connector with a positive rail, negative rail and ground.  Here we use two DC power supplies to generate the positive and negative rails.  Be sure to double check pin numbers with your generated netlist. 
 
-Next we have the `OPAMP` subcircuit. This we have 
+### The IC `OPAMP`
 
-Download your components spice model
+Next we have the `OPAMP` subcircuit. For this we just provide a wrapper for the component included with `.INCLUDE LMV981.MOD`.  This [spice model from Texas Instruments](http://www.ti.com/product/lmv981-n) and was selected as it provides a 6 pin low power solution.  Many vendors provide models like this which can be used.
 
-http://www.ti.com/product/lmv981-n
+![TI Spice Model Download]({{site.url}}/content/kicad-spicedemo-timodel.png)
+*Here we can see how to download spice models from Texas Instruments*
 
-![TI Spice Models]({{site.url}}/content/kicad-spicedemo-timodel.png)
+### Simulating a microphone input with `JACK_IN`
+
 
 
 Modify the generated netlist slightly to include the `components.cir` and perform the analysis we wish to do. 
