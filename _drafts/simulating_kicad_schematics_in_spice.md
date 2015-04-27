@@ -102,13 +102,15 @@ Next we have the `OPAMP` subcircuit. For this we just provide a wrapper for the 
 
 ### `JACK_IN` : Simulating Microphone Input 
 
-The `JACK_IN` and `JACK_OUT` interfaces are typical mono jack interface with 3 pins (called jack 2-pole). I am not quite sure how the pins are called but I will say 'signal' (tip), 'ground' (sleeve) and 'unplugged'.  When the jack has nothing plugged into it the 'signal' and 'unplugged' pins will be shorted.  When the jack has something plugged in (like a microphone) then the 'signal' and 'ground' pins will be connected to the microphone and 'unplugged' is disconnected.  The reason for this is to protect from having floating inputs or outputs or use for jack plug-in detection. 
+The `JACK_IN` and `JACK_OUT` interfaces are typical mono [audo jack interface](http://en.wikipedia.org/wiki/Phone_connector_%28audio%29) with 3 pins (called jack 2-pole). The 3 pins are  'signal' (tip), 'ground' (sleeve) and 'normally closed (NC)'.  When the jack has nothing plugged into it the 'signal' and 'normally closed' pins will be shorted.  When the jack has something plugged in (like a microphone) then the 'signal' and 'ground' pins will be connected to the microphone and 'normally closed' is disconnected.  The reason for this is to protect from having floating inputs or outputs or use for jack plug-in detection. 
+
+*Note: For details on jacks read the wiki and  manufacturer documents from  [Schurter](http://www.schurter.com/), [Adam Tech](http://www.adam-tech.com/) and [Farnell](http://www.farnell.com/)*
 
 For `JACK_IN` we simulate a microphone plugged in by providing a 440hz (a-note) sine wave of 20mV, a typical microphone signal.
 
 ### `JACK_OUT` : Simulating a Load
 
-For `JACK_OUT` we use the dummy load resistor `R3` to provide some load to the op amp output.  To wire together 'signal' and 'ground' pins we just add a dummy 10ohm resistor.  It could have been 0 or 1 ohm, but I just set it to 10. 
+For `JACK_OUT` we use the dummy load resistor `R3` to provide some load to the op amp output.  To wire together 'signal' and 'unplugged' pins we just add a dummy 10ohm resistor.  It could have been 0 or 1 ohm, but I just set it to 10. 
 
 ## Update the Generated Netlist
 
