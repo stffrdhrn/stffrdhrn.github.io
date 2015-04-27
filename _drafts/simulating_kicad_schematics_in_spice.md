@@ -89,22 +89,32 @@ Create a `components.cir` like the following:
 .ends JACK_OUT
 
 ```
-### Setting up Power `PWR_IN`
+### `PWR_IN` : Connecting Power
 
 This first subcircuit is the `PWR_IN` connector in our kicad circuit.  This is a 3pin connector with a positive rail, negative rail and ground.  Here we use two DC power supplies to generate the positive and negative rails.  Be sure to double check pin numbers with your generated netlist. 
 
-### The IC `OPAMP`
+### `OPAMP` : The IC
 
 Next we have the `OPAMP` subcircuit. For this we just provide a wrapper for the component included with `.INCLUDE LMV981.MOD`.  This [spice model from Texas Instruments](http://www.ti.com/product/lmv981-n) and was selected as it provides a 6 pin low power solution.  Many vendors provide models like this which can be used.
 
 ![TI Spice Model Download]({{site.url}}/content/kicad-spicedemo-timodel.png)
 *Here we can see how to download spice models from Texas Instruments*
 
-### Simulating a microphone input with `JACK_IN`
+### `JACK_IN` : Simulating Microphone Input 
 
+The `JACK_IN` and `JACK_OUT` interfaces are typical mono jack interface with 3 pins (called jack 2-pole). I am not quite sure how the pins are called but I will say 'signal' (tip), 'ground' (sleeve) and 'unplugged'.  When the jack has nothing plugged into it the 'signal' and 'unplugged' pins will be shorted.  When the jack has something plugged in (like a microphone) then the 'signal' and 'ground' pins will be connected to the microphone and 'unplugged' is disconnected.  The reason for this is to protect from having floating inputs or outputs or use for jack plug-in detection. 
 
+For `JACK_IN` we simulate a microphone plugged in by providing a 440hz (a-note) sine wave of 20mV, a typical microphone signal.
 
-Modify the generated netlist slightly to include the `components.cir` and perform the analysis we wish to do. 
+### `JACK_OUT` : Simulating a Load
+
+For `JACK_OUT` we use the dummy load resistor `R3` to provide some load to the op amp output.  To wire together 'signal' and 'ground' pins we just add a dummy 10ohm resistor.  It could have been 0 or 1 ohm, but I just set it to 10. 
+
+## Update the Generated Netlist
+
+Next, we need to go back and modify the generated netlist slightly to include the `components.cir` and perform the analysis we wish to do. Also, because we are using subcircuits we add X's to the J and P components. 
+
+*Note: Instead of manually adding .include and analysis lines we could add `-PSPICE` and `+PSPICE` text blocks anywhere to our kicad schematic and it will include the text before and after the netlist respectively.*
 
 ```
 .include components.cir
@@ -118,6 +128,8 @@ R1  2 6 2K
 R3  0 3 2K
 XP1  4 0 1 PWR_IN
 
+.op
+
 .tran 0.1m 3m
 .plot tran V(7) V(2)
 
@@ -126,6 +138,8 @@ XP1  4 0 1 PWR_IN
 
 .end 
 ```
+
+## Simulation
 
 Run the `OP` analsysis, to make sure nothing is shorted
 
