@@ -1,0 +1,163 @@
+? src/bin/e_msgbus.c
+? src/bin/e_msgbus.h
+? src/modules/msgbus_lang
+Index: configure.in
+===================================================================
+RCS file: /cvs/e/e17/apps/e/configure.in,v
+retrieving revision 1.172
+diff -u -r1.172 configure.in
+--- configure.in	16 Jul 2007 14:33:25 -0000	1.172
++++ configure.in	23 Jul 2007 12:42:43 -0000
+@@ -183,11 +183,6 @@
+ # if ecore-txt isn't available.
+ PKG_CHECK_MODULES(ECORE_TXT, ecore-txt)
+ 
+-e_libs=$E_LIBS" "$LIBINTL" "$fnmatch_libs" "
+-e_cflags="-DUSE_E_CONFIG_H "$E_CFLAGS" "
+-AC_SUBST(e_libs)
+-AC_SUBST(e_cflags)
+-
+ PKG_CHECK_MODULES(E_DBUS, edbus, have_edbus=yes, have_edbus=no)
+ PKG_CHECK_MODULES(E_HAL, ehal, have_ehal=yes, have_ehal=no)
+ if test x$have_edbus = "xyes"; then
+@@ -196,6 +191,12 @@
+   fi
+ fi
+ 
++
++e_libs=$E_LIBS" "$LIBINTL" "$fnmatch_libs" "$E_DBUS_LIBS" "
++e_cflags="-DUSE_E_CONFIG_H "$E_CFLAGS" "$E_DBUS_CFLAGS" "
++AC_SUBST(e_libs)
++AC_SUBST(e_cflags)
++
+ profile="SLOW_PC"
+ AC_ARG_WITH(profile,
+ [  --with-profile=TARGET_PROFILE    specify a target format profile of:
+@@ -274,6 +275,8 @@
+ src/modules/conf_imc/module.desktop
+ src/modules/conf_profiles/Makefile
+ src/modules/conf_profiles/module.desktop
++src/modules/msgbus_lang/Makefile
++src/modules/msgbus_lang/module.desktop
+ src/preload/Makefile
+ data/Makefile
+ data/fonts/Makefile
+Index: data/themes/default_fileman.edc
+===================================================================
+RCS file: /cvs/e/e17/apps/e/data/themes/default_fileman.edc,v
+retrieving revision 1.61
+diff -u -r1.61 default_fileman.edc
+--- data/themes/default_fileman.edc	9 Jul 2007 14:12:30 -0000	1.61
++++ data/themes/default_fileman.edc	23 Jul 2007 12:42:44 -0000
+@@ -7267,7 +7267,7 @@
+ 	       text:     "No Title";
+ 	       size:     10;
+ 	       font:     "Edje-Vera-Bold";
+-	       min:      0 1;
++	       min:      1 1;
+ 	       align:    0.5 1.0;
+ 	       elipsis:  0.0;
+ 	       text_class: "desktop_fileman_icon";		  
+Index: src/bin/Makefile.am
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/Makefile.am,v
+retrieving revision 1.192
+diff -u -r1.192 Makefile.am
+--- src/bin/Makefile.am	13 Jul 2007 22:33:48 -0000	1.192
++++ src/bin/Makefile.am	23 Jul 2007 12:42:44 -0000
+@@ -33,6 +33,7 @@
+ e_path.h \
+ e_init.h \
+ e_ipc.h \
++e_msgbus.h \
+ e_error.h \
+ e_container.h \
+ e_zone.h \
+@@ -184,6 +185,7 @@
+ e_path.c \
+ e_init.c \
+ e_ipc.c \
++e_msgbus.c \
+ e_error.c \
+ e_container.c \
+ e_zone.c \
+Index: src/bin/e.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e.h,v
+retrieving revision 1.68
+diff -u -r1.68 e.h
+--- src/bin/e.h	16 Jul 2007 14:33:25 -0000	1.68
++++ src/bin/e.h	23 Jul 2007 12:42:44 -0000
+@@ -75,6 +75,9 @@
+ #include <Edje.h>
+ #include <Efreet.h>
+ #include <Efreet_Mime.h>
++#ifdef HAVE_EDBUS
++#include <E_DBus.h>
++#endif
+ 
+ #if HAVE___ATTRIBUTE__
+ #define __UNUSED__ __attribute__((unused))
+Index: src/bin/e_fwin.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_fwin.c,v
+retrieving revision 1.54
+diff -u -r1.54 e_fwin.c
+--- src/bin/e_fwin.c	28 Jun 2007 23:22:20 -0000	1.54
++++ src/bin/e_fwin.c	23 Jul 2007 12:42:44 -0000
+@@ -245,8 +245,8 @@
+    fmc.icon.fixed.h = 1;
+ #else   
+    fmc.view.mode = E_FM2_VIEW_MODE_CUSTOM_ICONS;
+-   fmc.icon.icon.w = 48;
+-   fmc.icon.icon.h = 48;
++   fmc.icon.icon.w = 32;
++   fmc.icon.icon.h = 32;
+    fmc.icon.fixed.w = 0;
+    fmc.icon.fixed.h = 0;
+ #endif
+Index: src/bin/e_includes.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_includes.h,v
+retrieving revision 1.162
+diff -u -r1.162 e_includes.h
+--- src/bin/e_includes.h	13 Jul 2007 22:33:48 -0000	1.162
++++ src/bin/e_includes.h	23 Jul 2007 12:42:44 -0000
+@@ -151,3 +151,4 @@
+ #include "e_exec.h"
+ #include "e_widget_font_preview.h"
+ #include "e_fm_custom.h"
++#include "e_msgbus.h"
+Index: src/bin/e_main.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_main.c,v
+retrieving revision 1.224
+diff -u -r1.224 e_main.c
+--- src/bin/e_main.c	3 Jul 2007 15:19:09 -0000	1.224
++++ src/bin/e_main.c	23 Jul 2007 12:42:44 -0000
+@@ -693,6 +693,11 @@
+    if (e_ipc_init())
+      _e_main_shutdown_push(e_ipc_shutdown);
+ 
++   TS("msgbus");
++   /* setup e msgbus (DBUS) service */
++   if (e_msgbus_init())
++     _e_main_shutdown_push(e_msgbus_shutdown);
++
+    TS("fm2");
+    /* init the enlightenment file manager */
+    if (!e_fm2_init())
+Index: src/modules/Makefile.am
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/modules/Makefile.am,v
+retrieving revision 1.29
+diff -u -r1.29 Makefile.am
+--- src/modules/Makefile.am	16 Jul 2007 00:47:17 -0000	1.29
++++ src/modules/Makefile.am	23 Jul 2007 12:42:44 -0000
+@@ -21,4 +21,5 @@
+ conf_startup \
+ conf_intl \
+ conf_imc \
+-conf_profiles
++conf_profiles \
++msgbus_lang

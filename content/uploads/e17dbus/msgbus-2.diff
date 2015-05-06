@@ -1,0 +1,1083 @@
+? src/modules/msgbus_lang
+Index: configure.in
+===================================================================
+RCS file: /cvs/e/e17/apps/e/configure.in,v
+retrieving revision 1.173
+diff -u -r1.173 configure.in
+--- configure.in	24 Jul 2007 14:50:25 -0000	1.173
++++ configure.in	25 Jul 2007 22:22:48 -0000
+@@ -183,19 +183,22 @@
+ # if ecore-txt isn't available.
+ PKG_CHECK_MODULES(ECORE_TXT, ecore-txt)
+ 
+-e_libs=$E_LIBS" "$LIBINTL" "$fnmatch_libs" "
+-e_cflags="-DUSE_E_CONFIG_H "$E_CFLAGS" "
+-AC_SUBST(e_libs)
+-AC_SUBST(e_cflags)
+-
+ PKG_CHECK_MODULES(E_DBUS, edbus, have_edbus=yes, have_edbus=no)
+ PKG_CHECK_MODULES(E_HAL, ehal, have_ehal=yes, have_ehal=no)
++
++# this is used to conditionally build modules which depend on E_DBUS
++AM_CONDITIONAL(HAVE_EDBUS, test x$have_edbus = "xyes")
+ if test x$have_edbus = "xyes"; then
+   if test x$have_ehal = "xyes"; then
+     AC_DEFINE(HAVE_EDBUS, 1, [E_Dbus support])
+   fi
+ fi
+ 
++e_libs=$E_LIBS" "$LIBINTL" "$fnmatch_libs" "
++e_cflags="-DUSE_E_CONFIG_H "$E_CFLAGS" "$E_DBUS_CFLAGS" "
++AC_SUBST(e_libs)
++AC_SUBST(e_cflags)
++
+ profile="SLOW_PC"
+ AC_ARG_WITH(profile,
+ [  --with-profile=TARGET_PROFILE    specify a target format profile of:
+@@ -274,6 +277,8 @@
+ src/modules/conf_imc/module.desktop
+ src/modules/conf_profiles/Makefile
+ src/modules/conf_profiles/module.desktop
++src/modules/msgbus_lang/Makefile
++src/modules/msgbus_lang/module.desktop
+ src/modules/conf_applications/Makefile
+ src/modules/conf_applications/module.desktop
+ src/preload/Makefile
+Index: data/themes/default_fileman.edc
+===================================================================
+RCS file: /cvs/e/e17/apps/e/data/themes/default_fileman.edc,v
+retrieving revision 1.61
+diff -u -r1.61 default_fileman.edc
+--- data/themes/default_fileman.edc	9 Jul 2007 14:12:30 -0000	1.61
++++ data/themes/default_fileman.edc	25 Jul 2007 22:22:49 -0000
+@@ -7267,7 +7267,7 @@
+ 	       text:     "No Title";
+ 	       size:     10;
+ 	       font:     "Edje-Vera-Bold";
+-	       min:      0 1;
++	       min:      1 1;
+ 	       align:    0.5 1.0;
+ 	       elipsis:  0.0;
+ 	       text_class: "desktop_fileman_icon";		  
+Index: src/bin/Makefile.am
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/Makefile.am,v
+retrieving revision 1.193
+diff -u -r1.193 Makefile.am
+--- src/bin/Makefile.am	24 Jul 2007 14:50:25 -0000	1.193
++++ src/bin/Makefile.am	25 Jul 2007 22:22:49 -0000
+@@ -33,6 +33,7 @@
+ e_path.h \
+ e_init.h \
+ e_ipc.h \
++e_msgbus.h \
+ e_error.h \
+ e_container.h \
+ e_zone.h \
+@@ -183,6 +184,7 @@
+ e_path.c \
+ e_init.c \
+ e_ipc.c \
++e_msgbus.c \
+ e_error.c \
+ e_container.c \
+ e_zone.c \
+@@ -190,6 +192,7 @@
+ e_border.c \
+ e_pointer.c \
+ e_config.c \
++e_config_data.c \
+ e_menu.c \
+ e_object.c \
+ e_icon.c \
+@@ -212,6 +215,7 @@
+ e_test.c \
+ e_font.c \
+ e_intl.c \
++e_intl_data.c \
+ e_theme.c \
+ e_dnd.c \
+ e_bindings.c \
+@@ -331,7 +335,7 @@
+ e_main.c \
+ $(enlightenment_src)
+ 
+-enlightenment_LDFLAGS = -export-dynamic @e_libs@ @x_libs@ @dlopen_libs@ @cf_libs@ @VALGRIND_LIBS@
++enlightenment_LDFLAGS = -export-dynamic @e_libs@ @x_libs@ @dlopen_libs@ @cf_libs@ @VALGRIND_LIBS@ @E_DBUS_LIBS@
+ 
+ enlightenment_remote_SOURCES = \
+ e.h \
+@@ -342,8 +346,10 @@
+ 
+ enlightenment_imc_SOURCES = \
+ e.h \
+-e_imc_main.c \
+-$(enlightenment_src)
++e_intl_data.c \
++e_config_data.c \
++e_imc_main.c
++# $(enlightenment_src)
+ 
+ enlightenment_imc_LDFLAGS = @e_libs@ @dlopen_libs@
+ 
+@@ -365,7 +371,7 @@
+ e_sha1.c
+ 
+ enlightenment_fm_LDFLAGS = @e_libs@ @dlopen_libs@ @E_DBUS_LIBS@ @E_HAL_LIBS@
+-enlightenment_fm_CFLAGS = $(INCLUDES) @E_DBUS_CFLAGS@ @E_HAL_CFLAGS@
++enlightenment_fm_CFLAGS = $(INCLUDES) @E_HAL_CFLAGS@
+ 
+ enlightenment_sys_SOURCES = \
+ e_sys_main.c
+Index: src/bin/e.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e.h,v
+retrieving revision 1.68
+diff -u -r1.68 e.h
+--- src/bin/e.h	16 Jul 2007 14:33:25 -0000	1.68
++++ src/bin/e.h	25 Jul 2007 22:22:49 -0000
+@@ -75,6 +75,9 @@
+ #include <Edje.h>
+ #include <Efreet.h>
+ #include <Efreet_Mime.h>
++#ifdef HAVE_EDBUS
++#include <E_DBus.h>
++#endif
+ 
+ #if HAVE___ATTRIBUTE__
+ #define __UNUSED__ __attribute__((unused))
+Index: src/bin/e_config.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_config.c,v
+retrieving revision 1.253
+diff -u -r1.253 e_config.c
+--- src/bin/e_config.c	24 Jul 2007 14:50:26 -0000	1.253
++++ src/bin/e_config.c	25 Jul 2007 22:22:49 -0000
+@@ -1606,30 +1606,6 @@
+    return 1;
+ }
+ 
+-EAPI E_Config_DD *
+-e_config_descriptor_new(const char *name, int size)
+-{
+-   Eet_Data_Descriptor_Class eddc;
+-   
+-   eddc.version = EET_DATA_DESCRIPTOR_CLASS_VERSION;
+-   eddc.func.mem_alloc = NULL;
+-   eddc.func.mem_free = NULL;
+-   eddc.func.str_alloc = (char *(*)(const char *)) evas_stringshare_add;
+-   eddc.func.str_free = (void (*)(const char *)) evas_stringshare_del;
+-   eddc.func.list_next = (void *(*)(void *)) evas_list_next;
+-   eddc.func.list_append = (void *(*)(void *l, void *d)) evas_list_append;
+-   eddc.func.list_data = (void *(*)(void *)) evas_list_data;
+-   eddc.func.list_free = (void *(*)(void *)) evas_list_free;
+-   eddc.func.hash_foreach = 
+-      (void  (*) (void *, int (*) (void *, const char *, void *, void *), void *)) 
+-      evas_hash_foreach;
+-   eddc.func.hash_add = (void *(*) (void *, const char *, void *)) evas_hash_add;
+-   eddc.func.hash_free = (void  (*) (void *)) evas_hash_free;
+-   eddc.name = name;
+-   eddc.size = size;
+-   return (E_Config_DD *)eet_data_descriptor2_new(&eddc);
+-}
+-
+ EAPI int
+ e_config_save(void)
+ {
+Index: src/bin/e_config.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_config.h,v
+retrieving revision 1.159
+diff -u -r1.159 e_config.h
+--- src/bin/e_config.h	23 Jul 2007 16:32:10 -0000	1.159
++++ src/bin/e_config.h	25 Jul 2007 22:22:49 -0000
+@@ -3,26 +3,6 @@
+  */
+ #ifdef E_TYPEDEFS
+ 
+-#define E_CONFIG_DD_NEW(str, typ) \
+-   e_config_descriptor_new(str, sizeof(typ))
+-#define E_CONFIG_DD_FREE(eed) if (eed) { eet_data_descriptor_free((eed)); (eed) = NULL; }
+-#define E_CONFIG_VAL(edd, type, member, dtype) EET_DATA_DESCRIPTOR_ADD_BASIC(edd, type, #member, member, dtype)
+-#define E_CONFIG_SUB(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_SUB(edd, type, #member, member, eddtype)
+-#define E_CONFIG_LIST(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_LIST(edd, type, #member, member, eddtype)
+-#define E_CONFIG_HASH(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_HASH(edd, type, #member, member, eddtype)
+-
+-#define CHAR   EET_T_CHAR
+-#define SHORT  EET_T_SHORT
+-#define INT    EET_T_INT
+-#define LL     EET_T_LONG_LONG
+-#define FLOAT  EET_T_FLOAT
+-#define DOUBLE EET_T_DOUBLE
+-#define UCHAR  EET_T_UCHAR
+-#define USHORT EET_T_USHORT
+-#define UINT   EET_T_UINT
+-#define ULL    EET_T_ULONG_LONG
+-#define STR    EET_T_STRING
+-
+ #define E_CONFIG_LIMIT(v, min, max) {if (v > max) v = max; else if (v < min) v = min;}
+ 
+ typedef struct _E_Config                    E_Config;
+@@ -41,8 +21,6 @@
+ 
+ typedef struct _E_Event_Config_Icon_Theme   E_Event_Config_Icon_Theme;
+ 
+-typedef Eet_Data_Descriptor                 E_Config_DD;
+-
+ #else
+ #ifndef E_CONFIG_H
+ #define E_CONFIG_H
+@@ -426,8 +404,6 @@
+ 
+ EAPI int        e_config_init(void);
+ EAPI int        e_config_shutdown(void);
+-
+-EAPI E_Config_DD *e_config_descriptor_new(const char *name, int size);
+ 
+ EAPI int        e_config_save(void);
+ EAPI void       e_config_save_flush(void);
+Index: src/bin/e_config_data.c
+===================================================================
+RCS file: src/bin/e_config_data.c
+diff -N src/bin/e_config_data.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_config_data.c	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,29 @@
++/*
++ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
++ */
++#include "e.h"
++
++EAPI E_Config_DD *
++e_config_descriptor_new(const char *name, int size)
++{
++   Eet_Data_Descriptor_Class eddc;
++   
++   eddc.version = EET_DATA_DESCRIPTOR_CLASS_VERSION;
++   eddc.func.mem_alloc = NULL;
++   eddc.func.mem_free = NULL;
++   eddc.func.str_alloc = (char *(*)(const char *)) evas_stringshare_add;
++   eddc.func.str_free = (void (*)(const char *)) evas_stringshare_del;
++   eddc.func.list_next = (void *(*)(void *)) evas_list_next;
++   eddc.func.list_append = (void *(*)(void *l, void *d)) evas_list_append;
++   eddc.func.list_data = (void *(*)(void *)) evas_list_data;
++   eddc.func.list_free = (void *(*)(void *)) evas_list_free;
++   eddc.func.hash_foreach = 
++      (void  (*) (void *, int (*) (void *, const char *, void *, void *), void *)) 
++      evas_hash_foreach;
++   eddc.func.hash_add = (void *(*) (void *, const char *, void *)) evas_hash_add;
++   eddc.func.hash_free = (void  (*) (void *)) evas_hash_free;
++   eddc.name = name;
++   eddc.size = size;
++   return (E_Config_DD *)eet_data_descriptor2_new(&eddc);
++}
++
+Index: src/bin/e_config_data.h
+===================================================================
+RCS file: src/bin/e_config_data.h
+diff -N src/bin/e_config_data.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_config_data.h	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,35 @@
++/*
++ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
++ */
++#ifdef E_TYPEDEFS
++
++#define E_CONFIG_DD_NEW(str, typ) \
++   e_config_descriptor_new(str, sizeof(typ))
++#define E_CONFIG_DD_FREE(eed) if (eed) { eet_data_descriptor_free((eed)); (eed) = NULL; }
++#define E_CONFIG_VAL(edd, type, member, dtype) EET_DATA_DESCRIPTOR_ADD_BASIC(edd, type, #member, member, dtype)
++#define E_CONFIG_SUB(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_SUB(edd, type, #member, member, eddtype)
++#define E_CONFIG_LIST(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_LIST(edd, type, #member, member, eddtype)
++#define E_CONFIG_HASH(edd, type, member, eddtype) EET_DATA_DESCRIPTOR_ADD_HASH(edd, type, #member, member, eddtype)
++
++#define CHAR   EET_T_CHAR
++#define SHORT  EET_T_SHORT
++#define INT    EET_T_INT
++#define LL     EET_T_LONG_LONG
++#define FLOAT  EET_T_FLOAT
++#define DOUBLE EET_T_DOUBLE
++#define UCHAR  EET_T_UCHAR
++#define USHORT EET_T_USHORT
++#define UINT   EET_T_UINT
++#define ULL    EET_T_ULONG_LONG
++#define STR    EET_T_STRING
++
++typedef Eet_Data_Descriptor                 E_Config_DD;
++
++#else
++#ifndef E_CONFIG_H
++#define E_CONFIG_H
++
++EAPI E_Config_DD *e_config_descriptor_new(const char *name, int size);
++
++#endif
++#endif
+Index: src/bin/e_fwin.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_fwin.c,v
+retrieving revision 1.55
+diff -u -r1.55 e_fwin.c
+--- src/bin/e_fwin.c	23 Jul 2007 16:32:10 -0000	1.55
++++ src/bin/e_fwin.c	25 Jul 2007 22:22:49 -0000
+@@ -245,8 +245,8 @@
+    fmc.icon.fixed.h = 1;
+ #else   
+    fmc.view.mode = E_FM2_VIEW_MODE_CUSTOM_ICONS;
+-   fmc.icon.icon.w = 48;
+-   fmc.icon.icon.h = 48;
++   fmc.icon.icon.w = 32;
++   fmc.icon.icon.h = 32;
+    fmc.icon.fixed.w = 0;
+    fmc.icon.fixed.h = 0;
+ #endif
+Index: src/bin/e_imc_main.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_imc_main.c,v
+retrieving revision 1.5
+diff -u -r1.5 e_imc_main.c
+--- src/bin/e_imc_main.c	25 Mar 2007 22:44:59 -0000	1.5
++++ src/bin/e_imc_main.c	25 Jul 2007 22:22:49 -0000
+@@ -101,7 +101,7 @@
+     }
+ 
+    eet_init();
+-   e_intl_init();
++   e_intl_data_init();
+    
+    if (write_ops != 0 && ecore_file_exists(file))
+      {
+@@ -176,7 +176,7 @@
+    e_intl_input_method_config_free(read_imc);
+    E_FREE(write_imc); 
+    eet_close(ef);
+-   e_intl_shutdown();
++   e_intl_data_shutdown();
+    eet_shutdown();
+    /* just return 0 to keep the compiler quiet */
+    return 0;
+Index: src/bin/e_includes.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_includes.h,v
+retrieving revision 1.163
+diff -u -r1.163 e_includes.h
+--- src/bin/e_includes.h	24 Jul 2007 16:27:18 -0000	1.163
++++ src/bin/e_includes.h	25 Jul 2007 22:22:49 -0000
+@@ -14,6 +14,7 @@
+ #include "e_border.h"
+ #include "e_pointer.h"
+ #include "e_config.h"
++#include "e_config_data.h"
+ #include "e_menu.h"
+ #include "e_icon.h"
+ #include "e_box.h"
+@@ -37,6 +38,7 @@
+ #include "e_layout.h"
+ #include "e_font.h"
+ #include "e_intl.h"
++#include "e_intl_data.h"
+ #include "e_theme.h"
+ #include "e_dnd.h"
+ #include "e_bindings.h"
+@@ -150,3 +152,4 @@
+ #include "e_exec.h"
+ #include "e_widget_font_preview.h"
+ #include "e_fm_custom.h"
++#include "e_msgbus.h"
+Index: src/bin/e_intl.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_intl.c,v
+retrieving revision 1.91
+diff -u -r1.91 e_intl.c
+--- src/bin/e_intl.c	8 Apr 2007 21:00:30 -0000	1.91
++++ src/bin/e_intl.c	25 Jul 2007 22:22:49 -0000
+@@ -21,8 +21,6 @@
+ static const char *_e_intl_imc_personal_path = NULL;
+ static const char *_e_intl_imc_system_path = NULL;
+ 
+-static Eet_Data_Descriptor *_e_intl_input_method_config_edd = NULL;
+-
+ #define E_EXE_STOP(EXE) if (EXE != NULL) { ecore_exe_terminate(EXE); ecore_exe_free(EXE); EXE = NULL; }
+ #define E_EXE_IS_VALID(EXE) (!((EXE == NULL) || (EXE[0] == 0)))
+ 
+@@ -60,14 +58,7 @@
+ {
+    char *s;
+ 
+-   _e_intl_input_method_config_edd = E_CONFIG_DD_NEW("input_method_config", E_Input_Method_Config);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, version, INT);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_name, STR);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, gtk_im_module, STR);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, qt_im_module, STR);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, xmodifiers, STR);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_exec, STR);
+-   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_setup_exec, STR);
++   e_intl_data_init();
+ 
+    if ((s = getenv("LC_MESSAGES"))) _e_intl_orig_lc_messages = strdup(s);
+    if ((s = getenv("LANGUAGE"))) _e_intl_orig_language = strdup(s);
+@@ -99,7 +90,7 @@
+    if (_e_intl_imc_system_path)
+      evas_stringshare_del(_e_intl_imc_system_path);
+ 
+-   E_CONFIG_DD_FREE(_e_intl_input_method_config_edd);
++   e_intl_data_shutdown();
+ 
+    return 1;
+ }
+@@ -437,48 +428,6 @@
+      }
+    return _e_intl_imc_system_path;
+ 
+-}
+-
+-/* Get the input method configuration from the file */
+-EAPI E_Input_Method_Config *
+-e_intl_input_method_config_read(Eet_File *imc_file)
+-{
+-   E_Input_Method_Config *imc;
+-
+-   imc = NULL;
+-   if (imc_file)
+-     {
+-	imc = (E_Input_Method_Config *) eet_data_read(imc_file, _e_intl_input_method_config_edd, "imc");
+-     }
+-   return imc;
+-}
+-
+-/* Write the input method configuration to the file */
+-EAPI int
+-e_intl_input_method_config_write(Eet_File *imc_file, E_Input_Method_Config *imc)
+-{
+-   int ok = 0;
+-
+-   if (imc_file)
+-     {
+-	ok = eet_data_write(imc_file, _e_intl_input_method_config_edd, "imc", imc, 0);
+-     }
+-   return ok;
+-}
+-
+-EAPI void
+-e_intl_input_method_config_free(E_Input_Method_Config *imc)
+-{
+-   if (imc != NULL)
+-     {
+-	if (imc->e_im_name) evas_stringshare_del(imc->e_im_name);
+-	if (imc->gtk_im_module) evas_stringshare_del(imc->gtk_im_module);
+-	if (imc->qt_im_module) evas_stringshare_del(imc->qt_im_module);
+-	if (imc->xmodifiers) evas_stringshare_del(imc->xmodifiers);
+-	if (imc->e_im_exec) evas_stringshare_del(imc->e_im_exec);
+-	if (imc->e_im_setup_exec) evas_stringshare_del(imc->e_im_setup_exec);
+-	E_FREE(imc);
+-     }
+ }
+ 
+ static int
+Index: src/bin/e_intl.h
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_intl.h,v
+retrieving revision 1.19
+diff -u -r1.19 e_intl.h
+--- src/bin/e_intl.h	27 Jan 2007 05:52:17 -0000	1.19
++++ src/bin/e_intl.h	25 Jul 2007 22:22:49 -0000
+@@ -11,42 +11,17 @@
+  */
+ #define N_(str) (str)
+ 
+-typedef struct _E_Input_Method_Config E_Input_Method_Config;
+-typedef struct _E_Language_Pack E_Language_Pack;
+ typedef struct _E_Locale_Parts E_Locale_Parts;
+ 
+ #else
+ #ifndef E_INTL_H
+ #define E_INTL_H
+ 
+-#define E_INTL_LANGUAGE_PACK_VERSION 1
+-#define E_INTL_INPUT_METHOD_CONFIG_VERSION 2
+-
+ #define E_INTL_LOC_CODESET   1 << 0
+ #define E_INTL_LOC_REGION    1 << 1
+ #define E_INTL_LOC_MODIFIER  1 << 2
+ #define E_INTL_LOC_LANG      1 << 3
+ 
+-struct _E_Language_Pack
+-{
+-   int		 language_pack_version;
+-   char		*language_pack_name;
+-   char		*language;
+-   char		*input_method;
+-   Evas_List	*font_fallbacks;
+-};
+-
+-struct _E_Input_Method_Config
+-{
+-   int version;
+-   const char *e_im_name;
+-   const char *gtk_im_module;
+-   const char *qt_im_module;
+-   const char *xmodifiers;
+-   const char *e_im_exec;
+-   const char *e_im_setup_exec;
+-};
+-
+ struct _E_Locale_Parts
+ {
+    int mask;
+@@ -69,9 +44,6 @@
+ EAPI void                e_intl_input_method_set(const char *method);
+ EAPI const char         *e_intl_input_method_get(void);
+ EAPI Evas_List		*e_intl_input_method_list(void);
+-EAPI E_Input_Method_Config *e_intl_input_method_config_read (Eet_File *imc_file);
+-EAPI int		 e_intl_input_method_config_write (Eet_File *imc_file, E_Input_Method_Config *imc);
+-EAPI void		 e_intl_input_method_config_free (E_Input_Method_Config *imc);
+ EAPI const char		*e_intl_imc_personal_path_get(void);
+ EAPI const char		*e_intl_imc_system_path_get(void);
+ 
+Index: src/bin/e_intl_data.c
+===================================================================
+RCS file: src/bin/e_intl_data.c
+diff -N src/bin/e_intl_data.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_intl_data.c	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,77 @@
++/*
++ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
++ */
++#include "e.h"
++
++/* This file is the counterpart for data storage of e_intl */
++/* This only needs to be separate because the e_imc binary and other third parties
++   many waht to include the functionality to read IMC data from EET files
++ */
++static Eet_Data_Descriptor *_e_intl_input_method_config_edd = NULL;
++
++EAPI int
++e_intl_data_init(void)
++{
++   _e_intl_input_method_config_edd = E_CONFIG_DD_NEW("input_method_config", E_Input_Method_Config);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, version, INT);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_name, STR);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, gtk_im_module, STR);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, qt_im_module, STR);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, xmodifiers, STR);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_exec, STR);
++   E_CONFIG_VAL(_e_intl_input_method_config_edd, E_Input_Method_Config, e_im_setup_exec, STR);
++
++   return 1;
++}
++
++EAPI int
++e_intl_data_shutdown(void)
++{
++   E_CONFIG_DD_FREE(_e_intl_input_method_config_edd);
++
++   return 1;
++}
++
++
++/* Get the input method configuration from the file */
++EAPI E_Input_Method_Config *
++e_intl_input_method_config_read(Eet_File *imc_file)
++{
++   E_Input_Method_Config *imc;
++
++   imc = NULL;
++   if (imc_file)
++     {
++	imc = (E_Input_Method_Config *) eet_data_read(imc_file, _e_intl_input_method_config_edd, "imc");
++     }
++   return imc;
++}
++
++/* Write the input method configuration to the file */
++EAPI int
++e_intl_input_method_config_write(Eet_File *imc_file, E_Input_Method_Config *imc)
++{
++   int ok = 0;
++
++   if (imc_file)
++     {
++	ok = eet_data_write(imc_file, _e_intl_input_method_config_edd, "imc", imc, 0);
++     }
++   return ok;
++}
++
++EAPI void
++e_intl_input_method_config_free(E_Input_Method_Config *imc)
++{
++   if (imc != NULL)
++     {
++	if (imc->e_im_name) evas_stringshare_del(imc->e_im_name);
++	if (imc->gtk_im_module) evas_stringshare_del(imc->gtk_im_module);
++	if (imc->qt_im_module) evas_stringshare_del(imc->qt_im_module);
++	if (imc->xmodifiers) evas_stringshare_del(imc->xmodifiers);
++	if (imc->e_im_exec) evas_stringshare_del(imc->e_im_exec);
++	if (imc->e_im_setup_exec) evas_stringshare_del(imc->e_im_setup_exec);
++	E_FREE(imc);
++     }
++}
++
+Index: src/bin/e_intl_data.h
+===================================================================
+RCS file: src/bin/e_intl_data.h
+diff -N src/bin/e_intl_data.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_intl_data.h	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,31 @@
++/*
++ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
++ */
++#ifdef E_TYPEDEFS
++
++typedef struct _E_Input_Method_Config E_Input_Method_Config;
++
++#else
++#ifndef E_INTL_DATA_H
++#define E_INTL_DATA_H
++
++#define E_INTL_INPUT_METHOD_CONFIG_VERSION 2
++
++struct _E_Input_Method_Config
++{
++   int version;
++   const char *e_im_name;
++   const char *gtk_im_module;
++   const char *qt_im_module;
++   const char *xmodifiers;
++   const char *e_im_exec;
++   const char *e_im_setup_exec;
++};
++
++EAPI int		 e_intl_data_init(void);
++EAPI int		 e_intl_data_shutdown(void);
++EAPI E_Input_Method_Config *e_intl_input_method_config_read (Eet_File *imc_file);
++EAPI int		 e_intl_input_method_config_write (Eet_File *imc_file, E_Input_Method_Config *imc);
++EAPI void		 e_intl_input_method_config_free (E_Input_Method_Config *imc);
++#endif
++#endif
+Index: src/bin/e_main.c
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/bin/e_main.c,v
+retrieving revision 1.225
+diff -u -r1.225 e_main.c
+--- src/bin/e_main.c	24 Jul 2007 18:47:24 -0000	1.225
++++ src/bin/e_main.c	25 Jul 2007 22:22:49 -0000
+@@ -693,6 +693,11 @@
+    if (e_ipc_init())
+      _e_main_shutdown_push(e_ipc_shutdown);
+ 
++   TS("msgbus");
++   /* setup e msgbus (DBUS) service */
++   if (e_msgbus_init())
++     _e_main_shutdown_push(e_msgbus_shutdown);
++
+    TS("fm2");
+    /* init the enlightenment file manager */
+    if (!e_fm2_init())
+Index: src/bin/e_msgbus.c
+===================================================================
+RCS file: src/bin/e_msgbus.c
+diff -N src/bin/e_msgbus.c
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_msgbus.c	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,347 @@
++#include "e.h"
++
++/* local subsystem functions */
++#ifdef HAVE_EDBUS
++static void _e_msgbus_request_name_cb(void *data, DBusMessage *msg, DBusError *err);
++
++static DBusMessage* _e_msgbus_core_restart_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_core_shutdown_cb(E_DBus_Object *obj, DBusMessage *msg);
++
++static DBusMessage* _e_msgbus_module_load_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_module_unload_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_module_enable_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_module_disable_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_module_list_cb(E_DBus_Object *obj, DBusMessage *msg);
++
++static DBusMessage* _e_msgbus_profile_set_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_profile_get_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_profile_list_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_profile_add_cb(E_DBus_Object *obj, DBusMessage *msg);
++static DBusMessage* _e_msgbus_profile_delete_cb(E_DBus_Object *obj, DBusMessage *msg);
++#endif
++
++/* local subsystem globals */
++static E_Msgbus_Data *_e_msgbus_data = NULL;
++
++/* externally accessible functions */
++EAPI int
++e_msgbus_init(void)
++{
++#ifdef HAVE_EDBUS
++   E_DBus_Interface *iface;
++
++   _e_msgbus_data = E_NEW(E_Msgbus_Data, 1);
++
++   e_dbus_init();
++
++   _e_msgbus_data->conn = e_dbus_bus_get(DBUS_BUS_SESSION);
++   e_dbus_request_name(_e_msgbus_data->conn, "org.enlighenment.wm.service", 0, _e_msgbus_request_name_cb, NULL);
++   _e_msgbus_data->obj = e_dbus_object_add(_e_msgbus_data->conn, "/org/enlightenment/wm/RemoteObject", NULL);
++
++   iface = e_dbus_interface_new("org.enlightenment.wm.Core");
++   if (!iface) return 0;
++   e_dbus_object_interface_attach(_e_msgbus_data->obj, iface);
++ 
++   /* Hardcore methods */
++   e_dbus_interface_method_add(iface, "Restart", "", "", _e_msgbus_core_restart_cb);
++   e_dbus_interface_method_add(iface, "Shutdown", "", "", _e_msgbus_core_shutdown_cb);
++  
++   iface = e_dbus_interface_new("org.enlightenment.wm.Module");
++   if (!iface) return 0;
++   e_dbus_object_interface_attach(_e_msgbus_data->obj, iface);
++
++   /* Module methods */
++   e_dbus_interface_method_add(iface, "Load", "s", "", _e_msgbus_module_load_cb);
++   e_dbus_interface_method_add(iface, "Unload", "s", "", _e_msgbus_module_unload_cb);
++   e_dbus_interface_method_add(iface, "Enable", "s", "", _e_msgbus_module_enable_cb);
++   e_dbus_interface_method_add(iface, "Disable", "s", "", _e_msgbus_module_disable_cb);
++   e_dbus_interface_method_add(iface, "List", "", "a(si)", _e_msgbus_module_list_cb);
++
++   iface = e_dbus_interface_new("org.enlightenment.wm.Profile");
++   if (!iface) return 0;
++   e_dbus_object_interface_attach(_e_msgbus_data->obj, iface);
++
++   /* Profile methods */
++   e_dbus_interface_method_add(iface, "Set", "s", "", _e_msgbus_profile_set_cb);
++   e_dbus_interface_method_add(iface, "Get", "", "s", _e_msgbus_profile_get_cb);
++   e_dbus_interface_method_add(iface, "List", "", "as", _e_msgbus_profile_list_cb);
++   e_dbus_interface_method_add(iface, "Add", "s", "", _e_msgbus_profile_add_cb);
++   e_dbus_interface_method_add(iface, "Delete", "s", "", _e_msgbus_profile_delete_cb);
++
++
++#endif   
++   return 1;
++}
++
++EAPI int
++e_msgbus_shutdown(void)
++{
++#ifdef HAVE_EDBUS
++   if (_e_msgbus_data->obj)
++     {
++        e_dbus_object_free(_e_msgbus_data->obj);
++     }
++   if (_e_msgbus_data->conn)
++     {
++        e_dbus_connection_close(_e_msgbus_data->conn);
++     }
++   e_dbus_shutdown();
++
++   E_FREE(_e_msgbus_data);
++   _e_msgbus_data = NULL;
++#endif
++   return 1;
++}
++
++EAPI void
++e_msgbus_interface_attach(E_DBus_Interface *iface)
++{
++#ifdef HAVE_EDBUS
++   e_dbus_object_interface_attach(_e_msgbus_data->obj, iface);
++#endif
++}
++
++EAPI void
++e_msgbus_interface_detach(E_DBus_Interface *iface)
++{
++#ifdef HAVE_EDBUS
++   e_dbus_object_interface_detach(_e_msgbus_data->obj, iface);
++#endif
++}
++
++#ifdef HAVE_EDBUS
++static void
++_e_msgbus_request_name_cb(void *data, DBusMessage *msg, DBusError *err)
++{
++//TODO Handle Errors
++}
++
++/* Core Handlers */
++static DBusMessage* 
++_e_msgbus_core_restart_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   restart = 1;
++   ecore_main_loop_quit();
++
++    return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_core_shutdown_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   if (!e_util_immortal_check()) ecore_main_loop_quit();
++ 
++   return dbus_message_new_method_return(msg);
++}
++
++/* Modules Handlers */
++static DBusMessage* 
++_e_msgbus_module_load_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *module;
++   
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &module);
++   
++   if (!e_module_find(module)) 
++     {
++	e_module_new(module);
++	e_config_save_queue();
++     }
++
++   return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_module_unload_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *module; 
++   E_Module *m;
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &module);
++     
++   if ((m = e_module_find(module))) 
++     {
++	e_module_disable(m);
++	e_object_del(E_OBJECT(m));
++	e_config_save_queue();
++     }
++
++   return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_module_enable_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *module; 
++   E_Module *m;
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &module);
++ 
++   if ((m = e_module_find(module))) {
++      e_module_enable(m);
++      e_config_save_queue();
++   }
++ 
++   return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_module_disable_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *module; 
++   E_Module *m;
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &module);
++ 
++   if ((m = e_module_find(module))) {
++      e_module_disable(m);
++      e_config_save_queue();
++   }
++
++   return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_module_list_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   Evas_List *mod_list;
++   Evas_List * l;
++   DBusMessage *reply;
++   DBusMessageIter iter;
++   DBusMessageIter arr;
++
++   reply = dbus_message_new_method_return(msg);
++   dbus_message_iter_init_append(reply, &iter);
++   dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "(si)", &arr);
++
++   mod_list = e_module_list();
++
++   for (l = mod_list; l; l = l->next) 
++     {
++	DBusMessageIter sub;
++	E_Module *mod;
++	const char *name;
++	int enabled;
++
++	mod = l->data;
++	name = mod->name;
++	enabled = mod->enabled;
++	dbus_message_iter_open_container(&arr, DBUS_TYPE_STRUCT, NULL, &sub);
++	dbus_message_iter_append_basic(&sub, DBUS_TYPE_STRING, &(name));
++	dbus_message_iter_append_basic(&sub, DBUS_TYPE_INT32, &(enabled));
++	dbus_message_iter_close_container(&arr, &sub);
++     }
++   dbus_message_iter_close_container(&iter, &arr);
++
++   return reply;
++}
++
++/* Profile Handlers */
++static DBusMessage* 
++_e_msgbus_profile_set_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *profile; 
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &profile);
++
++   e_config_save_flush();
++   e_config_profile_set(profile);
++   e_config_profile_save();
++   e_config_save_block_set(1);
++   restart = 1;
++   ecore_main_loop_quit();
++
++   return dbus_message_new_method_return(msg);
++}
++
++static DBusMessage* 
++_e_msgbus_profile_get_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   DBusMessage *reply;
++   char *profile; 
++
++   profile = e_config_profile_get();
++
++   reply = dbus_message_new_method_return(msg);
++   dbus_message_iter_init_append(reply, &iter);
++   dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &profile);
++
++   return reply;
++}
++
++static DBusMessage* 
++_e_msgbus_profile_list_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   Evas_List *profiles;
++   Evas_List * l;
++   DBusMessage *reply;
++   DBusMessageIter iter;
++   DBusMessageIter arr;
++
++   reply = dbus_message_new_method_return(msg);
++   dbus_message_iter_init_append(reply, &iter);
++   dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &arr);
++
++   profiles = e_config_profile_list();
++
++   for (l = profiles; l; l = l->next) 
++     {
++	const char *name;
++
++	name = l->data;
++	dbus_message_iter_append_basic(&arr, DBUS_TYPE_STRING, &name);
++     }
++   dbus_message_iter_close_container(&iter, &arr);
++
++   return reply;
++}
++
++static DBusMessage* 
++_e_msgbus_profile_add_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *profile; 
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &profile);
++
++   e_config_profile_add(profile);
++
++   return dbus_message_new_method_return(msg);
++
++}
++
++static DBusMessage* 
++_e_msgbus_profile_delete_cb(E_DBus_Object *obj, DBusMessage *msg)
++{
++   DBusMessageIter iter;
++   char *profile; 
++
++   dbus_message_iter_init(msg, &iter);
++   dbus_message_iter_get_basic(&iter, &profile);
++   if (!strcmp(e_config_profile_get(), profile))
++     {
++	DBusMessage *ret;
++
++	ret = dbus_message_new_error(msg, "org.enlightenment.DBus.InvalidArgument", 
++	      "Can't delete active profile");
++	return ret;
++     }
++   e_config_profile_del(profile);
++
++   return dbus_message_new_method_return(msg);
++}
++
++#endif
++
+Index: src/bin/e_msgbus.h
+===================================================================
+RCS file: src/bin/e_msgbus.h
+diff -N src/bin/e_msgbus.h
+--- /dev/null	1 Jan 1970 00:00:00 -0000
++++ src/bin/e_msgbus.h	25 Jul 2007 22:22:49 -0000
+@@ -0,0 +1,30 @@
++/*
++ * vim:ts=8:sw=3:sts=8:noexpandtab:cino=>5n-3f0^-2{2
++ */
++#ifdef E_TYPEDEFS
++
++#ifndef HAVE_EDBUS
++#define E_DBus_Interface void
++#endif
++
++typedef struct _E_Msgbus_Data E_Msgbus_Data;
++
++#else
++#ifndef E_MSGBUS_H
++#define E_MSGBUS_H
++
++/* This is the dbus subsystem, but e_dbus namespace is taken by e_dbus */
++
++struct _E_Msgbus_Data 
++{
++#ifdef HAVE_EDBUS
++   E_DBus_Connection *conn;
++   E_DBus_Object     *obj;
++#endif
++};
++
++EAPI int e_msgbus_init(void);
++EAPI int e_msgbus_shutdown(void);
++
++#endif
++#endif
+Index: src/modules/Makefile.am
+===================================================================
+RCS file: /cvs/e/e17/apps/e/src/modules/Makefile.am,v
+retrieving revision 1.30
+diff -u -r1.30 Makefile.am
+--- src/modules/Makefile.am	24 Jul 2007 14:50:26 -0000	1.30
++++ src/modules/Makefile.am	25 Jul 2007 22:22:49 -0000
+@@ -21,5 +21,6 @@
+ conf_startup \
+ conf_intl \
+ conf_imc \
++msgbus_lang \
+ conf_profiles \
+ conf_applications
