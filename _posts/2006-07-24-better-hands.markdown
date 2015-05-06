@@ -28,5 +28,5 @@ It turns out the the main poblem is the clock was not the ticks but it was the h
 <p>Take a look:</p>
 <p><img width="128" height="128" alt="Better Hands" id="image55" src="/content/2006/07/rolex-face.png" /></p>
 <p><strong>Downloads:</strong><br />
-<a href="/uploads/Big-rolex-face.xcf">XCF</a><br />
-<a href="/uploads/shorne-etheme-0.2.edj">EDJ</a></p>
+<a href="/content/uploads/Big-rolex-face.xcf">XCF</a><br />
+<a href="/content/uploads/shorne-etheme-0.2.edj">EDJ</a></p>

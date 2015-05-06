@@ -24,4 +24,4 @@ comments: []
 ---
 <p>I had an idea about randomly creating edje layouts.  Basically layers would be selected at random to create an organic user experience.  I have created an example below.<br />
 <a class="imagelink" title="testrand.png" href="/content/2006/08/testrand.png"><img width="128" height="84" id="image61" alt="testrand.png" src="/content/2006/08/testrand.thumbnail.png" /></a></p>
-<p><a href="/uploads/testrand.edj">EDJ</a></p>
+<p><a href="/content/uploads/testrand.edj">EDJ</a></p>

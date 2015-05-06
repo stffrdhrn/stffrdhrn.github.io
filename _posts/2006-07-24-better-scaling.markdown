@@ -26,4 +26,4 @@ comments: []
 <p>Have a look below and download the new theme if you like.</p>
 <p><a title="better-scale.png" class="imagelink" href="/content/2006/07/better-scale.png"><img width="68" height="96" alt="better-scale.png" id="image59" src="/content/2006/07/better-scale.thumbnail.png" /></a></p>
 <p>Download:</p>
-<p><a href="/uploads/shorne-etheme-0.3.edj">EDJ </a></p>
+<p><a href="/content/uploads/shorne-etheme-0.3.edj">EDJ </a></p>
