@@ -12,7 +12,7 @@ recognized as character devide by linux right away.
 
 Next, I checked Altera to see if anything special was needed for getting
 USB-Blaster setup in linux. They recommend some 
-[udev example rules](http://www.altera.com/download/drivers/dri-usb_b-lnx.html)
+[udev example rules](https://www.altera.com/support/support-resources/download/drivers/dri-usb_b-lnx.html)
  to make the device file world writable, I guess that is ok. I dropped the 
 udev rules into `/etc/udev/rules.d/51-usbblaster.rules` and unplugged
 then replugged the device but nothing happened. 
