@@ -1,5 +1,5 @@
 ---
-title: Quartus Scripting
+title: Quartus Scripting Basics
 layout: post
 date: 2015-06-05
 ---

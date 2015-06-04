@@ -23,4 +23,5 @@ derive_clock_uncertainty
 
 ## Further Readings
 
-* http://www.alterawiki.com/wiki/TimeQuest_User_Guide - read the pdf linked here
+- http://www.alterawiki.com/wiki/TimeQuest_User_Guide - read the pdf linked here
+- https://www.synopsys.com/Community/Interoperability/Pages/TapinSDC.aspx - synopsys explaination to sdc format
