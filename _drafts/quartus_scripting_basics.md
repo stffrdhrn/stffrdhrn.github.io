@@ -28,4 +28,5 @@ You can use the scripts to do your fpga design end to end without a gui.
 
 ## Further References
 - https://www.altera.com/en_US/pdfs/literature/hb/qts/qts_qii52003.pdf - altera's pdf on scripts
+- https://www.altera.com/content/dam/altera-www/global/en_US/pdfs/literature/hb/qts/qts_qii52002.pdf - altera's intro to scripts
 - http://en.wikipedia.org/wiki/Tcl - all scripts are in tcl
