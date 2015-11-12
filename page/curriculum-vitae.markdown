@@ -32,12 +32,6 @@ comments: []
 <td>March 29th 1981</td>
 </tr>
 <tr>
-<td>Current Address</td>
-<td>Okusawa 2-17-23 Frea 201<br />
-Setagaya-Ku, Tokyo<br />
-158-0083 Japan</td>
-</tr>
-<tr>
 <td>Contact Details</td>
 <td>Phone <em>+81 090 7004 5057</em><br />
 Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
@@ -50,7 +44,7 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <h3>University</h3>
 <p>San Jose State University, San Jose, California, USA</p>
 <h3>Degree</h3>
-<p><strong>2003</strong>: Bachelor of Science (Computer Computer Enigneering) San Jose State University, California, USA</p>
+<p><strong>2003</strong>: Bachelor of Science (Computer Computer Engineering) San Jose State University, California, USA</p>
 <p><strong>2003</strong>: Minor (Mathematics) San Jose State University, California, USA</p>
 <h2>Technical Summary</h2>
 <h3>Hardware</h3>
@@ -69,14 +63,15 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 </ul>
 <h3>Programming Languages</h3>
 <ul>
-<li>C [excellent knowledge] ( C++ knowledged but prefer C )</li>
+<li>C [ Excellent Knowledge ] ( Including C++ )</li>
 <li>Java [ Excellent Knowledge ]</li>
 <li>Assembly (x86, ARM, MIPs, 8051)</li>
-<li>Shell Scripting [Excellent knowledge] (sh, bash)</li>
+<li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
 <li>HTML / CGI</li>
 <li>Perl (Use Object Oriented "use strict" design)</li>
 <li>PHP</li>
 <li>J2EE (JSP, Servlets, EJB, JSTL)</li>
+<li>Javascript / CSS</li>
 </ul>
 <h3>Harware Design</h3>
 <ul>
@@ -142,14 +137,20 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <h3>Other</h3>
 <p>I have hobbies of guitar, snowboarding, hiking and cycling. I can speak Chinese fluently and German reasonably OK. I enjoy speaking and learning foreign languages, as well as travel.</p>
 <h2>Work Experience</h2>
-<h3><strong>Morgan Stanley Software Enigneer</strong> - December 2006 - Now (Tokyo, Japan)</h3>
+<h3><strong>Morgan Stanley Software Engineer</strong> - December 2006 - Now (Tokyo, Japan)</h3>
 <ul>
 <li>Work on Morgan Stanley's Straight Through Processing (STP) infrastructure</li>
-<li>Design and Implement mission ciritical financial solutions, using MQ, Sybase, Java and other distributed system technologies</li>
-<li>Work with front desk customer service personal gathering requirements for systems to handle new products</li>
-<li>Gain detailed knowledge of financial products including: equity, bonds, margin trading, stock lending</li>
+<li>Design and Implement mission critical financial solutions, using MQ, Sybase, Java and other distributed system technologies</li>
+<li><strong>(2008~2009)</strong> Designed and Implemented from the ground up Morgan Stanley's <a href="https://www.jasdec.com/en/system/finance/">JASDEC pre settlement matching</a> system gateway and translation layer. Technologies used include: Sybase, Java, MQ, Spring, NIO, TCP/IP</li>
+<li><strong>(2010)</strong> Designed and Implemented from the ground up Morgan Stanley's <a href="https://www.omgeo.com/ctm">Omgeo CTM</a> gateway and translation layer used for Equity and Bond business. Technologies used include: Sybase, Java, MQ, Spring, Hibernate</li>
+<li><strong>(2012~2015)</strong> Designed and Implemented from the ground up Morgan Stanley's renovated Official Client Statements system which generates more than 150,000 monthly statements replacing a 30 year old mainframe system. Technologies used include: Sybase, Java, MQ, Spring, String-Batch, Hibernate, REST, Json, iText, PDF, AngularJS.</li>
+<li>Technology lead implementing best practices for SDLC including mainting build and release tools, Jenkins continuous integration and advocating migration from Perforce to git</li>
+<li>Infrastructure lead managing and performing host and OS upgrades and migrations, building plant monitoring tooling, work on plant alert reductions and capacity planning</li>
+<li>Work with network infrastructure team to configure external connectivity for above listed implementations including setting up iptables and cisco border router nat rules</li>
+<li>For all projects I am required to communicate closely with business expert from multiple operations groups as well as other IT teams to gather requirements and coordinate integrations</li>
+<li>Gained detailed knowledge of financial products including: equity, bonds, margin trading, stock lending, futures, options, fx, fx options</li>
 </ul>
-<h3><strong>SurfControl plc Enigneering Manager</strong> - July 2004 - December 2006 (Beijing, China)</h3>
+<h3><strong>SurfControl plc Engineering Manager</strong> - July 2004 - December 2006 (Beijing, China)</h3>
 <ul>
 <li>Identified and delivered market requirements for email and network security solution</li>
 <li>Designed, developed and deployed email filter and security appliance platform with distributed computing abilities</li>
@@ -164,7 +165,7 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <h3><strong>MessageSoft Inc Software Engineer</strong> - Sept 2003 - July 2004 (San Jose, California - Beijing, China)</h3>
 <ul>
 <li>Principal engineer responsible for the building and maintenance of MessageSoft's customized, RedHat-based Linux distribution.</li>
-<li>Provided on site support to chinese customers with questions and requests for deployed products</li>
+<li>Provided on site support to Chinese customers with questions and requests for deployed products</li>
 <li>Developed automatically updating distributed RBL system based on djbdns technology</li>
 <li>Relocated from San Jose to China to pursue growing business opportunities</li>
 </ul>
@@ -192,7 +193,7 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <h3>Hardware</h3>
 <ul>
 <li>Wire Wrapped x86 Computer System using TTL Logic</li>
-<li>DMA Controller Using Verilog</li>
+<li>Wrote DMA Controller Using Verilog</li>
 <li>Designed XScale Based Streaming Multimedia Hardware</li>
 </ul>
 <h2>References</h2>
