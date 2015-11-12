@@ -56,8 +56,7 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 </ul>
 <h3>Operating Systems</h3>
 <ul>
-<li>Linux 2.4 Kernel</li>
-<li>Linux 2.6 Kernel</li>
+<li>Linux [ Excellent Knowledge ]</li>
 <li>Solaris</li>
 <li>Windows</li>
 </ul>
@@ -86,18 +85,16 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <li>OpenGL</li>
 <li>GTK+</li>
 <li>QT</li>
-<li>MFC</li>
-<li>Java AWT</li>
 <li>Java Swing</li>
 </ul>
 <h3>Software Packaging</h3>
 <ul>
 <li>RPM</li>
-<li>Install Anywhere</li>
 </ul>
 <h3>Cluster Technology</h3>
 <ul>
-<li>High Availability</li>
+<li><a href="http://www.linux-ha.org/wiki/Main_Page">Linux HA</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Veritas_Cluster_Server">VCS</a></li>
 </ul>
 <h3>Development Tools</h3>
 <ul>
@@ -110,6 +107,8 @@ Email <a href="mailto:shorne@gmail.com"><em>shorne@gmail.com</em><br />
 <li>Eclipse</li>
 <li>Intelli-J IDEA</li>
 <li>JUnit</li>
+<li>JProfiler</li>
+<li>GCViewer</li>
 <li>Ant Build</li>
 <li>Auto Tools (Automake, Autoconf)</li>
 <li>make and Makefiles</li>
