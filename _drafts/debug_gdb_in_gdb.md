@@ -23,7 +23,7 @@ Handling `ctrl-c` is another thing we need to consider.  If you are in your
 inferior gdb and you press `ctrl-c` which gdb will you stop?  The top level
 gdb or the inferior gdb?
 
-## All togeter
+## All together
 
 An example session may look like the following
 
@@ -44,4 +44,4 @@ everything in one terminal more easy.
 ## Further References
 - https://sourceware.org/gdb/current/onlinedocs/gdb/Prompt.html#Prompt
 - https://sourceware.org/gdb/current/onlinedocs/gdb/Signals.html#Signals
-- 
+- https://sourceware.org/gdb/onlinedocs/gdb/Attach.html#Attach
