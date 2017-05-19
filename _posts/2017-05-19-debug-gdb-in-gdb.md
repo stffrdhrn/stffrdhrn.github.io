@@ -1,13 +1,19 @@
 ---
 title: Debugging GDB in GDB
 layout: post
-date: 2017-05-19
+date: 2017-05-19 21:39
+
+categories: [ 'Linux' ]
+tags:
+ - gdb
+ - linux
+ - development
 ---
 
 For the last year or so I have been working on getting a [gdb port
 upstreamed][1] for [OpenRISC][2].  One thing one sometimes has to do when working
-on gdb is to debug it.  Debugging gdb with gdb, it could be a bit
-confusing, these tips should help.
+on gdb is to debug it.  Debugging gdb with gdb could be a bit
+confusing; hopefully these tips will help.
 
 ## Setting the Prompt
 
@@ -30,6 +36,8 @@ SIGINT pass`.
 An example session may look like the following
 
 ```
+$ gdb or1k-elf-gdb
+
 (gdb) set prompt (master:gdb)
 
 (master:gdb) handle SIGINT
@@ -45,7 +53,7 @@ Signal        Stop      Print   Pass to program Description
 SIGINT        Yes       Yes     Yes             Interrupt
 
 (master:gdb) run
-Starting program: /opt/shorne/software/or1k/bin/or1k-elf-gdb
+Starting program: /usr/local/or1k/bin/or1k-elf-gdb
 (gdb) file loop.nelib
 Reading symbols from loop.nelib...done.
 
@@ -129,13 +137,13 @@ Quit anyway? (y or n) y
 
 ## Other Options
 
-You could also remote debug from a different terminal by using `attach` to
-attach to and debug the secondary.  But I find having everything in one
+You could also remote debug gdb from a different terminal by using `attach`
+to attach to and debug the secondary.  But I find having everything in one
 terminal nice.
 
 ## Further References
 - [GDB manual - prompt](https://sourceware.org/gdb/current/onlinedocs/gdb/Prompt.html#Prompt)
-- [GDB manual - signal](https://sourceware.org/gdb/current/onlinedocs/gdb/Signals.html#Signals)
+- [GDB manual - signals](https://sourceware.org/gdb/current/onlinedocs/gdb/Signals.html#Signals)
 - [GDB manual - attach](https://sourceware.org/gdb/onlinedocs/gdb/Attach.html#Attach)
 
 [1]: https://sourceware.org/ml/gdb-patches/2017-04/msg00649.html
