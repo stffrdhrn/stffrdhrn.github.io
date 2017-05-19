@@ -5,7 +5,7 @@ date: 2017-05-19
 ---
 
 For the last year or so I have been working on getting a [gdb port
-upstreamed]() for OpenRISC.  One thing one sometimes has to do when working
+upstreamed][1] for [OpenRISC][2].  One thing one sometimes has to do when working
 on gdb is to debug it.  Debugging gdb with gdb, it could be a bit
 confusing, these tips should help.
 
@@ -130,10 +130,14 @@ Quit anyway? (y or n) y
 ## Other Options
 
 You could also remote debug from a different terminal by using `attach` to
-attached to and debug the secondary.  But I find having everything in one
-terminal more easy.
+attach to and debug the secondary.  But I find having everything in one
+terminal nice.
 
 ## Further References
-- https://sourceware.org/gdb/current/onlinedocs/gdb/Prompt.html#Prompt
-- https://sourceware.org/gdb/current/onlinedocs/gdb/Signals.html#Signals
-- https://sourceware.org/gdb/onlinedocs/gdb/Attach.html#Attach
+- [GDB manual - prompt](https://sourceware.org/gdb/current/onlinedocs/gdb/Prompt.html#Prompt)
+- [GDB manual - signal](https://sourceware.org/gdb/current/onlinedocs/gdb/Signals.html#Signals)
+- [GDB manual - attach](https://sourceware.org/gdb/onlinedocs/gdb/Attach.html#Attach)
+
+[1]: https://sourceware.org/ml/gdb-patches/2017-04/msg00649.html
+[2]: http://openrisc.io
+
