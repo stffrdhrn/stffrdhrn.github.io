@@ -54,15 +54,20 @@ comments: []
 low level digital design up to robust distributed systems handling millions
 of financial transactions a day.  The below are highlights of the
 technology I am familiar with.</p>
-<h3>Computer Architectures</h3>
-<p>I have experience working on, programming and debugging the hardware for
-the following platforms, this includes assembly and driver development.</p>
+<h3>Programming Languages</h3>
+<p>I have experience developing systems using the following programming
+languages. This list is roughly ordered by lines of code.</p>
 <ul>
-  <li>X86 PC Hardware</li>
-  <li>X86 Server Hardware</li>
-  <li>Arm Based Hardware</li>
-  <li>FPGA Hardware (Xilinx, Altera)</li>
-  <li>OpenRISC SoC</li>
+  <li>Java (Spring, Hibernate, CXF) [ Excellent Knowledge ]</li>
+  <li>C/C++ [ Excellent Knowledge ]</li>
+  <li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
+  <li>Perl (Use Object Oriented "use strict" design)</li>
+  <li>Javascript / CSS</li>
+  <li>HTML / CGI</li>
+  <li>Assembly (x86, ARM, MIPs, 8051)</li>
+  <li>Verilog</li>
+  <li>PHP</li>
+  <li>J2EE (JSP, Servlets, EJB, JSTL)</li>
 </ul>
 <h3>Operating Systems</h3>
 <p>I have experience programming on and administering the following
@@ -72,20 +77,16 @@ operating systems.</p>
   <li>Solaris</li>
   <li>Windows</li>
 </ul>
-<h3>Programming Languages</h3>
-<p>I have experience developing systems using the following programming
-languages. This list is roughly ordered by lines of code.</p>
+<h3>Computer Architectures</h3>
+<p>I have experience working on, programming and debugging the hardware for
+the following platforms, this includes writing assembly and driver
+development.</p>
 <ul>
-  <li>Java (Spring, Hibernate, CXF) [ Excellent Knowledge ]</li>
-  <li>C/C++ [ Excellent Knowledge ]</li>
-  <li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
-  <li>Assembly (x86, ARM, MIPs, 8051)</li>
-  <li>HTML / CGI</li>
-  <li>Verilog</li>
-  <li>Perl (Use Object Oriented "use strict" design)</li>
-  <li>PHP</li>
-  <li>J2EE (JSP, Servlets, EJB, JSTL)</li>
-  <li>Javascript / CSS</li>
+  <li>X86 PC Hardware</li>
+  <li>X86 Server Hardware</li>
+  <li>Arm Based Hardware</li>
+  <li>FPGA Hardware (Xilinx, Altera)</li>
+  <li>OpenRISC SoC</li>
 </ul>
 <h3>Hardware Design</h3>
 <p>I have experience and am competent with the following aspects of
@@ -93,7 +94,7 @@ electrical engineering.</p>
 <ul>
   <li>PCB Layout</li>
   <li>Gate Level Digital Design</li>
-  <li>Basic Analog Circuit Design Design</li>
+  <li>Basic Analog Circuit Design</li>
 </ul>
 <h3>Graphics and Design</h3>
 <p>I have experience designing for web, desktop and print which has taught
