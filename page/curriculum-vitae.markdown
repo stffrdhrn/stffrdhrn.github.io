@@ -188,6 +188,20 @@ vulnerabilities.</p>
 implemented STARTTLS on mail servers and have a deep understanding of
 Private/Public key encryption schemes.</p>
 
+<h3>OpenRISC, Linux and Open Source</h3>
+<p>As a computer engineer I have a background in both hardware and software
+engineering.  As my day job is mainly high level systems programming I keep
+my hardware knowledge sharp by contributing to open source projects.</p>
+
+<p>I am currently the Linux kernel maintainer for the OpenRISC
+architecture.  My experience working on OpenRISC and the Linux kernel since
+2016 has allowed me to work with excellent people and code bases.</p>
+
+<p>As maintainer I have worked to develop, cleanup, review and test Linux
+patchsets for the OpenRISC architecture.  This activity has also allowed me
+to work on and improve OpenRISC on so many other systems including GDB,
+GCC, OpenOCD and QEMU.</p>
+
 <h3>Networking &amp; Administration</h3>
 <p>I administer several machine as simply a part of software development
 and ensure they all run smoothly  and can synchronise and backup their
