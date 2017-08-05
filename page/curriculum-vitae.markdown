@@ -76,7 +76,7 @@ operating systems.</p>
 <p>I have experience developing systems using the following programming
 languages. This list is roughly ordered by lines of code.</p>
 <ul>
-  <li>Java [ Excellent Knowledge ]</li>
+  <li>Java (Spring, Hibernate, CXF) [ Excellent Knowledge ]</li>
   <li>C/C++ [ Excellent Knowledge ]</li>
   <li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
   <li>Assembly (x86, ARM, MIPs, 8051)</li>
@@ -151,6 +151,27 @@ productivity.  Below is a list of what I use on almost a daily basis.</p>
 </ul>
 
 <h2>Interests</h2>
+<h3>Distributed Systems</h3>
+<p>I have extensive experience designing and building distributed
+systems.  This has ranged form load balancing email servers to financial
+transaction processing systems.  Building these systems has included
+designing web administration and monitoring platforms as well as developer
+tools to make developing, testing and configuring these systems easier.</p>
+
+<p>In finance, systems need to be guaranteed to not lose a single
+transaction.  Designing these systems required me to think about how to
+recover from failure for every bit of code by using ACID transactions.</p>
+
+<p>Along with designing the robust systems which process millions of
+transactions I am interested the user interface to these systems.  I am
+interested in and have have experience developing non technical user Web
+Applications to allow the configuration of these systems.  I am also
+interested in how technical users can monitor and administer the system by
+creating meaningful logs, metrics and management interfaces.</p>
+
+<p>I am also interested and have a lot of success in tuning performance
+issues and troubleshooting bugs in these distributed systems.</p>
+
 <h3>Security</h3>
 <p>I have knowledge in both Network and Application level security.  I have
 knowledge and experience in securely configuring and designing networks,
@@ -166,23 +187,6 @@ vulnerabilities.</p>
 <p>Cryptography and the math behind it is also interesting to me. I have
 implemented STARTTLS on mail servers and have a deep understanding of
 Private/Public key encryption schemes.</p>
-
-<h3>Web Applications</h3>
-<p>I am interested in working with web applications and services.
-Specifically I find java and its surrounding  technologies a great platform
-to develop web applications on. Lately, I have found Spring to be integral
-framework  for designing web applications which also has merits in java
-applications which do not reside on the web.</p>
-
-<p>I have experience developing network services which include SNMP, JMX as
-well as using  SYSLOG through log4j as a management framework for web
-applications.</p>
-
-<p>As a continuation of this I have experience with building and
-maintaining custom tuned Linux distributions for use as web application
-deployment platforms.  My distribution development experience includes
-Linux kernel   and file system tuning to target web application, database
-and network performance.</p>
 
 <h3>Networking &amp; Administration</h3>
 <p>I administer several machine as simply a part of software development
