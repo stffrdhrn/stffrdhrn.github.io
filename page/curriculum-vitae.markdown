@@ -50,59 +50,88 @@ comments: []
 <p><strong>2003</strong>: Minor (Mathematics) San Jose State University, California, USA</p>
 
 <h2>Technical Summary</h2>
-
-<h3>Hardware</h3>
+<p>I consider myself a full stack engineer, having working experience from 
+low level digital design up to robust distributed systems handling millions
+of financial transactions a day.  The below are highlights of the
+technology I am familiar with.</p>
+<h3>Computer Architectures</h3>
+<p>I have experience working on, programming and debugging the hardware for
+the following platforms.</p>
 <ul>
   <li>X86 PC Hardware</li>
   <li>X86 Server Hardware</li>
   <li>Arm Based Hardware</li>
   <li>FPGA Hardware (Xilinx, Altera)</li>
+  <li>OpenRISC SoC</li>
 </ul>
-
 <h3>Operating Systems</h3>
+<p>I have experience programming on and administering the following
+operating systems.</p>
 <ul>
   <li>Linux [ Excellent Knowledge ]</li>
   <li>Solaris</li>
   <li>Windows</li>
 </ul>
 <h3>Programming Languages</h3>
+<p>I have experience developing systems using the following programming
+languages. This list is roughly ordered by lines of code.</p>
 <ul>
-  <li>C [ Excellent Knowledge ] ( Including C++ )</li>
   <li>Java [ Excellent Knowledge ]</li>
-  <li>Assembly (x86, ARM, MIPs, 8051)</li>
+  <li>C/C++ [ Excellent Knowledge ]</li>
   <li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
+  <li>Assembly (x86, ARM, MIPs, 8051)</li>
   <li>HTML / CGI</li>
+  <li>Verilog</li>
   <li>Perl (Use Object Oriented "use strict" design)</li>
   <li>PHP</li>
   <li>J2EE (JSP, Servlets, EJB, JSTL)</li>
   <li>Javascript / CSS</li>
 </ul>
-<h3>Harware Design</h3>
+<h3>Hardware Design</h3>
+<p>I have experience and am competent with the following aspects of
+electrical engineering.</p>
 <ul>
   <li>PCB Layout</li>
-  <li>Verilog</li>
   <li>Gate Level Digital Design</li>
+  <li>Basic Analog Circuit Design Design</li>
 </ul>
-<h3>Graphics</h3>
+<h3>Graphics and Design</h3>
+<p>I have experience designing for web, desktop and print which has taught
+me the following technologies and aspects of layout and design.</p>
 <ul>
-  <li>X-Windows (Clients, Raw Xlib, Desktop Standards)</li>
-  <li>3d Graphics</li>
-  <li>OpenGL</li>
-  <li>GTK+</li>
-  <li>QT</li>
-  <li>Java Swing</li>
+  <li>User Experience Design</li>
+  <li>Basic Layout and Design</li>
+  <li>Internationalization</li>
+  <li>Fonts</li>
+  <li>PDF</li>
 </ul>
-<h3>Software Packaging</h3>
-<ul>
-  <li>RPM</li>
-</ul>
-<h3>Cluster Technology</h3>
+<h3>Distributed Technology</h3>
+<p>I have experience setting up robust distributed systems with low
+downtime and zero data loss via transaction safe processing.  The
+technologies I am familiar with are the following.</p
 <ul>
   <li><a href="http://www.linux-ha.org/wiki/Main_Page">Linux HA</a></li>
   <li><a href="https://en.wikipedia.org/wiki/Veritas_Cluster_Server">VCS</a></li>
+  <li>Sybase Relational Database Server</li>
+  <li>IBM DB2 on Linux</li>
+  <li>IBM MQ Series</li>
+</ul>
+<h3>Network Protocols</h3>
+<p>I have experience programming and debugging services for some of the
+following network protocols</p>
+<ul>
+  <li>SMTP</li>
+  <li>POP3</li>
+  <li>IMAP</li>
+  <li>DNS</li>
+  <li>LDAP</li>
+  <li>HTTP</li>
 </ul>
 <h3>Development Tools</h3>
+<p>As with any developer having the right tools in your toolbelt increases
+productivity.  Below is a list of what I use on almost a daily basis.</p>
 <ul>
+  <li>vim</li>
   <li>GCC</li>
   <li>GDB</li>
   <li>Valgrind</li>
@@ -114,18 +143,11 @@ comments: []
   <li>JUnit</li>
   <li>JProfiler</li>
   <li>GCViewer</li>
+  <li>Docker</li>
+  <li>Jenkins</li>
   <li>Ant Build</li>
   <li>Auto Tools (Automake, Autoconf)</li>
   <li>make and Makefiles</li>
-</ul>
-<h3>Network Protocols</h3>
-<ul>
-  <li>SMTP</li>
-  <li>POP3</li>
-  <li>IMAP</li>
-  <li>DNS</li>
-  <li>LDAP</li>
-  <li>HTTP</li>
 </ul>
 
 <h2>Interests</h2>
@@ -188,14 +210,19 @@ comments: []
 </ul>
 
 <h2>General Experience</h2>
-<p>As an avid linux and open source enthusiast. I have spent many years of my free time administering home computers and learning the ins and outs of the Linux OS kernel, file systems and general architecture.</p>
+<p>As an avid Linux and open source enthusiast. I have spent many years of my free time administering home computers and learning the ins and outs of the Linux OS kernel, file systems and general architecture.</p>
 
-<h2>Projects Worked On</h2>
+<h2>Open Source Projects</h2>
+<p>I have been contributing to open source projects since university as a
+means to keep learning and work with great people.</p>
 <ul>
-  <li>RiskFilter - <a href="http://www.surfcontrol.com/Default.aspx?id=767&amp;mnuid=1.2.2">WWW</a></li>
   <li>Webmin - <a href="http://www.webmin.com/">WWW</a></li>
   <li>Fedora Core - <a href="http://fedora.redhat.com/">WWW</a></li>
   <li>Enlightenment - <a href="http://www.enlightenment.org/">WWW</a></li>
+  <li>OpenRISC [ Active ]- <a href="http://www.openrisc.io/">WWW</a></li>
+  <li>Linux [ Active ]- <a href="http://www.kernel.org/">WWW</a></li>
+  <li>GDB [ Active ] - <a href="https://www.gnu.org/software/gdb/">WWW</a></li>
+  <li>QEMU [ Active ] - <a href="https://www.qemu.org/">WWW</a></li>
 </ul>
 
 <h2>University Projects</h2>
