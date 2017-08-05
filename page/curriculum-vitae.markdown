@@ -56,7 +56,7 @@ of financial transactions a day.  The below are highlights of the
 technology I am familiar with.</p>
 <h3>Computer Architectures</h3>
 <p>I have experience working on, programming and debugging the hardware for
-the following platforms.</p>
+the following platforms, this includes assembly and driver development.</p>
 <ul>
   <li>X86 PC Hardware</li>
   <li>X86 Server Hardware</li>
@@ -108,7 +108,7 @@ me the following technologies and aspects of layout and design.</p>
 <h3>Distributed Technology</h3>
 <p>I have experience setting up robust distributed systems with low
 downtime and zero data loss via transaction safe processing.  The
-technologies I am familiar with are the following.</p
+technologies I am familiar with are the following.</p>
 <ul>
   <li><a href="http://www.linux-ha.org/wiki/Main_Page">Linux HA</a></li>
   <li><a href="https://en.wikipedia.org/wiki/Veritas_Cluster_Server">VCS</a></li>
