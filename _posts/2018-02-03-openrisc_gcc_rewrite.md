@@ -1,7 +1,7 @@
 ---
 title: OpenRISC GCC rewrite
 layout: post
-date: 2018-02-03
+date: 2018-02-03 13:44
 categories: [ software, embedded, openrisc ]
 ---
 
