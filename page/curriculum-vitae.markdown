@@ -39,6 +39,10 @@ comments: []
   </tr>
 </table>
 
+<h2>Objective</h2>
+<p>Work together with talented, self motivated, colleagues to design and implement
+robust and scalable hardware and software solutions to meet our business objective.</p>
+
 <h2>Education</h2>
 <h3>High School</h3>
 <p>Southwest High School, El Centro, California, USA</p>
@@ -46,7 +50,7 @@ comments: []
 <h3>University</h3>
 <p>San Jose State University, San Jose, California, USA</p>
 <h3>Degree</h3>
-<p><strong>2003</strong>: Bachelor of Science (Computer Computer Engineering) San Jose State University, California, USA</p>
+<p><strong>2003</strong>: Bachelor of Science (Computer Engineering) San Jose State University, California, USA</p>
 <p><strong>2003</strong>: Minor (Mathematics) San Jose State University, California, USA</p>
 
 <h2>Technical Summary</h2>
