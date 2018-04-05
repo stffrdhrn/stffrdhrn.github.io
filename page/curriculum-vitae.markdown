@@ -225,7 +225,7 @@ Chinese conversationally, Japanese conversationally and get by with German
 <h3><strong>Morgan Stanley Software Engineer</strong> - December 2006 - Now (Tokyo, Japan)</h3>
 <ul>
   <li>Work on Morgan Stanley's Straight Through Processing (STP) infrastructure</li>
-  <li>Design and Implement mission critical financial solutions, using MQ, Sybase, Java and other distributed system technologies</li>
+  <li>Design and Implement mission critical financial solutions, using MQ, Sybase, DB2, Java and other distributed system technologies</li>
   <li><strong>(2008~2009)</strong> Designed and Implemented from the ground up Morgan Stanley's <a href="https://www.jasdec.com/en/system/finance/">JASDEC pre settlement matching</a> system gateway and translation layer. Technologies used include: Sybase, Java, MQ, Spring, NIO, TCP/IP</li>
   <li><strong>(2010)</strong> Designed and Implemented from the ground up Morgan Stanley's <a href="https://www.omgeo.com/ctm">Omgeo CTM</a> gateway and translation layer used for Equity and Bond business. Technologies used include: Sybase, Java, MQ, Spring, Hibernate</li>
   <li><strong>(2012~2015)</strong> Designed and Implemented from the ground up Morgan Stanley's renovated Official Client Statements system which generates more than 150,000 monthly statements replacing a 30 year old mainframe system. Technologies used include: Sybase, Java, MQ, Spring, String-Batch, Hibernate, REST, Json, iText, PDF, AngularJS.</li>
