@@ -41,7 +41,9 @@ comments: []
 
 <h2>Objective</h2>
 <p>Work together with talented, self motivated, colleagues to design and implement
-robust and scalable hardware and software solutions to meet our business objective.</p>
+robust and scalable hardware and software solutions to meet our business needs.
+Have fair compensation and a good work life balance which allows me to pursue
+my Open Source projects.</p>
 
 <h2>Education</h2>
 <h3>High School</h3>
