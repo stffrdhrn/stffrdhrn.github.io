@@ -72,6 +72,7 @@ In `gcc/config/or1k/or1k.h` implement profiling hooks.
 
 ```
 #define FUNCTION_PROFILER(FILE,LABELNO) (abort (), 0)
+```
 
 ### Exception Handler Hooks
 
