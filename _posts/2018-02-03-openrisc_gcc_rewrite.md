@@ -23,6 +23,6 @@ over his copyright.  I decided to start with the rewrite. To do this I will:
 
   - Write a [SMH](https://github.com/stffrdhrn/binutils-gdb/tree/smh-port) dummy
     architecture port following the [ggx porting guide](http://atgreen.github.io/ggx/) (moxie) guide.
-  - Use that basic knowledge to start on the or1k port.
+  - Use that basic knowledge to start on the [or1k port](https://github.com/stffrdhrn/gcc/tree/or1k-port).
 
 If you are interested please reach out on IRC or E-mail.
