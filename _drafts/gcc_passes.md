@@ -8,12 +8,25 @@ categories: [ software, embedded, openrisc ]
 While working on the OpenRISC gcc port I found if difficult to understand at
 first what all of the compile passes were.  There are so many.
 
+## Quick Tips
+
+ - When debugging a compiler problems use the `-fdump-rtl-all` and
+  `-fdump-tree-all` flags to debug where things go wrong.
+ - The numbers in the dump output files indicate the order in which a pass was run. For
+   example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
+   before vregs, and there were not passes run inbetween.
+ - We may see `cfg` thoughout the gcc source, this is not configuration, but
+   [control flow graph](https://en.wikipedia.org/wiki/Control_flow_graph).
+
 First off how do we see the passes, there are basically two types:
 
- Tree
- RTL
+ IPA - Interprocedural analysis passes look at the call graph created during `pass_build_cgraph_edges`, a Tree pass.
+ Tree - GIMPLE
+ RTL - Register Transfer Language, converts GIMPLE to Assembly
 
 Here I will concentrate on RTL as that is what most of the backend influences.
+
+You can find a list of all passes in `gcc/passes.def`.
 
 The passes interesting:
 
@@ -23,6 +36,45 @@ The passes interesting:
  - combine
  - ira
  - reload (now lra)
+
+## The Expand Pass
+
+```
+  6631 gcc/cfgexpand.c
+    28 gcc/cfgexpand.h
+  6659 total
+```
+
+## The IRA Pass
+
+```
+  3514 gcc/ira-build.c
+  5661 gcc/ira.c
+  4956 gcc/ira-color.c
+   824 gcc/ira-conflicts.c
+  2399 gcc/ira-costs.c
+  1323 gcc/ira-emit.c
+   224 gcc/ira.h
+  1511 gcc/ira-int.h
+  1595 gcc/ira-lives.c
+ 22007 total
+```
+
+## The LRA Pass (Reload)
+
+```
+  1816 gcc/lra-assigns.c
+  2608 gcc/lra.c
+   362 gcc/lra-coalesce.c
+  7072 gcc/lra-constraints.c
+  1465 gcc/lra-eliminations.c
+    44 gcc/lra.h
+   534 gcc/lra-int.h
+  1450 gcc/lra-lives.c
+  1347 gcc/lra-remat.c
+   822 gcc/lra-spills.c
+ 17520 total
+```
 
 During reload constraints are used, i.e. `"r"` or `"m"` or target speciic ones
 like `"O"`.
@@ -107,3 +159,8 @@ To understand what is going on we should look at the previous path RTL.
         (mem/u/c:SI (reg:SI 16 r17 [44]) [0  S4 A32])) "../gcc/test8.c":3 16 {*movsi_internal})
 (insn 11 10 13 2 (use (reg/i:SI 11 r11)) "../gcc/test8.c":3 -1)
 ```
+
+Further Reading
+ - http://gcc-python-plugin.readthedocs.io/en/latest/tables-of-passes.html
+ - https://www.airs.com/dnovillo/200711-GCC-Internals/200711-GCC-Internals-7-passes.pdf
+ - http://www.drdobbs.com/tools/value-range-propagation/229300211 - Variable Range Propogatoin
