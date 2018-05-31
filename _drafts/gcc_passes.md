@@ -5,8 +5,14 @@ date: 2018-05-21 22:37
 categories: [ software, embedded, openrisc ]
 ---
 
-While working on the OpenRISC gcc port I found if difficult to understand at
-first what all of the compile passes were.  There are so many.
+When starting the OpenRISC gcc port I had a good idea of how the compiler worked
+and what would be involved in the port.  Those main things being
+  1. define a new [machine description](https://gcc.gnu.org/onlinedocs/gccint/#toc-Machine-Descriptions) file in gcc's RTL
+  2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a =.c= and =.h= file.
+
+Also I realized early on the trouble shooting issues would be to figure our what
+happens during certain compiler passes.  I found it difficult to understand what
+all of the compile passes were.  There are so many.  This should help explain.
 
 ## Quick Tips
 
@@ -15,20 +21,36 @@ first what all of the compile passes were.  There are so many.
  - The numbers in the dump output files indicate the order in which a pass was run. For
    example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
    before vregs, and there were not passes run inbetween.
+
+## Glossary Terms
  - We may see `cfg` thoughout the gcc source, this is not configuration, but
    [control flow graph](https://en.wikipedia.org/wiki/Control_flow_graph).
+ - `Spilling` when there are not enough registers available during register
+   allocation to store all scope variables, one variable in a register is chosen
+   and `spilled` by saving it to memory.
+ - `IL` a GCC intermediate language i.e. GIMPLE or RTL.  During porting we are
+   mainly concerned with RTL.
+ - `Lowering` are operations done by passes to take higher level language
+   and graph representations and make them more simple/lower level in preparation
+   for machine assembly conversion.
+ - `Predicates` part of the `RTL` these are used to facilitate instruction
+   matching before the reload pass.  Having these more specific reduces the work
+   that reload needs to do.
+ - `Constraints` part of the `RTL` and used during reload, these are associated
+   with assembly instructions used to realize and instruction.
 
 First off how do we see the passes, there are basically two types:
 
- IPA - Interprocedural analysis passes look at the call graph created during `pass_build_cgraph_edges`, a Tree pass.
- Tree - GIMPLE
- RTL - Register Transfer Language, converts GIMPLE to Assembly
+ - IPA - [Interprocedural analysis passes](https://gcc.gnu.org/onlinedocs/gccint/IPA.html)
+       look at the call graph created during `pass_build_cgraph_edges`, a Tree pass.
+ - Tree - GIMPLE
+ - RTL - Register Transfer Language, converts GIMPLE to Assembly
 
 Here I will concentrate on RTL as that is what most of the backend influences.
 
 You can find a list of all passes in `gcc/passes.def`.
 
-The passes interesting:
+The passes interesting for our port are the RTL passes:
 
  - expand
  - vregs
@@ -43,6 +65,19 @@ The passes interesting:
   6631 gcc/cfgexpand.c
     28 gcc/cfgexpand.h
   6659 total
+```
+
+## The Virtual Register Pass
+
+The virtual register pass is part of the function.c file.
+
+```
+$ grep -n 'pass_data ' gcc/function*
+
+gcc/function.c:1995:const pass_data pass_data_instantiate_virtual_regs =
+gcc/function.c:6486:const pass_data pass_data_leaf_regs =
+gcc/function.c:6553:const pass_data pass_data_thread_prologue_and_epilogue =
+gcc/function.c:6747:const pass_data pass_data_match_asm_constraints =
 ```
 
 ## The IRA Pass
