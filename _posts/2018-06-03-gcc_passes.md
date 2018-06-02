@@ -142,7 +142,7 @@ An important tree passes is [Static Single Assignment](https://en.wikipedia.org/
 each variable will be assigned only once, this helps simplify the tree for analysis
 and later RTL steps like register allocation.
 
-```GIMPLE
+{% highlight c %}
 func (intD.1 aD.1448, intD.1 bD.1449)
 {
   intD.1 a_2(D) = aD.1448;
@@ -154,7 +154,7 @@ func (intD.1 aD.1448, intD.1 bD.1449)
   _4 = _1 + b_3(D);
   return _4;
 }
-```
+{% endhighlight %}
 
 ### Expand Output
 
@@ -180,7 +180,7 @@ For the instruction:
 Back to our example, this is with `-O0` to allow the virtual-stack-vars to not
 be elimated for verbosity:
 
-```Scheme
+{% highlight lisp %}
 ;; func (intD.1 aD.1448, intD.1 bD.1449)
 ;; {
 ;;   Note: First we save the arguments
@@ -235,7 +235,7 @@ be elimated for verbosity:
      (nil))
 (insn 19 18 0 2 (use (reg/i:SI 11 r11)) "../func.c":3 -1
      (nil))
-```
+{% endhighlight %}
 
 ## The Virtual Register Pass
 
@@ -263,7 +263,7 @@ pointer does not point to stack variables (it points to the function incoming
 arguments).  The placeholder is needed by GCC but it will be eliminated later.
 One some arechitecture this will be a real register at this point.
 
-```Scheme
+{% highlight lisp %}
 ;; Here we see virtual-stack-vars replaced with ?fp.
 (insn 2 5 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
         (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
@@ -287,7 +287,7 @@ One some arechitecture this will be a real register at this point.
                 (const_int 4 [0x4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
      (nil))
 ;; ...
-```
+{% endhighlight %}
 
 ## The Split and Combine Passes
 
@@ -332,7 +332,10 @@ The LRA pass code is around 22,000 lines of code.
 
 ### IRA Pass Output
 
-```Scheme
+We do not see many changes during the IRA pass in this example but it has prepared
+us for the next step, LRA/reload.
+
+{% highlight lisp %}
 (insn 21 5 2 2 (set (reg:SI 41)
         (unspec_volatile:SI [
                 (const_int 0 [0])
@@ -366,7 +369,7 @@ The LRA pass code is around 22,000 lines of code.
                 (const_int 4 [0x4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
      (nil))
 ;; ...
-```
+{% endhighlight %}
 
 ## The LRA Pass (Reload)
 
@@ -436,17 +439,17 @@ To understand what is going on we should look at what is `insn 2`, from our
 input.  This is a set instruction having a destination of memory and a source
 of register type, or `"m,r"`.
 
-```
+{% highlight lisp %}
 (insn 2 21 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
         (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
      (expr_list:REG_DEAD (reg:SI 3 r3 [ a ])
         (nil)))
-```
+{% endhighlight %}
 
 RTL from .md file of our `*movsi_internal` instruction.  The alternatives are the
 constraints, i.e. `"=r,r,r,r, m,r"`.
 
-```
+{% highlight lisp %}
 (define_insn "*mov<I:mode>_internal"
   [(set (match_operand:I 0 "nonimmediate_operand" "=r,r,r,r, m,r")
         (match_operand:I 1 "input_operand"        " r,M,K,I,rO,m"))]
@@ -460,7 +463,8 @@ constraints, i.e. `"=r,r,r,r, m,r"`.
    l.s<I:ldst>\t%0, %r1
    l.l<I:ldst>z\t%0, %1"
   [(set_attr "type" "alu,alu,alu,alu,st,ld")])
-```
+{% endhighlight %}
+
 The constraints matching interates over the alternatives.   As we remember forom above we are trying to match `m,r`.  We can see:
 
  - `alt=0` - this shows 1 loser because alt 0 `r,r` vs `m,r` has one match and
@@ -477,7 +481,7 @@ After this we know exactly which target instructions for each is neded.
 Finally we can see here at the end of Reload all registers are real.   The output
 at this point is pretty much ready for assembly output.
 
-```Scheme
+{% highlight lisp %}
 (insn 21 5 2 2 (set (reg:SI 16 r17 [41])
         (unspec_volatile:SI [
                 (const_int 0 [0])
@@ -508,7 +512,7 @@ at this point is pretty much ready for assembly output.
                 (const_int -12 [0xfffffffffffffff4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
      (nil))
 ;; ...
-```
+{% endhighlight %}
 
 ## Conclusion
 
