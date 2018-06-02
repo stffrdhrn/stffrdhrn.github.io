@@ -162,7 +162,7 @@ included the GIMPLE inline for clarity.
 
 This is the contents of `func.c.234r.expand`.
 
-*Tip* Reading RTL.  RTL is a list dialect. Each statement has the form `(type id prev next n (statement))`.
+*Tip* Reading RTL.  RTL is a lisp dialect. Each statement has the form `(type id prev next n (statement))`.
 
 `(insn 2 5 3 2 (set (reg/v:SI 44) (reg:SI 3 r3)) (nil))`
 
