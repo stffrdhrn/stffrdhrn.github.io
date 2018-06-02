@@ -1,7 +1,7 @@
 ---
 title: GCC Important Passes
 layout: post
-date: 2018-05-21 22:37
+date: 2018-06-03 01:37
 categories: [ software, embedded, openrisc ]
 ---
 
@@ -44,7 +44,9 @@ there are a few key passes to be concerned about; lets jump in.
  - `Constraints` part of the `RTL` and used during reload, these are associated
    with assembly instructions used to resolved the target instruction.
 
-First off, there are basically two types of compiler passes in gcc:
+## Important Passes
+
+To start, there are basically two types of compiler passes in gcc:
 
  - Tree - Passes working on GIMPLE.
  - RTL - Passes working on Register Transfer Language.
@@ -69,11 +71,11 @@ backend port influences.  The passes interesting for our port are:
 In order to illustrate how the passes work we have the following example `C`
 snippet of code.  We will compile it and inspect the output of each stage.
 
-```C
+{% highlight c %}
 int func (int a, int b) {
   return 2 * a + b;
 }
-```
+{% endhighlight %}
 
 When compiled with `or1k-elf-gcc -O0 -c ../func.c` the output is:
 
