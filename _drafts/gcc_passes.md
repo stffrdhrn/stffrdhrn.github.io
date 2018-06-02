@@ -5,16 +5,17 @@ date: 2018-05-21 22:37
 categories: [ software, embedded, openrisc ]
 ---
 
-*What I Learned from doing the OpenRISC GCC port, a deep dive into passes*
+*What I learned from doing the OpenRISC GCC port, a deep dive into passes*
 
 When starting the OpenRISC gcc port I had a good idea of how the compiler worked
 and what would be involved in the port.  Those main things being
   1. define a new [machine description](https://gcc.gnu.org/onlinedocs/gccint/#toc-Machine-Descriptions) file in gcc's RTL
   2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a =.c= and =.h= file.
 
-Also I realized early on the trouble shooting issues would be to figure our what
+I realized early on that trouble shooting issues would be to figure our what
 happens during certain compiler passes.  I found it difficult to understand what
-all of the compile passes were.  There are so many.  This should help explain.
+all of the compile passes were.  There are so many, but after some time I found
+there are a few key passes to be concerned about; lets jump in.
 
 ## Quick Tips
 
@@ -43,7 +44,7 @@ all of the compile passes were.  There are so many.  This should help explain.
  - `Constraints` part of the `RTL` and used during reload, these are associated
    with assembly instructions used to resolved the target instruction.
 
-First off how do we see the passes, there are basically two types:
+First off, there are basically two types of compiler passes in gcc:
 
  - Tree - Passes working on GIMPLE.
  - RTL - Passes working on Register Transfer Language.
@@ -53,15 +54,15 @@ passes](https://gcc.gnu.org/onlinedocs/gccint/IPA.html) (IPA) which we will not
 get into, as I don't really know what they are.  You can find a list of all
 passes in [gcc/passes.def](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/passes.def).
 
-In this post we will concentrate on the RTL passes as this is what most of the
-backend influences.  The passes interesting for our port are the RTL passes:
+In this post we will concentrate on the RTL passes as this is what most of our 
+backend port influences.  The passes interesting for our port are:
 
  - expand
  - vregs
  - split
  - combine
  - ira
- - reload (now lra)
+ - LRA/reload
 
 ## An Example
 
