@@ -18,6 +18,8 @@ all of the compile passes were.  There are so many.  This should help explain.
 
  - When debugging a compiler problems use the `-fdump-rtl-all` and
   `-fdump-tree-all` flags to debug where things go wrong.
+ - To understand which passes are run for different -On optimization levels
+   you can use ` -fdump-passes`.
  - The numbers in the dump output files indicate the order in which a pass was run. For
    example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
    before vregs, and there were not passes run inbetween.
@@ -59,6 +61,25 @@ The passes interesting for our port are the RTL passes:
  - ira
  - reload (now lra)
 
+## An Example
+
+```
+int func (int a, int b) {
+  return 2 * a + b;
+}
+```
+
+When compiled with `or1k-elf-gcc -O2 -c ../func.c` the output is:
+
+```
+00000000 <func>:
+   0:   b9 63 00 01     l.slli r11,r3,0x1
+   4:   44 00 48 00     l.jr r9
+   8:   e1 6b 20 00     l.add r11,r11,r4
+```
+
+Lets walk though some of the RTL passes to understand what is happening.
+
 ## The Expand Pass
 
 ```
@@ -67,9 +88,114 @@ The passes interesting for our port are the RTL passes:
   6659 total
 ```
 
+### Expand Input
+
+The before RTL generation we have GIMPLE.  Below is the content of `func.c.232t.optimized` the last
+of the tree passes before RTL conversion.
+An important tree passes is [Static Single Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form)
+(SSA) I don't go into it here, but it is what makes us have so many variables, note that
+each variable will be assigned only once, this helps simplify the tree for analysis
+and later RTL steps like register allocation.
+
+```
+func (intD.1 aD.1448, intD.1 bD.1449)
+{
+  intD.1 a_2(D) = aD.1448;
+  intD.1 b_3(D) = bD.1449;
+  intD.1 _1;
+  intD.1 _4;
+
+  _1 = a_2(D) * 2;
+  _4 = _1 + b_3(D);
+  return _4;
+}
+```
+
+### Expand Output
+
+After `expand` we can first see the RTL.  Each statement of the gimple above will
+be represented by 1 or more RTL expressions.  I have simplified the RTL a bit and
+included the GIMPLE inline for clarity.
+
+This is the contents of `func.c.234r.expand`.
+
+*Tip* Reading RTL.  RTL is a list dialect. Each statement has the form `(type id prev next n (statement))`.
+
+`(insn 2 5 3 2 (set (reg/v:SI 44) (reg:SI 3 r3)) (nil))`
+
+For the instruction:
+
+ - `insn` is the expression type
+ - `2` is the instruction unique id
+ - `5` is the instruction before it
+ - `3` is the next instruction
+ - `2` I am not sure what this is
+ - `(set (reg/v:SI 44) (reg:SI 3 r3)) (nil)` - is the expression
+
+Back to our example, this is with `-O0` to allow the virtual-stack-vars to not
+be elimated for verbosity:
+
+```
+;; func (intD.1 aD.1448, intD.1 bD.1449)
+;; {
+;;   Note: First we save the arguments
+;;   intD.1 a_2(D) = aD.1448;
+(insn 2 5 3 2 (set (mem/c:SI (reg/f:SI 36 virtual-stack-vars) [1 a+0 S4 A32])
+        (reg:SI 3 r3 [ a ])) "../func.c":1 -1
+     (nil))
+
+;;   intD.1 b_3(D) = bD.1449;
+(insn 3 2 4 2 (set (mem/c:SI (plus:SI (reg/f:SI 36 virtual-stack-vars)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])
+        (reg:SI 4 r4 [ b ])) "../func.c":1 -1
+     (nil))
+
+;;   Note: this was optimized from x 2 to n + n.
+;;   _1 = a_2(D) * 2;
+;;    This is expanded to:
+;;     1. Load a_2(D)
+;;     2. Add a_2(D) + a_2(D) store result to temporary
+;;     3. Store results to _1
+(insn 7 4 8 2 (set (reg:SI 45)
+        (mem/c:SI (reg/f:SI 36 virtual-stack-vars) [1 a+0 S4 A32])) "../func.c":2 -1
+     (nil))
+(insn 8 7 9 2 (set (reg:SI 46)
+        (plus:SI (reg:SI 45)
+            (reg:SI 45))) "../func.c":2 -1
+     (nil))
+(insn 9 8 10 2 (set (reg:SI 42 [ _1 ])
+        (reg:SI 46)) "../func.c":2 -1
+     (nil))a
+
+;;  _4 = _1 + b_3(D);
+;;   This is expanded to:
+;;    1. Load b_3(D)
+;;    2. Do the Add and store to _4
+(insn 10 9 11 2 (set (reg:SI 47)
+        (mem/c:SI (plus:SI (reg/f:SI 36 virtual-stack-vars)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])) "../func.c":2 -1
+     (nil))
+(insn 11 10 14 2 (set (reg:SI 43 [ _4 ])
+        (plus:SI (reg:SI 42 [ _1 ])
+            (reg:SI 47))) "../func.c":2 -1
+     (nil))
+
+;; return _4;
+;;  We put _4 into r11 the openrisc return value register
+(insn 14 11 18 2 (set (reg:SI 44 [ <retval> ])
+        (reg:SI 43 [ _4 ])) "../func.c":2 -1
+     (nil))
+(insn 18 14 19 2 (set (reg/i:SI 11 r11)
+        (reg:SI 44 [ <retval> ])) "../func.c":3 -1
+     (nil))
+(insn 19 18 0 2 (use (reg/i:SI 11 r11)) "../func.c":3 -1
+     (nil))
+```
+
 ## The Virtual Register Pass
 
-The virtual register pass is part of the function.c file.
+The virtual register pass is part of the function.c file which has a few different
+passes in it.
 
 ```
 $ grep -n 'pass_data ' gcc/function*
@@ -80,7 +206,55 @@ gcc/function.c:6553:const pass_data pass_data_thread_prologue_and_epilogue =
 gcc/function.c:6747:const pass_data pass_data_match_asm_constraints =
 ```
 
+### Vregs Output
+
+Here we can see that the previously seen variables stored to the frame as
+`virtual-stack-vars`.  After the Virtual Registers pass these `virtual-`
+pointers are replaced with architecture specific registers.
+
+For OpenRISC we see `?fp`, a fake register which we defined with macro
+`FRAME_POINTER_REGNUM`.  We use this as a placeholder as OpenRISC's frame
+pointer does not point to stack variables (it points to the function incoming
+arguments).  The placeholder is needed by GCC but it will be eliminated later.
+One some arechitecture this will be a real register at this point.
+
+```
+;; Here we see virtual-stack-vars replaced with ?fp.
+(insn 2 5 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
+        (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
+     (nil))
+(insn 3 2 4 2 (set (mem/c:SI (plus:SI (reg/f:SI 33 ?fp)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])
+        (reg:SI 4 r4 [ b ])) "../func.c":1 16 {*movsi_internal}
+     (nil))
+(insn 7 4 8 2 (set (reg:SI 45)
+        (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 8 7 9 2 (set (reg:SI 46)
+        (plus:SI (reg:SI 45)
+            (reg:SI 45))) "../func.c":2 2 {addsi3}
+     (nil))
+(insn 9 8 10 2 (set (reg:SI 42 [ _1 ])
+        (reg:SI 46)) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 10 9 11 2 (set (reg:SI 47)
+        (mem/c:SI (plus:SI (reg/f:SI 33 ?fp)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+;; ...
+```
+
 ## The IRA Pass
+
+The IRA and LRA passes are some of the most complicated passes, they are
+responsible to turning the psuedo register allocations which have been used up
+to this point and assigning real registers.
+
+The [Register Allocation](https://en.wikipedia.org/wiki/Register_allocation)
+problem they solve is
+[NP-complete](https://en.wikipedia.org/wiki/NP-completeness).
+
+The LRA pass code is around 22,000 lines of code.
 
 ```
   3514 gcc/ira-build.c
@@ -95,7 +269,61 @@ gcc/function.c:6747:const pass_data pass_data_match_asm_constraints =
  22007 total
 ```
 
-## The LRA Pass (Reload)
+### IRA Pass Output
+
+```
+(insn 21 5 2 2 (set (reg:SI 41)
+        (unspec_volatile:SI [
+                (const_int 0 [0])
+            ] UNSPECV_SET_GOT)) 46 {set_got_tmp}
+     (expr_list:REG_UNUSED (reg:SI 41)
+        (nil)))
+(insn 2 21 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
+        (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 3 r3 [ a ])
+        (nil)))
+(insn 3 2 4 2 (set (mem/c:SI (plus:SI (reg/f:SI 33 ?fp)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])
+        (reg:SI 4 r4 [ b ])) "../func.c":1 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 4 r4 [ b ])
+        (nil)))
+
+(insn 7 4 8 2 (set (reg:SI 45)
+        (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 8 7 9 2 (set (reg:SI 46)
+        (plus:SI (reg:SI 45)
+            (reg:SI 45))) "../func.c":2 2 {addsi3}
+     (expr_list:REG_DEAD (reg:SI 45)
+        (nil)))
+(insn 9 8 10 2 (set (reg:SI 42 [ _1 ])
+        (reg:SI 46)) "../func.c":2 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 46)
+        (nil)))
+(insn 10 9 11 2 (set (reg:SI 47)
+        (mem/c:SI (plus:SI (reg/f:SI 33 ?fp)
+                (const_int 4 [0x4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 11 10 14 2 (set (reg:SI 43 [ _4 ])
+        (plus:SI (reg:SI 42 [ _1 ])
+            (reg:SI 47))) "../func.c":2 2 {addsi3}
+     (expr_list:REG_DEAD (reg:SI 47)
+        (expr_list:REG_DEAD (reg:SI 42 [ _1 ])
+            (nil))))
+(insn 14 11 18 2 (set (reg:SI 44 [ <retval> ])
+        (reg:SI 43 [ _4 ])) "../func.c":2 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 43 [ _4 ])
+        (nil)))
+(insn 18 14 19 2 (set (reg/i:SI 11 r11)
+        (reg:SI 44 [ <retval> ])) "../func.c":3 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 44 [ <retval> ])
+        (nil)))
+(insn 19 18 0 2 (use (reg/i:SI 11 r11)) "../func.c":3 -1
+     (nil))
+
+```
+
+e# The LRA Pass (Reload)
 
 ```
   1816 gcc/lra-assigns.c
@@ -127,72 +355,112 @@ If we look at a `test.c.278r.reload` dump file we will a few sections.
 
 ```
 ********** Local #1: **********
-
-	   Spilling non-eliminable hard regs: 1
-            1 Non-pseudo reload: reject+=2
-            1 Non input pseudo reload: reject++
+...
+            0 Non-pseudo reload: reject+=2
+            0 Non input pseudo reload: reject++
             Cycle danger: overall += LRA_MAX_REJECT
           alt=0,overall=609,losers=1,rld_nregs=1
-            alt=1: Bad operand -- refuse
-            alt=2: Bad operand -- refuse
-            alt=3: Bad operand -- refuse
             0 Non-pseudo reload: reject+=2
-            0 Spill pseudo into memory: reject+=3
-            Using memory insn operand 0: reject+=3
             0 Non input pseudo reload: reject++
-            1 Non-pseudo reload: reject+=2
-            1 Non input pseudo reload: reject++
-          alt=4,overall=24,losers=2,rld_nregs=1
-            1 Spill Non-pseudo into memory: reject+=3
-            Using memory insn operand 1: reject+=3
-            1 Non input pseudo reload: reject++
-          alt=5,overall=13,losers=1,rld_nregs=0
-	 Choosing alt 5 in insn 10:  (0) r  (1) m {*movsi_internal}
-      Creating newreg=44, assigning class GENERAL_REGS to addr r44
-   10: r11:SI=[r44:SI]
-      REG_EQUAL 0x12345678
-    Inserting insn reload before:
-   15: r44:SI=high(`*.LC0')
-   16: r44:SI=r44:SI+low(`*.LC0')
-
-            0 Non pseudo reload: reject++
-          alt=0,overall=1,losers=0,rld_nregs=0
-	 Choosing alt 0 in insn 15:  (0) =r  (1) i {movsi_high}
-            0 Non pseudo reload: reject++
-            1 Non pseudo reload: reject++
-          alt=0,overall=2,losers=0,rld_nregs=0
-	 Choosing alt 0 in insn 16:  (0) =r  (1) r  (2) i {movsi_lo_sum}
-	   Spilling non-eliminable hard regs: 1
-
+            alt=1: Bad operand -- refuse
+            0 Non-pseudo reload: reject+=2
+            0 Non input pseudo reload: reject++
+            alt=2: Bad operand -- refuse
+            0 Non-pseudo reload: reject+=2
+            0 Non input pseudo reload: reject++
+            alt=3: Bad operand -- refuse
+          alt=4,overall=0,losers=0,rld_nregs=0
+         Choosing alt 4 in insn 2:  (0) m  (1) rO {*movsi_internal}
+...
 ```
 
+The above snippet of the Local phase of the LRA reload pass shows the contraints
+matching loop.
 
-RTL from .md file of our `movsi_internal` instruction.
-
-```
-
-```
-
-To understand what is going on we should look at the previous path RTL.
-
-### End of IRA
+To understand what is going on we should look at what is `insn 2`, from our
+input.  This is a set instruction having a destination of memory and a source
+of register type, or `m,r`.
 
 ```
-(insn 10 6 11 2 (set (reg/i:SI 11 r11)
-        (const_int 305419896 [0x12345678])) "../gcc/test8.c":3 16 {*movsi_internal})
-(insn 11 10 13 2 (use (reg/i:SI 11 r11)) "../gcc/test8.c":3 -1)
+(insn 2 21 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
+        (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
+     (expr_list:REG_DEAD (reg:SI 3 r3 [ a ])
+        (nil)))
 ```
+
+RTL from .md file of our `*movsi_internal` instruction.  The alternatives are the
+constraints, i.e. `=r,r,r,r, m,r`.
+
+```
+(define_insn "*mov<I:mode>_internal"
+  [(set (match_operand:I 0 "nonimmediate_operand" "=r,r,r,r, m,r")
+        (match_operand:I 1 "input_operand"        " r,M,K,I,rO,m"))]
+  "register_operand (operands[0], <I:MODE>mode)
+   || reg_or_0_operand (operands[1], <I:MODE>mode)"
+  "@
+   l.or\t%0, %1, %1
+   l.movhi\t%0, hi(%1)
+   l.ori\t%0, r0, %1
+   l.xori\t%0, r0, %1
+   l.s<I:ldst>\t%0, %r1
+   l.l<I:ldst>z\t%0, %1"
+  [(set_attr "type" "alu,alu,alu,alu,st,ld")])
+```
+The constraints matching interates over the alternatives.   As we remember forom above we are trying to match `m,r`.  We can see:
+
+ - `alt=0` - this shows 1 loser because alt 0 `r,r` vs `m,r` has one match and
+   one mismatch.
+ - `alt=1` - is indented and says `Bad operand` meaning there is no match at all with `r,M` vs `m,r`
+ - `alt=2` - is indented and says `Bad operand` meaning there is no match at all with `r,K` vs `m,r`
+ - `alt=3` - is indented and says `Bad operand` meaning there is no match at all with `r,I` vs `m,r`
+ - `alt=4` - is as win as we match `m,rO` vs `m,r`
+
+
 
 ### End of Reload (LRA)
+
+Finally we can see here at the end of Reload all registers are real.
+
 ```
-(insn 15 6 16 2 (set (reg:SI 16 r17 [44])
-        (high:SI (symbol_ref/u:SI ("*.LC0") [flags 0x2]))) "../gcc/test8.c":3 17 {movsi_high})
-(insn 16 15 10 2 (set (reg:SI 16 r17 [44])
-        (lo_sum:SI (reg:SI 16 r17 [44])
-            (symbol_ref/u:SI ("*.LC0") [flags 0x2]))) "../gcc/test8.c":3 18 {movsi_lo_sum})
-(insn 10 16 11 2 (set (reg/i:SI 11 r11)
-        (mem/u/c:SI (reg:SI 16 r17 [44]) [0  S4 A32])) "../gcc/test8.c":3 16 {*movsi_internal})
-(insn 11 10 13 2 (use (reg/i:SI 11 r11)) "../gcc/test8.c":3 -1)
+(insn 21 5 2 2 (set (reg:SI 16 r17 [41])
+        (unspec_volatile:SI [
+                (const_int 0 [0])
+            ] UNSPECV_SET_GOT)) 46 {set_got_tmp}
+     (nil))
+(insn 2 21 3 2 (set (mem/c:SI (plus:SI (reg/f:SI 2 r2)
+                (const_int -16 [0xfffffffffffffff0])) [1 a+0 S4 A32])
+        (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
+     (nil))
+(insn 3 2 4 2 (set (mem/c:SI (plus:SI (reg/f:SI 2 r2)
+                (const_int -12 [0xfffffffffffffff4])) [1 b+0 S4 A32])
+        (reg:SI 4 r4 [ b ])) "../func.c":1 16 {*movsi_internal}
+     (nil))
+(note 4 3 7 2 NOTE_INSN_FUNCTION_BEG)
+(insn 7 4 8 2 (set (reg:SI 16 r17 [45])
+        (mem/c:SI (plus:SI (reg/f:SI 2 r2)
+                (const_int -16 [0xfffffffffffffff0])) [1 a+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 8 7 9 2 (set (reg:SI 16 r17 [46])
+        (plus:SI (reg:SI 16 r17 [45])
+            (reg:SI 16 r17 [45]))) "../func.c":2 2 {addsi3}
+     (nil))
+(insn 9 8 10 2 (set (reg:SI 17 r19 [orig:42 _1 ] [42])
+        (reg:SI 16 r17 [46])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 10 9 11 2 (set (reg:SI 16 r17 [47])
+        (mem/c:SI (plus:SI (reg/f:SI 2 r2)
+                (const_int -12 [0xfffffffffffffff4])) [1 b+0 S4 A32])) "../func.c":2 16 {*movsi_internal}
+     (nil))
+(insn 11 10 18 2 (set (reg:SI 16 r17 [orig:43 _4 ] [43])
+        (plus:SI (reg:SI 17 r19 [orig:42 _1 ] [42])
+            (reg:SI 16 r17 [47]))) "../func.c":2 2 {addsi3}
+     (nil))
+(insn 18 11 19 2 (set (reg/i:SI 11 r11)
+        (reg:SI 16 r17 [orig:44 <retval> ] [44])) "../func.c":3 16 {*movsi_internal}
+     (nil))
+(insn 19 18 22 2 (use (reg/i:SI 11 r11)) "../func.c":3 -1
+     (nil))
+(note 22 19 0 NOTE_INSN_DELETED)
 ```
 
 Further Reading
