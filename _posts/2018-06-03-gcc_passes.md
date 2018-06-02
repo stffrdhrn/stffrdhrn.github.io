@@ -127,7 +127,7 @@ There are about 55,000 lines of code used to handle expand.
   54931 total
 ```
 
-The expand itslef pass is defined in [gcc/cfgexpand.c](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/cfgexpand.c#L6189-L6215).
+The expand pass is defined in [gcc/cfgexpand.c](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/cfgexpand.c#L6189-L6215).
 It will take the instruction names like `addsi3` and `movsi` and expand them to
 RTL instructions which will be refined by further passes.
 
