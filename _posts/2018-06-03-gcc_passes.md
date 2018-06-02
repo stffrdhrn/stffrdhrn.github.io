@@ -129,7 +129,7 @@ There are about 55,000 lines of code used to handle expand.
   54931 total
 ```
 
-The expand itslef pass is defined in [gcc/cfgexpand.c](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/cfgexpand.c#L6189-L6215).
+The expand pass is defined in [gcc/cfgexpand.c](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/cfgexpand.c#L6189-L6215).
 It will take the instruction names like `addsi3` and `movsi` and expand them to
 RTL instructions which will be refined by further passes.
 
@@ -164,7 +164,7 @@ included the GIMPLE inline for clarity.
 
 This is the contents of `func.c.234r.expand`.
 
-*Tip* Reading RTL.  RTL is a list dialect. Each statement has the form `(type id prev next n (statement))`.
+*Tip* Reading RTL.  RTL is a lisp dialect. Each statement has the form `(type id prev next n (statement))`.
 
 `(insn 2 5 3 2 (set (reg/v:SI 44) (reg:SI 3 r3)) (nil))`
 
