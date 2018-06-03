@@ -10,7 +10,7 @@ categories: [ software, embedded, openrisc ]
 When starting the OpenRISC gcc port I had a good idea of how the compiler worked
 and what would be involved in the port.  Those main things being
   1. define a new [machine description](https://gcc.gnu.org/onlinedocs/gccint/#toc-Machine-Descriptions) file in gcc's RTL
-  2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a =.c= and =.h= file.
+  2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a `.c` and `.h` file.
 
 I realized early on that trouble shooting issues would be to figure our what
 happens during certain compiler passes.  I found it difficult to understand what
@@ -44,12 +44,15 @@ there are a few key passes to be concerned about; lets jump in.
  - `Constraints` part of the `RTL` and used during reload, these are associated
    with assembly instructions used to resolved the target instruction.
 
-## Important Passes
+## Passes
 
-To start, there are basically two types of compiler passes in gcc:
+Passes are the core of the compiler. To start, there are basically two types of
+compiler passes in gcc:
 
  - Tree - Passes working on GIMPLE.
  - RTL - Passes working on Register Transfer Language.
+
+![GCC Passes](/content/2018/gcc_passes.png)
 
 There are also [Interprocedural analysis
 passes](https://gcc.gnu.org/onlinedocs/gccint/IPA.html) (IPA) which we will not
@@ -180,7 +183,7 @@ For the instruction:
 Back to our example, this is with `-O0` to allow the virtual-stack-vars to not
 be elimated for verbosity:
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 ;; func (intD.1 aD.1448, intD.1 bD.1449)
 ;; {
 ;;   Note: First we save the arguments
@@ -263,7 +266,7 @@ pointer does not point to stack variables (it points to the function incoming
 arguments).  The placeholder is needed by GCC but it will be eliminated later.
 One some arechitecture this will be a real register at this point.
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 ;; Here we see virtual-stack-vars replaced with ?fp.
 (insn 2 5 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
         (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
@@ -335,7 +338,7 @@ The LRA pass code is around 22,000 lines of code.
 We do not see many changes during the IRA pass in this example but it has prepared
 us for the next step, LRA/reload.
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 (insn 21 5 2 2 (set (reg:SI 41)
         (unspec_volatile:SI [
                 (const_int 0 [0])
@@ -439,7 +442,7 @@ To understand what is going on we should look at what is `insn 2`, from our
 input.  This is a set instruction having a destination of memory and a source
 of register type, or `"m,r"`.
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 (insn 2 21 3 2 (set (mem/c:SI (reg/f:SI 33 ?fp) [1 a+0 S4 A32])
         (reg:SI 3 r3 [ a ])) "../func.c":1 16 {*movsi_internal}
      (expr_list:REG_DEAD (reg:SI 3 r3 [ a ])
@@ -449,7 +452,7 @@ of register type, or `"m,r"`.
 RTL from .md file of our `*movsi_internal` instruction.  The alternatives are the
 constraints, i.e. `"=r,r,r,r, m,r"`.
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 (define_insn "*mov<I:mode>_internal"
   [(set (match_operand:I 0 "nonimmediate_operand" "=r,r,r,r, m,r")
         (match_operand:I 1 "input_operand"        " r,M,K,I,rO,m"))]
@@ -481,7 +484,7 @@ After this we know exactly which target instructions for each is neded.
 Finally we can see here at the end of Reload all registers are real.   The output
 at this point is pretty much ready for assembly output.
 
-{% highlight lisp %}
+{% highlight common_lisp %}
 (insn 21 5 2 2 (set (reg:SI 16 r17 [41])
         (unspec_volatile:SI [
                 (const_int 0 [0])
@@ -522,6 +525,7 @@ During porting most of the problems will show up around `expand`, `vregs` and
 to read the dump files when troubleshooting.  I hope the above helps.
 
 Further Reading
- - http://gcc-python-plugin.readthedocs.io/en/latest/tables-of-passes.html
- - https://www.airs.com/dnovillo/200711-GCC-Internals/200711-GCC-Internals-7-passes.pdf
- - http://www.drdobbs.com/tools/value-range-propagation/229300211 - Variable Range Propogatoin
+ - [All of GCC’s passes](http://gcc-python-plugin.readthedocs.io/en/latest/tables-of-passes.html) - a complete view of the passes
+ - [GCC Internals Passes](https://www.airs.com/dnovillo/200711-GCC-Internals/200711-GCC-Internals-7-passes.pdf) [pdf] - a presentation from Diego Novillo on passes, including how to write your own
+ - [Variable Range Propagation](http://www.drdobbs.com/tools/value-range-propagation/229300211) - an article from Dr. Dobbs on VRP an interesting pass
+ - [Compilers](https://www.amazon.co.uk/Compilers-Principles-Techniques-Alfred-Aho/dp/0201100886) - a classic book on fundamentals of compiler design

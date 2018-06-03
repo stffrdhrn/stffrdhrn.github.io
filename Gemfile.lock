@@ -206,7 +206,6 @@ GEM
       jekyll-seo-tag (~> 2.1)
     minitest (5.11.3)
     mr_poole (0.8.0)
-    multi_json (1.13.1)
     multipart-post (2.0.0)
     nokogiri (1.8.2)
       mini_portile2 (~> 2.3.0)
@@ -215,8 +214,6 @@ GEM
     pathutil (0.16.1)
       forwardable-extended (~> 2.6)
     public_suffix (2.0.5)
-    pygments.rb (1.2.1)
-      multi_json (>= 1.0.0)
     rb-fsevent (0.10.3)
     rb-inotify (0.9.10)
       ffi (>= 0.5.0, < 2)
@@ -249,7 +246,6 @@ PLATFORMS
 DEPENDENCIES
   github-pages
   mr_poole
-  pygments.rb
 
 BUNDLED WITH
    1.16.2

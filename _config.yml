@@ -1,5 +1,5 @@
 name: shorne in japan
-highlighter: pygments
+highlighter: rouge
 github: [Repository metadata]
 safe: true
 lsi: false
