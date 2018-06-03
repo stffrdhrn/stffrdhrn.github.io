@@ -12,9 +12,9 @@ and what would be involved in the port.  Those main things being
   1. define a new [machine description](https://gcc.gnu.org/onlinedocs/gccint/#toc-Machine-Descriptions) file in gcc's RTL
   2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a `.c` and `.h` file.
 
-I realized early on that trouble shooting issues would be to figure our what
-happens during certain compiler passes.  I found it difficult to understand what
-all of the compile passes were.  There are so many, but after some time I found
+I realized early on that trouble shooting issues requires understanding the purpose
+of the important compiler passes.  It was difficult to understand what
+all of the compile passes were.  There are so many, 200+, but after some time I found
 there are a few key passes to be concerned about; lets jump in.
 
 ## Quick Tips
