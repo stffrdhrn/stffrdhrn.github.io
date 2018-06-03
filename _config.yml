@@ -1,9 +1,10 @@
 name: shorne in japan
-highlighter: rouge
+highlighter: pygments
 github: [Repository metadata]
 safe: true
 lsi: false
 paginate: 5
 url: "http://stffrdhrn.github.io"
-gems:
+plugins:
  - jekyll-sitemap
+ - jekyll-paginate
