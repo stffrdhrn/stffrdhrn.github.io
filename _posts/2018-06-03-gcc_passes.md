@@ -468,7 +468,7 @@ constraints, i.e. `"=r,r,r,r, m,r"`.
   [(set_attr "type" "alu,alu,alu,alu,st,ld")])
 {% endhighlight %}
 
-The constraints matching interates over the alternatives.   As we remember forom above we are trying to match `m,r`.  We can see:
+The constraints matching interates over the alternatives.   As we remember from above we are trying to match `"m,r"`.  We can see:
 
  - `alt=0` - this shows 1 loser because alt 0 `r,r` vs `m,r` has one match and
    one mismatch.
@@ -477,11 +477,11 @@ The constraints matching interates over the alternatives.   As we remember forom
  - `alt=3` - is indented and says `Bad operand` meaning there is no match at all with `r,I` vs `m,r`
  - `alt=4` - is as win as we match `m,rO` vs `m,r`
 
-After this we know exactly which target instructions for each is neded.
+After this we know exactly which target instructions for each RTL expression is neded.
 
 ### End of Reload (LRA)
 
-Finally we can see here at the end of Reload all registers are real.   The output
+Finally we can see here at the end of LRA/reload all registers are real.   The output
 at this point is pretty much ready for assembly output.
 
 {% highlight common_lisp %}
