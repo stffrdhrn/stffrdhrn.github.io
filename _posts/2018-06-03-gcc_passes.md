@@ -13,8 +13,8 @@ and what would be involved in the port.  Those main things being
   2. define a bunch of description [macros and helper functions](https://gcc.gnu.org/onlinedocs/gccint/#toc-Target-Description-Macros-and-Functions) in a `.c` and `.h` file.
 
 I realized early on that trouble shooting issues requires understanding the purpose
-of the important compiler passes.  It was difficult to understand what
-all of the compile passes were.  There are so many, 200+, but after some time I found
+of some important compiler passes.  It was difficult to understand what
+all of the compiler passes were.  There are so many, 200+, but after some time I found
 there are a few key passes to be concerned about; lets jump in.
 
 ## Quick Tips
@@ -22,22 +22,22 @@ there are a few key passes to be concerned about; lets jump in.
  - When debugging compiler problems use the `-fdump-rtl-all-all` and
   `-fdump-tree-all-all` flags to debug where things go wrong.
  - To understand which passes are run for different `-On` optimization levels
-   you can use ` -fdump-passes`.
+   you can use `-fdump-passes`.
  - The numbers in the dump output files indicate the order in which passes were run. For
    example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
-   before vregs, and there were not passes run inbetween.
+   before vregs, and there were no passes run inbetween.
  - The [debug options](https://gcc.gnu.org/onlinedocs/gcc-3.4.5/gcc/Debugging-Options.html)
    `-S -dp` are also helpful for tying RTL up with the output assembly.
    The `-S` option tells the compiler to dump the assembler output, and `-dp`
    enables annotation comments showing the RTL instruction id, name and other useful
-   statistics..
+   statistics.
 
 ## Glossary Terms
  - We may see `cfg` thoughout the gcc source, this is not configuration, but
    [control flow graph](https://en.wikipedia.org/wiki/Control_flow_graph).
- - `Spilling` when there are not enough registers available during register
+ - `Spilling` is performed when there are not enough registers available during register
    allocation to store all scope variables, one variable in a register is chosen
-   and `spilled` by saving it to memory.
+   and `spilled` by saving it to memory; thus freeing up a register for allocation.
  - `IL` is a GCC intermediate language i.e. GIMPLE or RTL.  During porting we are
    mainly concerned with RTL.
  - `Lowering` are operations done by passes to take higher level language
@@ -143,9 +143,9 @@ RTL instructions which will be refined by further passes.
 
 ### Expand Input
 
-The before RTL generation we have GIMPLE.  Below is the content of `func.c.232t.optimized` the last
+Before RTL generation we have GIMPLE.  Below is the content of `func.c.232t.optimized` the last
 of the tree passes before RTL conversion.
-An important tree passes is [Static Single Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form)
+An important tree pass is [Static Single Assignment](https://en.wikipedia.org/wiki/Static_single_assignment_form)
 (SSA) I don't go into it here, but it is what makes us have so many variables, note that
 each variable will be assigned only once, this helps simplify the tree for analysis
 and later RTL steps like register allocation.
@@ -269,7 +269,7 @@ For OpenRISC we see `?fp`, a fake register which we defined with macro
 `FRAME_POINTER_REGNUM`.  We use this as a placeholder as OpenRISC's frame
 pointer does not point to stack variables (it points to the function incoming
 arguments).  The placeholder is needed by GCC but it will be eliminated later.
-One some arechitecture this will be a real register at this point.
+On some arechitecture this will be a real register at this point.
 
 {% highlight common_lisp %}
 ;; Here we see virtual-stack-vars replaced with ?fp.
@@ -299,7 +299,7 @@ One some arechitecture this will be a real register at this point.
 
 ## The Split and Combine Passes
 
-The Split passes use `define_split` definitions to look for for RTL expressions
+The Split passes use `define_split` definitions to look for RTL expressions
 which cannot be handled by a single instruction on the target architecture.
 These instructions are split into multiple RTL instructions.  Splits patterns
 are defined in our machine description file.
@@ -384,7 +384,7 @@ us for the next step, LRA/reload.
 
 The [Local Register
 Allocator](https://github.com/stffrdhrn/gcc/blob/or1k-port/gcc/lra.c#L45-L80)
-pass replaces the reload pass which is still used by some targets.  OpenRISC and
+pass replaced the reload pass which is still used by some targets.  OpenRISC and
 other modern ports use only LRA.  The purpose of LRA/reload is to make sure each
 RTL instruction has real registers and a real instruction to use for output.  If
 the criteria for an instruction is not met LRA/reload has some tricks to change
@@ -409,7 +409,7 @@ The LRA pass is about 17,000 lines of code.
 During LRA/reload constraints are used to match the real target inscrutions, i.e.
 `"r"` or `"m"` or target speciic ones like `"O"`.
 
-Before LRA/reload predicates are used to match RTL expressions, i.e
+Before and after LRA/reload predicates are used to match RTL expressions, i.e
 `general_operand` or target specific ones like `reg_or_s16_operand`.
 
 If we look at a `test.c.278r.reload` dump file we will a few sections.
@@ -441,7 +441,7 @@ If we look at a `test.c.278r.reload` dump file we will a few sections.
 ...
 ```
 
-The above snippet of the *Local* phase of the LRA reload pass shows the contraints
+The above snippet of the *Local* phase of the LRA/reload pass shows the contraints
 matching loop for RTL `insn 2`.
 
 To understand what is going on we should look at what is `insn 2`, from our
