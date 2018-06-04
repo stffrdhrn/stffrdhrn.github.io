@@ -19,13 +19,17 @@ there are a few key passes to be concerned about; lets jump in.
 
 ## Quick Tips
 
- - When debugging compiler problems use the `-fdump-rtl-all` and
-  `-fdump-tree-all` flags to debug where things go wrong.
+ - When debugging compiler problems use the `-fdump-rtl-all-all` and
+  `-fdump-tree-all-all` flags to debug where things go wrong.
  - To understand which passes are run for different `-On` optimization levels
    you can use ` -fdump-passes`.
  - The numbers in the dump output files indicate the order in which passes were run. For
    example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
    before vregs, and there were not passes run inbetween.
+ - The [debug options](https://gcc.gnu.org/onlinedocs/gcc-3.4.5/gcc/Debugging-Options.html)
+   `-S -dp` are also helpfue for tying RTL up with the output assembly.
+   The `-S` option tells the compiler to dump the assembler output, and `-dp` instructs
+   enables debug assembler annotations showing the RTL instruction id and name.
 
 ## Glossary Terms
  - We may see `cfg` thoughout the gcc source, this is not configuration, but
@@ -39,10 +43,10 @@ there are a few key passes to be concerned about; lets jump in.
    and graph representations and make them more simple/lower level in preparation
    for machine assembly conversion.
  - `Predicates` part of the `RTL` these are used to facilitate instruction
-   matching before the reload pass.  Having these more specific reduces the work
-   that reload needs to do.
+    matching  the.  Having these more specific reduces the work that reload needs to
+    do and generates better code.
  - `Constraints` part of the `RTL` and used during reload, these are associated
-   with assembly instructions used to resolved the target instruction.
+    with assembly instructions used to resolved the target instruction.
 
 ## Passes
 
@@ -294,9 +298,10 @@ One some arechitecture this will be a real register at this point.
 
 ## The Split and Combine Passes
 
-The Split pass looks for RTL expressions which cannot be handled by a single instruction
-on the target architecture.  These instructions are split into multiple RTL instructions.
-Splits are defined by `define_split` definitions in our machine description file.
+The Split passes use `define_split` definitions to look for for RTL expressions
+which cannot be handled by a single instruction on the target architecture.
+These instructions are split into multiple RTL instructions.  Splits patterns
+are defined in our machine description file.
 
 The Combine pass does the opposite.  It looks for instructions that can be combined
 into a signle instruction.  Having tightly defined predicates will ensure incorrect
@@ -318,7 +323,7 @@ The [Register Allocation](https://en.wikipedia.org/wiki/Register_allocation)
 problem they solve is
 [NP-complete](https://en.wikipedia.org/wiki/NP-completeness).
 
-The LRA pass code is around 22,000 lines of code.
+The IRA pass code is around 22,000 lines of code.
 
 ```
   3514 gcc/ira-build.c
