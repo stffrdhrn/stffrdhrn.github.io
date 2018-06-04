@@ -27,9 +27,10 @@ there are a few key passes to be concerned about; lets jump in.
    example between `test.c.235r.vregs` and `test.c.234r.expand` the expand pass is run
    before vregs, and there were not passes run inbetween.
  - The [debug options](https://gcc.gnu.org/onlinedocs/gcc-3.4.5/gcc/Debugging-Options.html)
-   `-S -dp` are also helpfue for tying RTL up with the output assembly.
-   The `-S` option tells the compiler to dump the assembler output, and `-dp` instructs
-   enables debug assembler annotations showing the RTL instruction id and name.
+   `-S -dp` are also helpful for tying RTL up with the output assembly.
+   The `-S` option tells the compiler to dump the assembler output, and `-dp`
+   enables annotation comments showing the RTL instruction id, name and other useful
+   statistics..
 
 ## Glossary Terms
  - We may see `cfg` thoughout the gcc source, this is not configuration, but
