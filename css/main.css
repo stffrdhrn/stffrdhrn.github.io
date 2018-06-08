@@ -89,22 +89,22 @@ q {}
 
 /* Tables */
 table {margin: .5em auto 1.5em auto; width: 98%;}
-        
+table, th, td { border: 1px solid #ccc; }
         /* Thead */
-        thead th {padding: .5em .4em; text-align: left;}
+        thead th {padding: .5em .4em; text-align: left; font-weight: bold; }
         thead td {}
 
         /* Tbody */
         tbody td {padding: .5em .4em;}
         tbody th {}
-        
+
         tbody .alt td {}
         tbody .alt th {}
-        
+
         /* Tfoot */
         tfoot th {}
         tfoot td {}
-        
+
 /* HTML5 tags */
 header, section, footer,
 aside, nav, article, figure {
@@ -120,7 +120,7 @@ body {
 img {
   max-width: 100%;
   height: auto;
-  border: 1px solid #555;
+/*  border: 1px solid #555; */
 }
 
 
