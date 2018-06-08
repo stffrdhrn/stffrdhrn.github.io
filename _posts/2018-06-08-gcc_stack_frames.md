@@ -5,7 +5,7 @@ date: 2018-06-08 16:37
 categories: [ software, embedded, openrisc ]
 ---
 
-*What I learned from doing the OpenRISC GCC port, defining stack frame*
+*What I learned from doing the OpenRISC GCC port, defining the stack frame*
 
 This is a continuation on my notes of things I learned while working on the
 [OpenRISC GCC backend port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html).  The
@@ -88,7 +88,7 @@ eliminations.
 Macro|GCC|OpenRISC
 ---|---|---
 `ELIMINABLE_REGS`|Sets of registers from, to which we can eliminate by calculating the difference between them.|We eliminate Argument Pointer and Frame Pointer.
-`INITIAL_ELIMINATION_OFFSET`|Function to compute the difference between eliminable registers.|
+`INITIAL_ELIMINATION_OFFSET`|Function to compute the difference between eliminable registers.|See implementation below
 
 #### Example
 
