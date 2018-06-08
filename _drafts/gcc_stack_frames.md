@@ -10,26 +10,28 @@ categories: [ software, embedded, openrisc ]
 This is a continuation on my notes of things I learned while working on the
 [OpenRISC GCC backend port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html).  The
 stack frame layout is very important to get right when implementing an
-architectures [calling conventions](https://en.wikipedia.org/wiki/Calling_convention).  It stores
-temporary variables, spilled registers, arguments to called functions and
-arguments to the current function.  For me I figured this would be most
-difficult as I am horrible with [off by
-one](https://en.wikipedia.org/wiki/Off-by-one_error) bugs.
+architectures [calling conventions](https://en.wikipedia.org/wiki/Calling_convention). If not
+you might have a compiler that works find with code it compiles but cannot interoperate
+with code produced by another compiler.
+
+For me I figured this would be most difficult as I am horrible with [off by
+one](https://en.wikipedia.org/wiki/Off-by-one_error) bugs.  However, after
+learning the whole picture I was able to get it working.
 
 ![Or1k Stack Frame](content/2018/stackframe.png)
 
 ## Registers
 
 Stack registers are dedicated point to different locations in the stack.  The
-content of these registers is updated during function eipilogue and prologue.
+content of these registers is updated during function epilogue and prologue.
 
 ### Virtual Registers
 
 These are created during the `expand` and eliminated during `vreg` pass,.
-But looking at these you will understand the whole picture: Offsets
-outgoing args, incoming args etc.
+But looking at these you will understand the whole picture: Offsets, outgoing
+arguments, incoming arguments etc.
 
-The virtual registers are GCC's cononical view of the stack frame.  During the `vregs`
+The virtual registers are GCC's canonical view of the stack frame.  During the `vregs`
 pass they will be replaced with architecture specific registers. See details on
 this in my discussion on [GCC important passes](/software/embedded/openrisc/2018/06/03/gcc_passes.html).
 
@@ -50,7 +52,7 @@ Macro|GCC|OpenRISC
 STACK_POINTER_REGNUM|The hard stack pointer register, not defined where it should point|Points to the last data on the current stack frame.  i.e. 0(r1) points next function arg[0]
 FRAME_POINTER_REGNUM (FP)|Points to automatic/local variable storage|Points to the first local variable. i.e. 0(FP) points to local variable[0].
 HARD_FRAME_POINTER_REGNUM|The hard frame pointer, not defined where it should point|Points to the same location as the previous functions SP.  i.e. 0(r2) points to current function arg[0]
-ARG_POINTER_REGNUM|Points to current function incoming arguments |For openrisc this is the same as HARD_FRAME_POINTER_REGNUM.
+ARG_POINTER_REGNUM|Points to current function incoming arguments |For OpenRISC this is the same as HARD_FRAME_POINTER_REGNUM.
 
 ## Stack Layout
 
@@ -149,13 +151,14 @@ FIRST_PARM_OFFSET|See VIRTUAL_INCOMING_ARGS_REGNUM|0
 STACK_DYNAMIC_OFFSET|See VIRTUAL_STACK_DYNAMIC_REGNUM|0
 TARGET_STARTING_FRAME_OFFSET|See VIRTUAL_OUTGOING_ARGS_REGNUM|0
 
-### Outgoing args
+### Outgoing Arguments
 
 When a function calls another function sometimes the arguments to that function
 will need to be stored to the stack before making the function call.  For
 OpenRISC this is when we have more arguments than fit in argument registers or
-when we have variadic arguments.  These outgoing arguments for all child
-functions need to be accounted for and the space will be allocated on the stack.
+when we have [variadic arguments](https://en.wikipedia.org/wiki/Variadic_function).  These outgoing
+arguments for all child functions need to be accounted for and the space will be
+allocated on the stack.
 
 On some architectures outgoing arguments are pushed onto and popped off the
 stack.  For OpenRISC we do not do this we simply, allocate the required memory in
@@ -163,16 +166,16 @@ the prologue.
 
 Macro|GCC|OpenRISC
 ---|---|---
-ACCUMULATE_OUTGOING_ARGS|If defined, dont push args just store in crtl->outgoing_args_size.  Your prologue should allocate this space relative to the SP (as per ARGS_GROW_DOWNWARD).|TRUE
+ACCUMULATE_OUTGOING_ARGS|If defined, don't push args just store in crtl->outgoing_args_size.  Your prologue should allocate this space relative to the SP (as per ARGS_GROW_DOWNWARD).|TRUE
 CUMULATIVE_ARGS|A C type used for tracking args in the TARGET_FUNCTION_ARG_* macros.|int
 INIT_CUMULATIVE_ARGS|Initializes a newly created CUMULALTIVE_ARGS type.|Sets the int variable to 0
 TARGET_FUNCTION_ARG|Return a reg RTX or Zero to indicate to pass outgoing args on the stack.|
 FUNCTION_ARG_REGNO_P|Returns true of the given register number is used for passing outgoing function arguments.|
 TARGET_FUNCTION_ARG_ADVANCE|This is called during iterating through outgoing function args to account for the next function arg size.|
 
-## Futher Reading
+## Further Reading
 
-There references were very helpful in getting our calling conventions right:
+These references were very helpful in getting our calling conventions right:
 
  - [Stack frame layout on x86-64](https://eli.thegreenplace.net/2011/09/06/stack-frame-layout-on-x86-64/) - some great diagrams and examples
  - [14.8 Registers and Memory](https://gcc.gnu.org/onlinedocs/gccint/Regs-and-Memory.html) - gcc internals, stack layout virtual registers
