@@ -11,7 +11,7 @@ This is a continuation on my notes of things I learned while working on the
 [OpenRISC GCC backend port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html).  The
 stack frame layout is very important to get right when implementing an
 architectures [calling conventions](https://en.wikipedia.org/wiki/Calling_convention). If not
-you might have a compiler that works fine with code it compiles but cannot
+we may have a compiler that works fine with code it compiles but cannot
 interoperate with libraries produced by another compiler.
 
 For me I figured this would be most difficult as I am horrible with [off by
@@ -36,7 +36,7 @@ and prologue.  In the above diagram we can see the pointed out as `AP`, `HFP`,
 GCC's first glimpse of the stack.
 
 These are created during the `expand` and eliminated during `vreg` pass.
-Buy looking at these you will understand the whole picture: Offsets, outgoing
+By looking at these we cat understand the whole picture: Offsets, outgoing
 arguments, incoming arguments etc.
 
 The virtual registers are GCC's canonical view of the stack frame.  During the `vregs`
@@ -183,7 +183,7 @@ the prologue.
 
 Macro|GCC|OpenRISC
 ---|---|---
-`ACCUMULATE_OUTGOING_ARGS`|If defined, don't push args just store in `crtl->outgoing_args_size`.  Your prologue should allocate this space relative to the SP (as per `ARGS_GROW_DOWNWARD`).|1
+`ACCUMULATE_OUTGOING_ARGS`|If defined, don't push args just store in `crtl->outgoing_args_size`.  Our prologue should allocate this space relative to the SP (as per `ARGS_GROW_DOWNWARD`).|1
 `CUMULATIVE_ARGS`|A C type used for tracking args in the `TARGET_FUNCTION_ARG_*` macros.|`int`
 `INIT_CUMULATIVE_ARGS`|Initializes a newly created `CUMULALTIVE_ARGS` type.|Sets the int variable to 0
 `TARGET_FUNCTION_ARG`|Return a reg RTX or Zero to indicate when to start to pass outgoing args on the stack.|See implementation
