@@ -170,8 +170,6 @@ After `expand` we can first see the RTL.  Each statement of the gimple above wil
 be represented by 1 or more RTL expressions.  I have simplified the RTL a bit and
 included the GIMPLE inline for clarity.
 
-This is the contents of `func.c.234r.expand`.
-
 *Tip* Reading RTL.  RTL is a lisp dialect. Each statement has the form `(type id prev next n (statement))`.
 
 `(insn 2 5 3 2 (set (reg/v:SI 44) (reg:SI 3 r3)) (nil))`
@@ -185,8 +183,10 @@ For the instruction:
  - `2` I am not sure what this is
  - `(set (reg/v:SI 44) (reg:SI 3 r3)) (nil)` - is the expression
 
-Back to our example, this is with `-O0` to allow the virtual-stack-vars to not
+Back to our example, this is with `-O0` to allow the `virtual-stack-vars` to not
 be elimated for verbosity:
+
+This is the contents of `func.c.234r.expand`.
 
 {% highlight common_lisp %}
 ;; func (intD.1 aD.1448, intD.1 bD.1449)
@@ -261,9 +261,10 @@ gcc/function.c:6747:const pass_data pass_data_match_asm_constraints =
 
 ### Virtual Register Output
 
-Here we can see that the previously seen variables stored to the frame as
-`virtual-stack-vars`.  After the Virtual Registers pass these `virtual-`
-pointers are replaced with architecture specific registers.
+Here we can see that the previously seen variables stored to the frame at
+`virtual-stack-vars` memory locations are now being stored to memory offsets of
+an architecture specifc register.  After the Virtual Registers pass all of the
+`virtual-*` registers will be eliminated.
 
 For OpenRISC we see `?fp`, a fake register which we defined with macro
 `FRAME_POINTER_REGNUM`.  We use this as a placeholder as OpenRISC's frame
