@@ -73,7 +73,6 @@ languages. This list is roughly ordered by lines of code.</p>
   <li>Assembly (x86, ARM, MIPs, 8051)</li>
   <li>Verilog</li>
   <li>PHP</li>
-  <li>J2EE (JSP, Servlets, EJB, JSTL)</li>
 </ul>
 <h3>Operating Systems</h3>
 <p>I have experience programming on and administering the following
