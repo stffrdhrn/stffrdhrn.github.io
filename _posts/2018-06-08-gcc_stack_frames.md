@@ -8,10 +8,9 @@ categories: [ software, embedded, openrisc ]
 *What I learned from doing the [OpenRISC GCC port]({% post_url 2018-02-03-openrisc_gcc_rewrite %}), defining the stack frame*
 
 This is a continuation on my notes of things I learned while working on the
-[OpenRISC GCC backend port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html).  The
-stack frame layout is very important to get right when implementing an
-architectures [calling conventions](https://en.wikipedia.org/wiki/Calling_convention). If not
-we may have a compiler that works fine with code it compiles but cannot
+OpenRISC GCC backend port.  The stack frame layout is very important to get
+right when implementing an architecture's [calling conventions](https://en.wikipedia.org/wiki/Calling_convention).
+If not we may have a compiler that works fine with code it compiles but cannot
 interoperate with libraries produced by another compiler.
 
 For me I figured this would be most difficult as I am horrible with [off by
