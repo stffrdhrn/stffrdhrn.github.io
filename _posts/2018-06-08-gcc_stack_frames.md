@@ -5,7 +5,7 @@ date: 2018-06-08 16:37
 categories: [ software, embedded, openrisc ]
 ---
 
-*What I learned from doing the OpenRISC GCC port, defining the stack frame*
+*What I learned from doing the [OpenRISC GCC port]({% post_url 2018-02-03-openrisc_gcc_rewrite %}), defining the stack frame*
 
 This is a continuation on my notes of things I learned while working on the
 [OpenRISC GCC backend port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html).  The

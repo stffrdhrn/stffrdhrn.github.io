@@ -7,7 +7,7 @@ categories: [ software, embedded, openrisc ]
 
 *News flash, the OpenRISC GCC port now can run "Hello World"*
 
-After about 4 months of development on the [OpenRISC GCC port rewrite](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html)
+After about 4 months of development on the [OpenRISC GCC port rewrite]({% post_url 2018-02-03-openrisc_gcc_rewrite %})
 I have hit my first major milestone, the "Hello World" program is working.  Over those
 4 months I spent about 2 months working on my from scratch dummy `SMH` port
 then 2 months to get the [OpenRISC port](https://github.com/stffrdhrn/gcc/tree/or1k-port)

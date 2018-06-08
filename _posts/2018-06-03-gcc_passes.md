@@ -5,7 +5,7 @@ date: 2018-06-03 01:37
 categories: [ software, embedded, openrisc ]
 ---
 
-*What I learned from doing the OpenRISC GCC port, a deep dive into passes*
+*What I learned from doing the [OpenRISC GCC port]({% post_url 2018-02-03-openrisc_gcc_rewrite %}), a deep dive into passes*
 
 When starting the OpenRISC gcc port I had a good idea of how the compiler worked
 and what would be involved in the port.  Those main things being
