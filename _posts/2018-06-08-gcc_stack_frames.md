@@ -148,10 +148,16 @@ these are stored in memory is defined by these macros.
 from upwards to downwards.  These are local only to the current function so does
 not impact calling conventions.
 
+For a new port is recommended to define `FRAME_GROWS_DOWNWARD` as `1` as it is
+usually not critical to the target calling conventions and defining it also
+enables the [Stack Protector](https://wiki.osdev.org/Stack_Smashing_Protector)
+feature.  The stack protector can be turned on in gcc using `-fstack-protector`,
+during build ensure to `--enable-libssp` which is enabled by default.
+
 Macro|GCC|OpenRISC
 ---|---|---
 `STACK_GROWS_DOWNWARD`|Define true if new stack frames decrease towards memory address 0x0.|1
-`FRAME_GROWS_DOWNWARD`|Define true if increasing local variables are at negative offset from FP.|1
+`FRAME_GROWS_DOWNWARD`|Define true if increasing local variables are at negative offset from FP. Define this to enable the GCC stack protector feature.|1
 `ARGS_GROW_DOWNWARD`|Define true if increasing function arguments are at negative offset from AP for incoming args and SP for outgoing args.|0 (default)
 
 ### Stack Section Offsets
