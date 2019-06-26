@@ -1,354 +1,304 @@
 ---
-title: OR1K Marocchino
+title: OR1K Marocchino in Action
 layout: post
 date: 2019-06-11 01:37
 categories: [ hardware, embedded, openrisc ]
 ---
 
-In the beginning of 2019 I had finished the [OpenRISC GCC port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html) and was
-working on building up toolchain test and verification support using the [mor1kx](https://github.com/openrisc/mor1kx)
-soft core.  Part of the mor1kx's feature set it the ability to swap our
-different pipeline arrangements to configure the CPU for performance or resource
-usage. Each pipeline is named after an italian coffee, we have Cappuccino,
-Espresso and Pronto-Espresso.  One of these pipelines which has been under
-development but never integrated into the main branch was the Marocchino.  I had
-never paid much attention to the Marocchino pipeline.
+In the beginning of 2019 I had finished the [OpenRISC GCC port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html)
+and was working on building up toolchain test and verification support using the
+[mor1kx](https://github.com/openrisc/mor1kx) soft core.  Part of the mor1kx's
+feature set is the ability to swap out different pipeline arrangements to
+configure the CPU for performance or resource usage. Each pipeline is named
+after an Italian coffee, we have Cappuccino, Espresso and Pronto-Espresso.  One
+of these pipelines which has been under development but never integrated into
+the main branch was the Marocchino.  I had never paid much attention to the
+Marocchino pipeline.
 
 Around the same time author or Marocchino sent a mail mentioning he could not
-used the new GCC port as is was missing 64-bit FPU support.  Therefore, I set
-out to start working on adding single and double precision floating point
-support to the OpenRISC gcc port.  My verification target would be the
-Marocchino pipeline.
+used the new GCC port as is was missing Single and Double precision FPU support.
+Using the new verification pipeline I set out to start working on adding single
+and double precision floating point support to the OpenRISC gcc port.  My
+verification target would be the Marocchino pipeline.
 
 After some initial investigation I found this CPU was much more than a new pipeline
 for the mor1kx with a special FPU.  The marocchino has morphed into a complete re-implementation
-of the OR1200 spec.  Seeing this we split the marocchino out to it's [own repository](https://github.com/openrisc/or1k_marocchino)
-where it could grow on its own.  Of course maintaining the Italian coffee name.
-
-With features like out-of-order execution using [Tomasulo's algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm), 64-bit FPU
-operations using register pairs, MMU, Instruction caches, Data caches and a
-clean verilog code base the Marocchino is a advanced to say the least.  In this
-article I would like to take you through the architecture.
-
-I would claim this is one of the most advanced implementations of a superscalar
-open source CPU core.
-
-## Marocchino Architecture
-
-At first glance of the code the Marocchino may look like a traditional 5 stage
-RISC pipeline.  It has fetch, decode, execution, load/store and register write
-back modules which you might picture in your head as follows:
-
-```
-         |
-         V
-[     FETCH                  ]
-  (or1k_marocchino_fetch.v)
-
-[     DECODE                 ]
-  (or1k_marocchino_decode.v)
-
-[      PIPELINE CRTL         ]
-  (or1k_marocchino_ctrl.v)
-       EXECUTE
-  (or1k_marocchino_int_1clk.v) ALU
-  (or1k_marocchino_int_div.v)  DIVISION
-  (or1k_marocchino_int_mul.v)  MULTIPLICATION
-
-       LOAD STORE
-[  (or1k_marocchino_lsu.v)   ]
-
-[      WRITE BACK            ]
-  (or1k_marocchino_rf.v)
-          |
-          V
-
-```
-
-However, once you look a bit closer you notice somethings that are different.
-
- - Between the decode and functional units there are reservation stations.
- - Along with the control unit, there is an order manager module.
- - The load/store functional unit is done as part of the execution stage.
-
-But then we start to look at these files:
-
- - `or1k_marocchino_ocb.v` - order control buffer
- - `or1k_marocchino_oman.v` - order manager
- - `or1k_marocchino_rat_cell.v` - registery allocation table cell
- - `or1k_marocchino_rsrvs.v` - reservation station
-
-```
-                 ICACHE
-		     |
-		     V
-       padv>[     FETCH                  ]
-	      (or1k_marocchino_fetch.v)
-[ Pipeline ]         V
-       padv>[     DECODE                 ]  -->             [ OMAN  ]
-[ Control  ]  (or1k_marocchino_decode.v)                    [ [RAT] ]
-                     V
-       padv>[   RESERVATION STATIONs     ]  <-------------- [       ]
-	      (or1k_marocchino_rsrvs.v)
-                     V                                        [OCB]
-		   EXECUTE
-       padv>[ (or1k_marocchino_int_1clk.v) ALU              [       ]
-	      (or1k_marocchino_int_div.v)  DIVISION <-----  [       ]
-	      (or1k_marocchino_int_mul.v)  MULTIPLICATION
-	       (pfpu_marocchino/*)         FPU
-    DCACHE---->(or1k_marocchino_lsu.v)     LOAD/STORE
-   padv_wrbk---------|------------------------------------>[       ]
-                   {result}
-	    [      WRITE BACK            ] <---(we)-------- [       ]
-	      (or1k_marocchino_rf.v)
-
-```
-
-What this is is a 6 stage out-of-order pipeline with in order multiple dispatch
-cpu using many of the algorithms from Tomosulo. 
-
-## Pipeline Controls
-
-The marocchino has two modules for coordinating pipeline stage transfer.  The
-control unit and the order manager.
-
-### Control Unit Signals
-
-The Control unit of the CPU is in charge of watching over the pipeline stages
-and signalling when operations can transfer from one stage to the next.  The
-marocchino does this with a series of pipeline advance (`padv_*`) signals.  In generals for the
-best efficiency all `padv_*` wires should be high at all time allowing
-instructions to progress on every clock cycle.  The `padv_*` signals include:
-
-*Fetch*
-The `padv_fetch_o` signal instructs the instruction fetch unit to progress.
-Internally the fetch unit has 3 stages.
-
-*Decode*
-The `padv_dcod_o` signal instructs the instruction decode unit to output decodeded ops
-
-
-*Dynamic Scheduling*
-`padv_exec_o` – to order manager, enqueues the decode ops into the Order Control
-Buffer `padv_*_rsrvs_o` – to one of the reservation stations based on decode ops
-enables registering of an instruction into a reservation station
-
-Both `padv_exec_o` and `padv_*_rsrvs_o` are dependent on the execution units being
-ready and both signals will go active at the same time.
-
-*Writeback*
-`padv_wrbk_o` – to the execution units will go active when `exec_valid_i` is active
-and will finalize writing back the execution results.  The `padv_wrbk_o` signal to
-the order manager will retire the oldest instruction from the OCB.
-
-### Order Manager Signals
-
-The output port of the Order Control Buffer (OCB) represents the oldest non
-retired instruction.  The `exec_valid_o` signal will go active when the
-`*_valid_i`
-signal for the execution unit and the OCB output instruction matches.  For
-example if the output of the OCB represents a multiply operation and
-`1clk_valid_i` is active the `exec_valid_o` will be low, because `mul_valid_i` is not
-yet active.
-
-The OCB ensures that instructions are retired in the same order that they are
-decoded.
-
-The `grant_wrbk_*_o` signal will go active along with the `exec_valid_o` signal when
-the `*_valid_i` signal execution unit and the OCB output instruction matches. The
-`grant_wrbk_*_o` signal will signal the execution unit that it can write back its
-result to the register file / RAT / reservation station.
-
-### Register Renaming
-
-As mentioned above, functional units will present their output onto the common
-data bus `wrbk_result` and the data will be written into reservation stations.
-Writing the register to the resevation station which may occur before writing
-back to the resgister file.  This what register renaming is.  Because, the
-register input does not come directly from the register file.
-
-@@@ Notes From BandVig (Andrey) @@@
-
- - Reservation station stages (1 entry) Pentium Pro had
- - One per execution unit
- - Stall if busy
- - Optimizations
-   * More hazard resolving stages per reservation station (entries)
-   * Replace padv with ready/take, but makes DU, stalls difficult
-   * Implement ORB
-
-@@@
-
-## Achieving out of order execution
-
-In a traditional pipelined CPU the goal is to execute or retire one instruction
-per clock cycle.  To acheive more we require instruction parallelization.  Introduced
-in the IBM s390 in the 60's by Robert Tomosulo the [Tomosulo Algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm)
-provides a method to acheive this.  The marochino uses many of these technique's
-except for the Re-order buffer (ROB) which allows for out-of-order instruction
-retierments.  Instead marochino implements a more simple Order control buffer
-(OCB) that allows acheiving parallel execution, but in order instruction retirement.
-
-Though the technique of out-of-order CPU execution has been designed in the 60's
-it did not make its way into popular consumer hardware until the [Pentium Pro](https://en.wikipedia.org/wiki/Pentium_Pro)
-in the 1990's.  Further Pentium revisions such as the Pentium III, Pentium 4 and
-Core architectures are said to be based on this same architecture.  Understanding
-this architecture is a key to understanding modern CPUs.
-
-## Tomosulo Building blocks
-
-Some things I believe are different from the Tomasulo algorithm are:
-
-   - Instead of multiple reservation station entries per execution unit there is only
-     one per functional unit in marocchino (it should be possible to add more)
-
-   - Marocchino does instruction retirement using the Order Control Buffer (OCB)
-     with seems to be equivalent to the traditional Re-order buffer.
-
-
-### Primer for Marocchino
-
-Before we get into the building blocks we shall discuss
-
-The extadr.  Every instruction that is queued by the order manager is designated
-an `extadr`.  This allows components like the reservation station and RAT tables
-to track when an instruction starts and completes executing.
-
-In traditional tomasulo documentation this may be referred to as the insruction
-id.
-
- - the OMAN generates the extaddr by incrementing a counter used as the OCB ring
-   buffer pointer.
- - the OCB outputs to extaddr to indicate which instruction is to be retired
- - the RAT received the extaddr from the OCB output to clear allocation flags
- - the RAT outputs the extaddr indicating which queued instruction will produce a
-   register
- - the Reservation Station receives the extaddr with hazards to track when
-   insructions have finished and results are available.
- 
-
-### Reservation Stations
-
-```
-DIAGRAM
-```
-Notes:
- - busy_hazards_dxa1 - should be named busy_flag_dxa1
- - omn2dec - should be omn2rsrvs_ (order manager to reservation station)
- - busy_dxa1_mux_wrbk - should be `busy_flag_dxa1_clear` as it goes high to
-   clear the busy flag.
-
-Hazards are expressed as `d2b1`.  You can think about
-
-  d = a + b
-
-The reservation station receives a instruction from the decode stage and queues
-it until all hazards are resolved and the functional unit is free (takes the instruction).
-
-Internally we have registers for resolving hazards and storing the pending operations.
-
-Busy registers are populated when the pipeline advance `padv_rsrvs_i` signal comes.
- - busy_extadr_dxa_r - is populated with data from `omn2dec_hazards_addrs_i`.  The `busy_extadr_dxa_r`
-   register represents the extadr to look for which will resolve the A register hazard.
- - busy_extadr_dxb_r - 
-
- - busy_hazard_dxa_r - is populated with data from `omn2dec_hazards_flags_i`.  The `busy_hazard_dxa_r`
-   register represents that there is an instruction executing that will produce register A
-   which has not yet completed.
- - busy_hazard_dxb_r - 
-
- - busy_op_any_r - populated with `1` when padv_rsrvs_i goes high indicates that
-   there is an operation queued.
- - busy_op_r - pupulated with `dcod_op_i`. Represents the operation pending in the queue.
- - busy_rda_r - pupulated with data from `dcod_rfxx_i`. Represents the address of instruction operand A pending in the queue.
- - busy_rdb_r - pupulated with data from `dcod_rfxx_i`. Represents the address of instruction operand B pending in the queue.
-
-The reservation station resolves hazards by watching and comparing `wrbk_extadr_i`
-with the `busy_extadr_dxa_r` and `busy_extadr_dxb_r` registers.  If the two match
-it means that the instruction producing register A or B has finished writing back
-its results and the hazard can be cleared.
-
-When all hazard flags are cleared the contents of `busy_op_r` , `busy_rda_r` and
-`busy_rdb_r` will be transfered to `exec_op_any_r`, `exec_op_r`, etc.  When they
-are presented on the outputs the execution unit can take them and start processing.
-
-Handshake signals.
-
-The `taking_op_i` is the signal from the exeuction unit signalling it
-has received the op and will clear all `exec_*_o` output signals.
-
-The `unit_free_o` output signals the control unit that the reservation station
-is free and can be issued another instruction.  It goes high when all hazards
-are cleared.
-
-The RAT and OCB and Reservation also has a concept called `extadr` this is...hr745.
-
-The allocation ID, the ID of the instruction in the order control
-buffer.
-
-This is used to know when an instruction is completed.
-
-These are all generated by the order manager (OMAN).
-
-### RAT
-
-```
-DIAGRAM
-```
-
-The register allocation table (RAT) keeps track of which registers are currently
-in progress of being generated by executing instructions.  This is used to derive
-and resolve hazards.
-
-Hazards are wait conditions which prevend block instructions from executing until
-the hazard is resolved.
-
-The RAT table is made of many `rat_cell` components.  The diagram below is slightly
-simplified compared to the or1k_marocchino to make understanding easier.
-
-There are 32 rat_cells allocated.  1 per register.  The register which the cell
-is allocated to is stored withing `GPR_ADR` in the rat cell.
-
-The outputs of the rat_cell are:
-
- - `rat_rd_extadr_o` - indicates which `extadr` instruction has been allocated to
-                       generate this register.
-                       This will be updated with `decod_extadr_i` when `padv_exec_i` goes high.
- - `rat_rd_alloc_o` - indicates that this register is currently allocated to an
-                      instruction which is pending allocation.
-                      This will be **set** when `padv_exec_i` goes high, `decod_rfd_we_i` is high,
-                      and `dcod_rfd_adr_i` is equal to `GPR_ADR`.
-
-
-
-### Order Control Buffer
-
-```
-DIAGRAM
-```
-
-Similar to reorder buffer?  7 entries
-Pentium Pro 40 entries
-
---------------
-TIMING DIAGRAM
---------------
+of the [OpenRISC 1000 spec](https://openrisc.io/architecture).  Seeing this we split
+the marocchino out to it's [own repository](https://github.com/openrisc/or1k_marocchino)
+where it could grow on it's own.  Of course maintaining the Italian coffee name.
+
+With features like out-of-order execution using [Tomasulo's algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm),
+64-bit FPU operations using register pairs, MMU, Instruction caches, Data caches
+and a clean verilog code base the Marocchino is a advanced to say the least.  In
+this article I would like to take you through the architecture.
+
+I would claim Marocchino is one of the most advanced implementations of a
+out-of-order execution open source CPU cores.  One of it's friendly rivals is the
+[BOOM](https://boom-core.org) core is a 64-bit [risc-v](https://riscv.org)
+implementation written in Chisel.  To contrast Marocchino has a similar feature
+set but is 32-bit OpenRISC written in verilog making it approachable.  If you
+know more out-of-order execution open source cores I would love to know, and I
+can update this list.
+
+In this series of posts I would like to take the reader over some key parts
+of the Marocchino architecture.
+
+  - Marocchino in action - a guide to getting started with marocchino
+  - Data flows - An deep dive into how the Marocchino pipeline is structured
+  - A tomasulo implementation - How Marocchino Out-of-Order superscalar processor
+
+Let's get started.
 
 ## Marocchino in Action
 
-LUT count vs mor1kx
+We can quickly get started with Marocchino as we use
+[fusesoc](https://github.com/olofk/fusesoc).  Which makes bringing together an
+running verilog cores a snap.
+ 
+### Environment Setup
 
-Timing diagram
- - reservation station used
- - branch
+The Marocchino development environment requires Linux, you can use a VM, docker
+or your own machine.  I personally use fedora and maintain several Debian docker
+images for continuous integration and package builds.
 
-## Full featured FPU
+The environment we install allows for simulating verilog using
+[icarus](http://iverilog.icarus.com) or
+[verilator](https://www.veripool.org/wiki/verilator).  It also allows synthesis
+and programming to an FPGA using EDA tools.  Here we will cover only simulation.
+For details on programming an SoC to an FPGA using fusesoc see the `build` and
+`pgm` commands in [fusesoc
+documentation](https://fusesoc.readthedocs.io/en/master/).
 
-ORFPX64A32
+To get started let's setup *fusesoc* and install the required cores into the
+fusesoc library.  By default the verilog libraries will be installed to
+`$HOME/.local/share/fusesoc`.
 
-## Further Reading
- - Tomasulo's Algorithm
- - University of Washington, Computer Architecture - https://courses.cs.washington.edu/courses/csep548/06au/lectures.html
- - UCSD, Graduate Computer Architecture - https://cseweb.ucsd.edu/classes/wi13/cse240a/
- - Intel Core 2 - https://en.wikipedia.org/wiki/Intel_Core_(microarchitecture)
- - Intel Pentium Pro - https://en.wikipedia.org/wiki/Pentium_Pro
+```
+sudo pip install fusesoc
+
+# As yourself
+fusesoc init -y
+fusesoc library add mor1kx-generic https://github.com/stffrdhrn/mor1kx-generic.git
+fusesoc library add intgen https://github.com/stffrdhrn/intgen.git
+fusesoc library add or1k_marocchino https://github.com/openrisc/or1k_marocchino.git
+```
+
+Next we will need to install our verilog compiler/simulator icarus verilog (*iverilog*).
+There is also support for *verilator*, but here we will use icarus.
+
+```
+mkdir -p /tmp/openrisc/iverilog
+cd /tmp/openrisc/iverilog
+git clone https://github.com/steveicarus/iverilog.git .
+
+sh autoconf.sh
+./configure --prefix=/tmp/openrisc/local
+make
+make install
+export PATH=/tmp/openrisc/local/bin:$PATH
+```
+
+**Note**: If you want to get started even faster we can use the
+[librecores-ci](https://github.com/librecores/docker-images/tree/master/librecores-ci)
+docker image.  Which includes *iverilog*, *verilator* and *fusesoc*.
+
+```
+docker pull librecores/librecores-ci
+docker run -it --rm docker.io/librecores/librecores-ci
+```
+
+Next we install the GCC toolchain which is used for compiling c and OpenRISC
+assembly programs to elf binaries which can be loaded and ran on the CPU core.
+Note, below I use the `/tmp` path but you can use any you like.  Pull the latest
+toolchain from my gcc [releases](https://github.com/stffrdhrn/gcc/releases)
+page.
+
+```
+mkdir -p /tmp/openrisc
+cd /tmp/openrisc
+wget https://github.com/stffrdhrn/gcc/releases/download/or1k-9.1.1-20190507/or1k-elf-9.1.1-20190507.tar.xz
+
+tar -xf or1k-elf-9.1.1-20190507.tar.xz
+export PATH=/tmp/openrisc/or1k-elf/bin:$PATH
+```
+
+To check everything works you should be able to run the following commands.
+
+*Check the toolchain is installed*
+
+```
+$ or1k-elf-gcc --version
+or1k-elf-gcc (GCC) 9.1.1 20190503
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+```
+
+*Check fusesoc and the required libraries are installed*
+
+```
+$ fusesoc core-info mor1kx-generic 
+CORE INFO
+Name:      ::mor1kx-generic:1.1
+Core root: /root/.local/share/fusesoc/mor1kx-generic
+
+Targets:
+marocchino_tb
+mor1kx_tb
+```
+
+### An assembly program
+
+To compile, run and trace a simple assembly program.
+
+The program:
+
+```
+/* Exception vectors section.  */
+	.section .vectors, "ax"
+
+/* 0x100: OpenRISC RESET reset vector. */
+        .org 0x100 	
+
+	/* Jump to program initialisation code */
+	.global _main
+	l.movhi r4, hi(_main)
+	l.ori r4, r4, lo(_main)
+	l.jr    r4
+	 l.nop
+
+/* Main executable section.  */
+	.section .text
+	
+	.global _main	
+_main:
+	l.addi	r1,r0,0x1
+	l.addi	r2,r1,0x2
+	l.addi	r3,r2,0x4
+	l.addi	r4,r3,0x8
+	l.addi	r5,r4,0x10
+	l.addi	r6,r5,0x20
+	l.addi	r7,r6,0x40
+	l.addi	r8,r7,0x80
+	l.addi	r9,r8,0x100
+	l.addi	r10,r9,0x200
+	l.addi	r11,r10,0x400
+	l.addi	r12,r11,0x800
+	l.addi	r13,r12,0x1000
+	l.addi	r14,r13,0x2000
+	l.addi	r15,r14,0x4000
+	l.addi	r16,r15,0x8000
+
+	l.sub	r31,r0,r1
+	l.sub	r30,r31,r2
+	l.sub	r29,r30,r3
+	l.sub	r28,r29,r4
+	l.sub	r27,r28,r5
+	l.sub	r26,r27,r6
+	l.sub	r25,r26,r7
+	l.sub	r24,r25,r8
+	l.sub	r23,r24,r9
+	l.sub	r22,r23,r10
+	l.sub	r21,r22,r11
+	l.sub	r20,r21,r12
+	l.sub	r19,r20,r13
+	l.sub	r18,r19,r14
+	l.sub	r17,r18,r15
+	l.sub	r16,r17,r16
+
+	/* Set sim return code to 0 - meaning OK. */
+	l.movhi	r3, 0x0
+	l.nop 	0x1 /* Exit simulation */
+	l.nop
+	l.nop
+```
+
+To compile this we use `or1k-elf-gcc`.  Note the `-nostartfiles` option, this is
+useful for compiling assembly when we don't need "startup" sections linked into
+the binary as we provide them ourselves.
+
+```
+mkdir /tmp/openrisc/src
+cd /tmp/openrisc/src
+vim openrisc-asm.s
+
+or1k-elf-gcc -nostartfiles openrisc-asm.s -o openrisc-asm
+```
+
+Finally, to run the program on the Marocchino we use fusesoc with the below
+options.
+
+ - `run` - specifies that we want to run a simulation.
+ - `--target` - is a fusesoc option for `run` specifying which of the
+   mor1kx-generic targets we want to run, here we specify `marochino_tb`, the
+   Marocchino test bench.
+ - `--tool` - is a sub option for `--target` specifying that we want to run the
+   marocchino_tb target using icarus.
+ - `::mor1kx-generic:1.1` - specifies which system we want to run.  System's
+   represent an SoC that can be simulated or synthesized.  You can see a list of
+   system using `list-cores`.
+ - `--elf-load` - is `mor1kx-generic` specific option which specifies an elf
+   binary that will be loaded into memory before the simulation starts.
+ - `--trace_enable` - is a `mor1kx-generic` specific option enabling tracing.
+ - `--trace_to_screen` - is a `mor1kx-generic` specific option enabling tracing
+   instruction execution to the console as we can see below.
+ - `--vcd` - is a `mor1kx-generic` option instruction icarus to output a vcd
+   file which creates a trace file which can be loaded with [gtkwave](http://gtkwave.sourceforge.net).
+
+```
+fusesoc run --target marocchino_tb --tool icarus ::mor1kx-generic:1.1 \
+  --elf-load ./openrisc-asm --trace_enable --trace_to_screen --vcd
+
+VCD info: dumpfile testlog.vcd opened for output.
+Program header 0: addr 0x00000000, size 0x000001A0
+elf-loader: /tmp/openrisc/src/openrisc-asm was loaded
+Loading         104 words
+                   0 : Illegal Wishbone B3 cycle type (xxx)
+S 00000100: 18800000 l.movhi r4,0x0000       r4         = 00000000  flag: 0
+S 00000104: a8840110 l.ori   r4,r4,0x0110    r4         = 00000110  flag: 0
+S 00000108: 44002000 l.jr    r4                                     flag: 0
+S 0000010c: 15000000 l.nop   0x0000                                 flag: 0
+S 00000110: 9c200001 l.addi  r1,r0,0x0001    r1         = 00000001  flag: 0
+S 00000114: 9c410002 l.addi  r2,r1,0x0002    r2         = 00000003  flag: 0
+S 00000118: 9c620004 l.addi  r3,r2,0x0004    r3         = 00000007  flag: 0
+S 0000011c: 9c830008 l.addi  r4,r3,0x0008    r4         = 0000000f  flag: 0
+S 00000120: 9ca40010 l.addi  r5,r4,0x0010    r5         = 0000001f  flag: 0
+S 00000124: 9cc50020 l.addi  r6,r5,0x0020    r6         = 0000003f  flag: 0
+S 00000128: 9ce60040 l.addi  r7,r6,0x0040    r7         = 0000007f  flag: 0
+S 0000012c: 9d070080 l.addi  r8,r7,0x0080    r8         = 000000ff  flag: 0
+S 00000130: 9d280100 l.addi  r9,r8,0x0100    r9         = 000001ff  flag: 0
+S 00000134: 9d490200 l.addi  r10,r9,0x0200   r10        = 000003ff  flag: 0
+S 00000138: 9d6a0400 l.addi  r11,r10,0x0400  r11        = 000007ff  flag: 0
+S 0000013c: 9d8b0800 l.addi  r12,r11,0x0800  r12        = 00000fff  flag: 0
+S 00000140: 9dac1000 l.addi  r13,r12,0x1000  r13        = 00001fff  flag: 0
+S 00000144: 9dcd2000 l.addi  r14,r13,0x2000  r14        = 00003fff  flag: 0
+S 00000148: 9dee4000 l.addi  r15,r14,0x4000  r15        = 00007fff  flag: 0
+S 0000014c: 9e0f8000 l.addi  r16,r15,0x8000  r16        = ffffffff  flag: 0
+S 00000150: e3e00802 l.sub   r31,r0,r1       r31        = ffffffff  flag: 0
+S 00000154: e3df1002 l.sub   r30,r31,r2      r30        = fffffffc  flag: 0
+S 00000158: e3be1802 l.sub   r29,r30,r3      r29        = fffffff5  flag: 0
+S 0000015c: e39d2002 l.sub   r28,r29,r4      r28        = ffffffe6  flag: 0
+S 00000160: e37c2802 l.sub   r27,r28,r5      r27        = ffffffc7  flag: 0
+S 00000164: e35b3002 l.sub   r26,r27,r6      r26        = ffffff88  flag: 0
+S 00000168: e33a3802 l.sub   r25,r26,r7      r25        = ffffff09  flag: 0
+S 0000016c: e3194002 l.sub   r24,r25,r8      r24        = fffffe0a  flag: 0
+S 00000170: e2f84802 l.sub   r23,r24,r9      r23        = fffffc0b  flag: 0
+S 00000174: e2d75002 l.sub   r22,r23,r10     r22        = fffff80c  flag: 0
+S 00000178: e2b65802 l.sub   r21,r22,r11     r21        = fffff00d  flag: 0
+S 0000017c: e2956002 l.sub   r20,r21,r12     r20        = ffffe00e  flag: 0
+S 00000180: e2746802 l.sub   r19,r20,r13     r19        = ffffc00f  flag: 0
+S 00000184: e2537002 l.sub   r18,r19,r14     r18        = ffff8010  flag: 0
+S 00000188: e2327802 l.sub   r17,r18,r15     r17        = ffff0011  flag: 0
+S 0000018c: e2118002 l.sub   r16,r17,r16     r16        = ffff0012  flag: 0
+S 00000190: 18600000 l.movhi r3,0x0000       r3         = 00000000  flag: 0
+S 00000194: 15000001 l.nop   0x0001                                 flag: 0
+exit(0x00000000);
+```
+
+If we look at the VCD file we can see:
+
+### VCD ###
+
+### A simple C program
+
+### Booting Linux
