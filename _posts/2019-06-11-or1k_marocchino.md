@@ -69,6 +69,9 @@ For details on programming an SoC to an FPGA using fusesoc see the `build` and
 `pgm` commands in [fusesoc
 documentation](https://fusesoc.readthedocs.io/en/master/).
 
+**Note** Below we use `/tmp/openrisc` to install software and work on code, but
+you can use any path you like.
+
 To get started let's setup *fusesoc* and install the required cores into the
 fusesoc library.  By default the verilog libraries will be installed to
 `$HOME/.local/share/fusesoc`.
@@ -98,20 +101,25 @@ make install
 export PATH=/tmp/openrisc/local/bin:$PATH
 ```
 
-**Note**: If you want to get started even faster we can use the
+**Note** If you want to get started even faster we can use the
 [librecores-ci](https://github.com/librecores/docker-images/tree/master/librecores-ci)
 docker image.  Which includes *iverilog*, *verilator* and *fusesoc*.
+
+This can be done with the following.
 
 ```
 docker pull librecores/librecores-ci
 docker run -it --rm docker.io/librecores/librecores-ci
 ```
 
-Next we install the GCC toolchain which is used for compiling c and OpenRISC
+Next we install the GCC toolchain which is used for compiling C and OpenRISC
 assembly programs to elf binaries which can be loaded and ran on the CPU core.
-Note, below I use the `/tmp` path but you can use any you like.  Pull the latest
-toolchain from my gcc [releases](https://github.com/stffrdhrn/gcc/releases)
-page.
+Pull the latest toolchain from my gcc
+[releases](https://github.com/stffrdhrn/gcc/releases) page.  Here we use the
+[newlib](https://sourceware.org/newlib/) (baremetal) toolchain which allows
+compiling programs which run directly on the processor.  For details on other
+toolchains available see [the toolchain summary](https://openrisc.io/software)
+on the OpenRISC homepage.
 
 ```
 mkdir -p /tmp/openrisc
@@ -121,6 +129,8 @@ wget https://github.com/stffrdhrn/gcc/releases/download/or1k-9.1.1-20190507/or1k
 tar -xf or1k-elf-9.1.1-20190507.tar.xz
 export PATH=/tmp/openrisc/or1k-elf/bin:$PATH
 ```
+
+The development environment should now be set up.
 
 To check everything works you should be able to run the following commands.
 
@@ -214,8 +224,9 @@ _main:
 ```
 
 To compile this we use `or1k-elf-gcc`.  Note the `-nostartfiles` option, this is
-useful for compiling assembly when we don't need "startup" sections linked into
-the binary as we provide them ourselves.
+useful for compiling assembly when we don't need
+[newlib/libgloss](https://sourceware.org/git/gitweb.cgi?p=newlib-cygwin.git;a=tree;f=libgloss/or1k)
+provided "startup" sections linked into the binary as we provide them ourselves.
 
 ```
 mkdir /tmp/openrisc/src
@@ -225,7 +236,7 @@ vim openrisc-asm.s
 or1k-elf-gcc -nostartfiles openrisc-asm.s -o openrisc-asm
 ```
 
-Finally, to run the program on the Marocchino we use fusesoc with the below
+Finally, to run the program on the Marocchino we run fusesoc with the below
 options.
 
  - `run` - specifies that we want to run a simulation.
@@ -240,6 +251,7 @@ options.
  - `--elf-load` - is `mor1kx-generic` specific option which specifies an elf
    binary that will be loaded into memory before the simulation starts.
  - `--trace_enable` - is a `mor1kx-generic` specific option enabling tracing.
+   When specified the simulator will output a trace file to `{fusesoc-builds}/mor1kx-generic_1.1/marocchino_tb-icarus/marocchino-trace.log` [see log](/content/2019/asm-marocchino-trace.log).
  - `--trace_to_screen` - is a `mor1kx-generic` specific option enabling tracing
    instruction execution to the console as we can see below.
  - `--vcd` - is a `mor1kx-generic` option instruction icarus to output a vcd
@@ -294,11 +306,97 @@ S 00000190: 18600000 l.movhi r3,0x0000       r3         = 00000000  flag: 0
 S 00000194: 15000001 l.nop   0x0001                                 flag: 0
 exit(0x00000000);
 ```
+If we look at [the VCD trace file](/content/2019/asm-testlog.vcd) we can see the
+below trace.  The trace file is also helpful for navigating through the various
+SoC components as it captures all wire transitions.
 
-If we look at the VCD file we can see:
 
-### VCD ###
+![asm tracefile vcd](/content/2019/asm-marocchino-trace.png)
 
 ### A simple C program
+
+The program:
+
+```
+/* Simple c program, doing some math.  */
+
+#include <stdio.h>
+
+int a [] = { 1, 2, 3, 4, 5 };
+
+int madd(int a, int b, int c) {
+  return a * b + c;
+}
+
+int main() {
+  int res;
+
+  for (int i = 0; i < 5; i++) {
+    res = madd(0  , a[1], a[i]);
+    res = madd(res, a[2], a[i]);
+    res = madd(res, a[2], a[i]);
+    res = madd(res, a[3], a[i]);
+    res = madd(res, a[4], a[i]);
+  }
+
+  printf("Result is = %d\n", res);
+
+  return 0;
+}
+```
+
+To compile we use the following, here we specify a few new options.  Notice, we
+do not specify `-nostartfiles` here as we do want newlib to link in all the
+start routines to provide a full c runtime.
+
+  - `-mhard-mul` - indicates that our cpu target supports multiply instructions.
+  - `-mhard-div` - indicates that our cpu target supports divide instructions.
+  - `-mhard-float` - indicates that our cpu target supports FPU instructions.
+  - `-mdouble-float` - indicates that our cpu target supports the new double precision floating point instructions using register pairs ([orfpx64a32](https://openrisc.io/proposals/orfpx64a32)).
+
+To see a full list of options read the GCC manual or see the output of
+`or1k-elf-gcc --target-help`.
+
+```
+or1k-elf-gcc -Wall -O2 -mhard-mul -mhard-div -mhard-float -mdouble-float -mror openrisc-c.c -o openrisc-c
+```
+
+If we want to inspec the assembly to ensure we did generate multiply instructions
+we can use the trusty `objdump` utility.  As per below, yes, we can see multiply
+instructions.
+
+```
+or1k-elf-objdump -d openrisc-c | grep -A10 main
+00002000 <main>:
+    2000:       1a a0 00 01     l.movhi r21,0x1
+    2004:       9c 21 ff f8     l.addi r1,r1,-8
+    2008:       9e b5 40 3c     l.addi r21,r21,16444
+    200c:       86 75 00 10     l.lwz r19,16(r21)
+    2010:       86 f5 00 08     l.lwz r23,8(r21)
+    2014:       e2 37 9b 06     l.mul r17,r23,r19
+    2018:       e2 31 98 00     l.add r17,r17,r19
+    201c:       e2 31 bb 06     l.mul r17,r17,r23
+    2020:       e2 31 98 00     l.add r17,r17,r19
+    2024:       86 b5 00 0c     l.lwz r21,12(r21)
+...
+
+```
+
+Similar to running the assembly example we can run this as follows.
+
+```
+fusesoc run --target marocchino_tb --tool icarus ::mor1kx-generic:1.1 \
+  --elf-load ./openrisc-c --trace_enable --vcd
+...
+
+Result is = 1330
+```
+
+Now, if we look at [the VCD trace file](/content/2019/c-testlog.vcd) we can see the
+below trace.  Notice that with the c program we can observe better pipelining where
+an instruction can be executed every clock cycle.  This is because caches have
+been initialized as part of the newlib c-runtime initialization.
+
+![c tracefile vcd](/content/2019/c-marocchino-trace.png)
 
 ### Booting Linux

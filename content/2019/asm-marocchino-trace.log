@@ -1,0 +1,39 @@
+S 00000100: 18800000 l.movhi r4,0x0000       r4		= 00000000  flag: 0
+S 00000104: a8840110 l.ori   r4,r4,0x0110    r4		= 00000110  flag: 0
+S 00000108: 44002000 l.jr    r4              			    flag: 0
+S 0000010c: 15000000 l.nop   0x0000          			    flag: 0
+S 00000110: 9c200001 l.addi  r1,r0,0x0001    r1		= 00000001  flag: 0
+S 00000114: 9c410002 l.addi  r2,r1,0x0002    r2		= 00000003  flag: 0
+S 00000118: 9c620004 l.addi  r3,r2,0x0004    r3		= 00000007  flag: 0
+S 0000011c: 9c830008 l.addi  r4,r3,0x0008    r4		= 0000000f  flag: 0
+S 00000120: 9ca40010 l.addi  r5,r4,0x0010    r5		= 0000001f  flag: 0
+S 00000124: 9cc50020 l.addi  r6,r5,0x0020    r6		= 0000003f  flag: 0
+S 00000128: 9ce60040 l.addi  r7,r6,0x0040    r7		= 0000007f  flag: 0
+S 0000012c: 9d070080 l.addi  r8,r7,0x0080    r8		= 000000ff  flag: 0
+S 00000130: 9d280100 l.addi  r9,r8,0x0100    r9		= 000001ff  flag: 0
+S 00000134: 9d490200 l.addi  r10,r9,0x0200   r10	= 000003ff  flag: 0
+S 00000138: 9d6a0400 l.addi  r11,r10,0x0400  r11	= 000007ff  flag: 0
+S 0000013c: 9d8b0800 l.addi  r12,r11,0x0800  r12	= 00000fff  flag: 0
+S 00000140: 9dac1000 l.addi  r13,r12,0x1000  r13	= 00001fff  flag: 0
+S 00000144: 9dcd2000 l.addi  r14,r13,0x2000  r14	= 00003fff  flag: 0
+S 00000148: 9dee4000 l.addi  r15,r14,0x4000  r15	= 00007fff  flag: 0
+S 0000014c: 9e0f8000 l.addi  r16,r15,0x8000  r16	= ffffffff  flag: 0
+S 00000150: e3e00802 l.sub   r31,r0,r1       r31	= ffffffff  flag: 0
+S 00000154: e3df1002 l.sub   r30,r31,r2      r30	= fffffffc  flag: 0
+S 00000158: e3be1802 l.sub   r29,r30,r3      r29	= fffffff5  flag: 0
+S 0000015c: e39d2002 l.sub   r28,r29,r4      r28	= ffffffe6  flag: 0
+S 00000160: e37c2802 l.sub   r27,r28,r5      r27	= ffffffc7  flag: 0
+S 00000164: e35b3002 l.sub   r26,r27,r6      r26	= ffffff88  flag: 0
+S 00000168: e33a3802 l.sub   r25,r26,r7      r25	= ffffff09  flag: 0
+S 0000016c: e3194002 l.sub   r24,r25,r8      r24	= fffffe0a  flag: 0
+S 00000170: e2f84802 l.sub   r23,r24,r9      r23	= fffffc0b  flag: 0
+S 00000174: e2d75002 l.sub   r22,r23,r10     r22	= fffff80c  flag: 0
+S 00000178: e2b65802 l.sub   r21,r22,r11     r21	= fffff00d  flag: 0
+S 0000017c: e2956002 l.sub   r20,r21,r12     r20	= ffffe00e  flag: 0
+S 00000180: e2746802 l.sub   r19,r20,r13     r19	= ffffc00f  flag: 0
+S 00000184: e2537002 l.sub   r18,r19,r14     r18	= ffff8010  flag: 0
+S 00000188: e2327802 l.sub   r17,r18,r15     r17	= ffff0011  flag: 0
+S 0000018c: e2118002 l.sub   r16,r17,r16     r16	= ffff0012  flag: 0
+S 00000190: 18600000 l.movhi r3,0x0000       r3		= 00000000  flag: 0
+S 00000194: 15000001 l.nop   0x0001          			    flag: 0
+exit(0x00000000);
