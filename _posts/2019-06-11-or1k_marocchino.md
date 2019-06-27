@@ -15,11 +15,11 @@ of these pipelines which has been under development but never integrated into
 the main branch was the Marocchino.  I had never paid much attention to the
 Marocchino pipeline.
 
-Around the same time author or Marocchino sent a mail mentioning he could not
-used the new GCC port as is was missing Single and Double precision FPU support.
-Using the new verification pipeline I set out to start working on adding single
-and double precision floating point support to the OpenRISC gcc port.  My
-verification target would be the Marocchino pipeline.
+Around the same time the author of Marocchino sent a mail mentioning he could
+not used the new GCC port as is was missing Single and Double precision FPU
+support.  Using the new verification pipeline I set out to start working on
+adding single and double precision floating point support to the OpenRISC gcc
+port.  My verification target would be the Marocchino pipeline.
 
 After some initial investigation I found this CPU was much more than a new pipeline
 for the mor1kx with a special FPU.  The marocchino has morphed into a complete re-implementation
@@ -27,10 +27,11 @@ of the [OpenRISC 1000 spec](https://openrisc.io/architecture).  Seeing this we s
 the marocchino out to it's [own repository](https://github.com/openrisc/or1k_marocchino)
 where it could grow on it's own.  Of course maintaining the Italian coffee name.
 
-With features like out-of-order execution using [Tomasulo's algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm),
-64-bit FPU operations using register pairs, MMU, Instruction caches, Data caches
-and a clean verilog code base the Marocchino is a advanced to say the least.  In
-this article I would like to take you through the architecture.
+With features like out-of-order execution using
+[Tomasulo's algorithm](https://en.wikipedia.org/wiki/Tomasulo_algorithm), 64-bit
+FPU operations using register pairs, MMU, Instruction caches, Data caches,
+Multicore support and a clean verilog code base the Marocchino is advanced to
+say the least.
 
 I would claim Marocchino is one of the most advanced implementations of a
 out-of-order execution open source CPU cores.  One of it's friendly rivals is the
@@ -76,14 +77,28 @@ To get started let's setup *fusesoc* and install the required cores into the
 fusesoc library.  By default the verilog libraries will be installed to
 `$HOME/.local/share/fusesoc`.
 
+Here we clone the git repositories for for Marocchino into `/tmp/openrisc/src`
+feel free to have a look,  If you feel adventurous make some changes.  The repos
+include:
+ - [mor1kx-generic](https://github.com/stffrdhrn/mor1kx-generic) - the SoC
+   system configuration which wires together the CPU, Memory, System bus, UART
+   and a simple interrupt peripheral.
+ - [or1k_marocchino](https://github.com/openrisc/or1k_marocchino) - the
+   Marocchino CPU core.
+
 ```
 sudo pip install fusesoc
 
+mkdir -p /tmp/openrisc/src
+cd /tmp/openrisc/src
+git clone https://github.com/stffrdhrn/mor1kx-generic.git
+git clone https://github.com/openrisc/or1k_marocchino.git
+
 # As yourself
 fusesoc init -y
-fusesoc library add mor1kx-generic https://github.com/stffrdhrn/mor1kx-generic.git
 fusesoc library add intgen https://github.com/stffrdhrn/intgen.git
-fusesoc library add or1k_marocchino https://github.com/openrisc/or1k_marocchino.git
+fusesoc library add mor1kx-generic /tmp/openrisc/src/mor1kx-generic
+fusesoc library add or1k_marocchino /tmp/openrisc/src/or1k_marocchino
 ```
 
 Next we will need to install our verilog compiler/simulator icarus verilog (*iverilog*).
@@ -157,7 +172,7 @@ marocchino_tb
 mor1kx_tb
 ```
 
-### An assembly program
+### Running an Assembly Program
 
 To compile, run and trace a simple assembly program.
 
@@ -306,14 +321,24 @@ S 00000190: 18600000 l.movhi r3,0x0000       r3         = 00000000  flag: 0
 S 00000194: 15000001 l.nop   0x0001                                 flag: 0
 exit(0x00000000);
 ```
-If we look at [the VCD trace file](/content/2019/asm-testlog.vcd) we can see the
-below trace.  The trace file is also helpful for navigating through the various
-SoC components as it captures all wire transitions.
 
+If we look at [the VCD trace file](/content/2019/asm-testlog.vcd) in gtkwave we
+can see the below trace.  The trace file is also helpful for navigating through
+the various SoC components as it captures all wire transitions.
+
+Take note that we are not seeing very good performance, this is because caching is
+not enabled and the CPU takes several cycles to read an instruction from memory.
+This means we are not seeing one instruction executed per cycle.  Enabling
+caches would fix this.
 
 ![asm tracefile vcd](/content/2019/asm-marocchino-trace.png)
 
-### A simple C program
+### Running a C program
+
+When we compile a C program there is a lot more happening behind the scenes.
+The linker will link in an entire runtime that along with standard libc
+functions on OpenRISC will setup interrupt vectors, enable caches, setup memory
+sections for variables, run static initializers and finally run our program.
 
 The program:
 
@@ -345,23 +370,25 @@ int main() {
 }
 ```
 
-To compile we use the following, here we specify a few new options.  Notice, we
-do not specify `-nostartfiles` here as we do want newlib to link in all the
-start routines to provide a full c runtime.
+To compile we use the below `or1k-elf-gcc` command.  Notice, we do not specify
+`-nostartfiles` here as we do want newlib to link in all the start routines to
+provide a full c runtime.  We do specify the following arguments to tell GCC a
+bit about our OpenRISC cpu.  If these `-m` options are not specified GCC will
+link in code using the libgcc library to emulate these instructions.
 
   - `-mhard-mul` - indicates that our cpu target supports multiply instructions.
   - `-mhard-div` - indicates that our cpu target supports divide instructions.
   - `-mhard-float` - indicates that our cpu target supports FPU instructions.
   - `-mdouble-float` - indicates that our cpu target supports the new double precision floating point instructions using register pairs ([orfpx64a32](https://openrisc.io/proposals/orfpx64a32)).
 
-To see a full list of options read the GCC manual or see the output of
-`or1k-elf-gcc --target-help`.
+To see a full list of options for OpenRISC read the GCC manual or see the output
+of `or1k-elf-gcc --target-help`.
 
 ```
 or1k-elf-gcc -Wall -O2 -mhard-mul -mhard-div -mhard-float -mdouble-float -mror openrisc-c.c -o openrisc-c
 ```
 
-If we want to inspec the assembly to ensure we did generate multiply instructions
+If we want to inspect the assembly to ensure we did generate multiply instructions
 we can use the trusty `objdump` utility.  As per below, yes, we can see multiply
 instructions.
 
@@ -382,7 +409,7 @@ or1k-elf-objdump -d openrisc-c | grep -A10 main
 
 ```
 
-Similar to running the assembly example we can run this as follows.
+Similar to running the assembly example we can run this with `fusesoc` as follows.
 
 ```
 fusesoc run --target marocchino_tb --tool icarus ::mor1kx-generic:1.1 \
@@ -395,8 +422,21 @@ Result is = 1330
 Now, if we look at [the VCD trace file](/content/2019/c-testlog.vcd) we can see the
 below trace.  Notice that with the c program we can observe better pipelining where
 an instruction can be executed every clock cycle.  This is because caches have
-been initialized as part of the newlib c-runtime initialization.
+been initialized as part of the newlib c-runtime initialization, Great!
 
 ![c tracefile vcd](/content/2019/c-marocchino-trace.png)
 
-### Booting Linux
+## Conclusion
+
+In this article we went through a quick introduction to the Marocchino
+development environment.  The development environment would actually be similar
+when developing any OpenRISC core. 
+
+This environment will allow the reader to following in future Marocchino
+articles where we go deeper into the architecture.  In this environment you can
+now:
+  - Develop and test verilog code for the Marocchino processor
+  - Develop assembly programs and test them on the Marocchino or other OpenRISC processors
+  - Develop c programs and test them on the Marocchino or other OpenRISC processors
+
+
