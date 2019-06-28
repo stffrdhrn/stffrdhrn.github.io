@@ -54,7 +54,7 @@ Let's get started.
 
 We can quickly get started with Marocchino as we use
 [fusesoc](https://github.com/olofk/fusesoc).  Which makes bringing together an
-running verilog cores a snap.
+running verilog libraries, or cores, a snap.
  
 ### Environment Setup
 
@@ -72,14 +72,16 @@ documentation](https://fusesoc.readthedocs.io/en/master/).
 
 **Note** Below we use `/tmp/openrisc` to install software and work on code, but
 you can use any path you like.
+#### Setting up FuseSOC
+
+![fusesoc logp](/content/2019/fusesoc.png)
 
 To get started let's setup *fusesoc* and install the required cores into the
-fusesoc library.  By default the verilog libraries will be installed to
-`$HOME/.local/share/fusesoc`.
+fusesoc library. 
 
-Here we clone the git repositories for for Marocchino into `/tmp/openrisc/src`
-feel free to have a look,  If you feel adventurous make some changes.  The repos
-include:
+Here we clone the git repositories used for Marocchino development into
+`/tmp/openrisc/src` feel free to have a look,  If you feel adventurous make some
+changes.  The repos include:
  - [mor1kx-generic](https://github.com/stffrdhrn/mor1kx-generic) - the SoC
    system configuration which wires together the CPU, Memory, System bus, UART
    and a simple interrupt peripheral.
@@ -101,8 +103,9 @@ fusesoc library add mor1kx-generic /tmp/openrisc/src/mor1kx-generic
 fusesoc library add or1k_marocchino /tmp/openrisc/src/or1k_marocchino
 ```
 
-Next we will need to install our verilog compiler/simulator icarus verilog (*iverilog*).
-There is also support for *verilator*, but here we will use icarus.
+#### Setting up Icarus Verilog
+
+Next we will need to install our verilog compiler/simulator Icarus Cerilog (*iverilog*).
 
 ```
 mkdir -p /tmp/openrisc/iverilog
@@ -116,9 +119,14 @@ make install
 export PATH=/tmp/openrisc/local/bin:$PATH
 ```
 
-**Note** If you want to get started even faster we can use the
+#### Using Docker
+
+If you want to get started very quickly faster we can use the
 [librecores-ci](https://github.com/librecores/docker-images/tree/master/librecores-ci)
 docker image.  Which includes *iverilog*, *verilator* and *fusesoc*.
+
+This allows us to skip the *Setting up Icarus Verilog* and part of the *Setting
+up FuseSOC* step above.
 
 This can be done with the following.
 
@@ -127,8 +135,10 @@ docker pull librecores/librecores-ci
 docker run -it --rm docker.io/librecores/librecores-ci
 ```
 
+#### Setting up GCC
+
 Next we install the GCC toolchain which is used for compiling C and OpenRISC
-assembly programs to elf binaries which can be loaded and ran on the CPU core.
+assembly programs.  The produced elf binaries can be loaded and run on the CPU core.
 Pull the latest toolchain from my gcc
 [releases](https://github.com/stffrdhrn/gcc/releases) page.  Here we use the
 [newlib](https://sourceware.org/newlib/) (baremetal) toolchain which allows
@@ -149,7 +159,9 @@ The development environment should now be set up.
 
 To check everything works you should be able to run the following commands.
 
-*Check the toolchain is installed*
+#### Setup Verification
+
+To ensure the toolchain is installed and working we can run the following:
 
 ```
 $ or1k-elf-gcc --version
@@ -159,7 +171,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
 
-*Check fusesoc and the required libraries are installed*
+To ensure FuseSOC and the required cores are installed we can run this:
 
 ```
 $ fusesoc core-info mor1kx-generic 
@@ -170,13 +182,24 @@ Core root: /root/.local/share/fusesoc/mor1kx-generic
 Targets:
 marocchino_tb
 mor1kx_tb
+
+$ fusesoc list-cores
+...
+::intgen:0                     : local
+::or1k_marocchino:5.0-r3       : local
+...
+
 ```
 
 ### Running an Assembly Program
 
-To compile, run and trace a simple assembly program.
+The most simple program you can run on OpenRISC is a simple assembly program.
+When running, everything in the below program is loaded into the OpenRISC
+memory, nothing more nothing less.
 
-The program:
+To compile, run and trace a simple assembly program we do the following.
+
+Create a source file `asm-openrisc.s` as follows:
 
 ```
 /* Exception vectors section.  */
@@ -251,7 +274,7 @@ vim openrisc-asm.s
 or1k-elf-gcc -nostartfiles openrisc-asm.s -o openrisc-asm
 ```
 
-Finally, to run the program on the Marocchino we run fusesoc with the below
+Finally, to run the program on the Marocchino we run `fusesoc` with the below
 options.
 
  - `run` - specifies that we want to run a simulation.
@@ -385,7 +408,8 @@ To see a full list of options for OpenRISC read the GCC manual or see the output
 of `or1k-elf-gcc --target-help`.
 
 ```
-or1k-elf-gcc -Wall -O2 -mhard-mul -mhard-div -mhard-float -mdouble-float -mror openrisc-c.c -o openrisc-c
+or1k-elf-gcc -Wall -O2 -mhard-mul -mhard-div -mhard-float -mdouble-float -mror \
+  openrisc-c.c -o openrisc-c
 ```
 
 If we want to inspect the assembly to ensure we did generate multiply instructions
@@ -439,4 +463,5 @@ now:
   - Develop assembly programs and test them on the Marocchino or other OpenRISC processors
   - Develop c programs and test them on the Marocchino or other OpenRISC processors
 
-
+In the next article we will look more into how the above programs actually flow
+through the Marocchino pipeline.  Stay tuned.
