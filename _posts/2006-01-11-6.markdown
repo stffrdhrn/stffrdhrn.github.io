@@ -23,4 +23,4 @@ tags: []
 comments: []
 ---
 <p><img width="96" height="96" id="image5" alt="Me Looking Stupid" src="/content/2006/01/Stafford-pose.thumbnail.png" /></p>
-<p>Just testing some features. Please have fun checking out my new phot gallery.</p>
+<p>Just testing some features. Please have fun checking out my new photo gallery.</p>

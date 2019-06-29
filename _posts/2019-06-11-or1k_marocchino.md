@@ -35,7 +35,7 @@ say the least.
 
 I would claim Marocchino is one of the most advanced implementations of a
 out-of-order execution open source CPU cores.  One of it's friendly rivals is the
-[BOOM](https://boom-core.org) core is a 64-bit [risc-v](https://riscv.org)
+[BOOM](https://boom-core.org) core a 64-bit [risc-v](https://riscv.org)
 implementation written in Chisel.  To contrast Marocchino has a similar feature
 set but is 32-bit OpenRISC written in verilog making it approachable.  If you
 know more out-of-order execution open source cores I would love to know, and I
@@ -46,14 +46,14 @@ of the Marocchino architecture.
 
   - Marocchino in action - a guide to getting started with marocchino
   - Data flows - An deep dive into how the Marocchino pipeline is structured
-  - A tomasulo implementation - How Marocchino Out-of-Order superscalar processor
+  - A Tomasulo implementation - How Marocchino the Out-of-Order superscalar processor works
 
 Let's get started.
 
 ## Marocchino in Action
 
 We can quickly get started with Marocchino as we use
-[fusesoc](https://github.com/olofk/fusesoc).  Which makes bringing together an
+[FuseSoC](https://github.com/olofk/fusesoc).  Which makes bringing together an
 running verilog libraries, or cores, a snap.
  
 ### Environment Setup
@@ -66,18 +66,17 @@ The environment we install allows for simulating verilog using
 [icarus](http://iverilog.icarus.com) or
 [verilator](https://www.veripool.org/wiki/verilator).  It also allows synthesis
 and programming to an FPGA using EDA tools.  Here we will cover only simulation.
-For details on programming an SoC to an FPGA using fusesoc see the `build` and
-`pgm` commands in [fusesoc
-documentation](https://fusesoc.readthedocs.io/en/master/).
+For details on programming an SoC to an FPGA using FuseSoC see the `build` and
+`pgm` commands in [FuseSoC documentation](https://fusesoc.readthedocs.io/en/master/).
 
 **Note** Below we use `/tmp/openrisc` to install software and work on code, but
 you can use any path you like.
-#### Setting up FuseSOC
+#### Setting up FuseSoC
 
-![fusesoc logp](/content/2019/fusesoc.png)
+![fusesoc logo](/content/2019/fusesoc.png)
 
-To get started let's setup *fusesoc* and install the required cores into the
-fusesoc library. 
+To get started let's setup *FuseSoC* and install the required cores into the
+FuseSoC library. 
 
 Here we clone the git repositories used for Marocchino development into
 `/tmp/openrisc/src` feel free to have a look,  If you feel adventurous make some
@@ -105,7 +104,7 @@ fusesoc library add or1k_marocchino /tmp/openrisc/src/or1k_marocchino
 
 #### Setting up Icarus Verilog
 
-Next we will need to install our verilog compiler/simulator Icarus Cerilog (*iverilog*).
+Next we will need to install our verilog compiler/simulator Icarus Verilog (*iverilog*).
 
 ```
 mkdir -p /tmp/openrisc/iverilog
@@ -126,7 +125,7 @@ If you want to get started very quickly faster we can use the
 docker image.  Which includes *iverilog*, *verilator* and *fusesoc*.
 
 This allows us to skip the *Setting up Icarus Verilog* and part of the *Setting
-up FuseSOC* step above.
+up FuseSoC* step above.
 
 This can be done with the following.
 
@@ -171,7 +170,7 @@ This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 ```
 
-To ensure FuseSOC and the required cores are installed we can run this:
+To ensure FuseSoC and the required cores are installed we can run this:
 
 ```
 $ fusesoc core-info mor1kx-generic 
@@ -278,7 +277,7 @@ Finally, to run the program on the Marocchino we run `fusesoc` with the below
 options.
 
  - `run` - specifies that we want to run a simulation.
- - `--target` - is a fusesoc option for `run` specifying which of the
+ - `--target` - is a FuseSoC option for `run` specifying which of the
    mor1kx-generic targets we want to run, here we specify `marochino_tb`, the
    Marocchino test bench.
  - `--tool` - is a sub option for `--target` specifying that we want to run the
