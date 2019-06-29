@@ -44,9 +44,9 @@ can update this list.
 In this series of posts I would like to take the reader over some key parts
 of the Marocchino architecture.
 
-  - Marocchino in action - a guide to getting started with marocchino
-  - Data flows - An deep dive into how the Marocchino pipeline is structured
-  - A Tomasulo implementation - How Marocchino the Out-of-Order superscalar processor works
+  - Marocchino in Action - A guide to getting started with marocchino
+  - Data Flows - An deep dive into how the Marocchino pipeline is structured
+  - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
 
 Let's get started.
 
