@@ -5,6 +5,19 @@ date: 2019-06-11 01:37
 categories: [ hardware, embedded, openrisc ]
 ---
 
+The Marocchino is an advanced new OpenRISC soft core CPU.  However, not many
+have heard about it.  Let's try to change this.
+
+In this series of posts I would like to take the reader over some key parts
+of the Marocchino and it's architecture.
+
+  - Marocchino in Action - (this article) A light intro and a guide to getting started with Marocchino
+  - Data Flows - An deep dive into how the Marocchino pipeline is structured
+  - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
+
+
+## Br
+
 In the beginning of 2019 I had finished the [OpenRISC GCC port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html)
 and was working on building up toolchain test and verification support using the
 [mor1kx](https://github.com/openrisc/mor1kx) soft core.  Part of the mor1kx's
@@ -41,16 +54,9 @@ set but is 32-bit OpenRISC written in verilog making it approachable.  If you
 know more out-of-order execution open source cores I would love to know, and I
 can update this list.
 
-In this series of posts I would like to take the reader over some key parts
-of the Marocchino architecture.
+Let's dive in.
 
-  - Marocchino in Action - A guide to getting started with marocchino
-  - Data Flows - An deep dive into how the Marocchino pipeline is structured
-  - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
-
-Let's get started.
-
-## Marocchino in Action
+## Getting started with Marocchino
 
 We can quickly get started with Marocchino as we use
 [FuseSoC](https://github.com/olofk/fusesoc).  Which makes bringing together an
