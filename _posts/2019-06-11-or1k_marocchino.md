@@ -16,7 +16,7 @@ of the Marocchino and it's architecture.
   - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
 
 
-## Br
+## Introducing Marocchino
 
 In the beginning of 2019 I had finished the [OpenRISC GCC port](/software/embedded/openrisc/2018/02/03/openrisc_gcc_rewrite.html)
 and was working on building up toolchain test and verification support using the
