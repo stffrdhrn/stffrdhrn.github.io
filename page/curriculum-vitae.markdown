@@ -221,7 +221,11 @@ Chinese conversationally, Japanese conversationally and get by with German
 . I enjoy speaking and learning foreign languages, as well as travel.</p>
 
 <h2>Work Experience</h2>
-<h3><strong>Morgan Stanley Software Engineer</strong> - December 2006 - Now (Tokyo, Japan)</h3>
+<h3><strong>SMBC Nikko</strong> - August 2018 - Now (Tokyo, Japan)</h3>
+<ul>
+  <li>Work on Algo Trading Platform</li>
+</ul>
+<h3><strong>Morgan Stanley Software Engineer</strong> - December 2006 - August 2018 (Tokyo, Japan)</h3>
 <ul>
   <li>Work on Morgan Stanley's Straight Through Processing (STP) infrastructure</li>
   <li>Design and Implement mission critical financial solutions, using MQ, Sybase, DB2, Java and other distributed system technologies</li>
@@ -231,8 +235,8 @@ Chinese conversationally, Japanese conversationally and get by with German
   <li>Technology lead implementing best practices for SDLC including mainting build and release tools, Jenkins continuous integration and advocating migration from Perforce to git</li>
   <li>Infrastructure lead managing and performing host and OS upgrades and migrations, building plant monitoring tooling, work on plant alert reductions and capacity planning</li>
   <li>Work with network infrastructure team to configure external connectivity for above listed implementations including setting up iptables and cisco border router nat rules</li>
-  <li>For all projects I am required to communicate closely with business expert from multiple operations groups as well as other IT teams to gather requirements and coordinate integrations</li>
-  <li>Gained detailed knowledge of financial products including: equity, bonds, margin trading, stock lending, futures, options, fx, fx options</li>
+  <li>For all projects I am required to communicate closely with business users as well as other IT teams to gather requirements and coordinate integrations</li>
+  <li>Gained detailed knowledge of financial products including: stocks, bonds, margin trading, stock lending, futures, options, fx, fx options</li>
 </ul>
 
 <h3><strong>SurfControl plc Engineering Manager</strong> - July 2004 - December 2006 (Beijing, China)</h3>
