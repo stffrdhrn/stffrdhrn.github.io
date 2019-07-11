@@ -6,15 +6,17 @@ categories: [ hardware, embedded, openrisc ]
 ---
 
 In the last article, [Marocchino OpenRISC in action]({% post_url 2019-06-11-or1k_marocchino %})
-cpu came about and one could setup a development environment for it.  In this
-article let's look a bit deeper on how the Marocchino works.
+we discussed the history of the cpu and how to setup setup a development environment for it.  In this
+article let's look a bit deeper into how the Marocchino CPU works.
 
-In this series of posts I would like to take the reader over some key parts
-of the Marocchino and it's architecture.
+This is an ongoing series of posts on the Marocchino CPU, an open source out-of-order
+cpu.  I the series where I will to take you through the Marocchino and it's architecture.
 
   - Marocchino in Action - A light intro and a guide to getting started with Marocchino
   - Data Flows - (this article) An deep dive into how the Marocchino pipeline is structured
   - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
+
+Let's look at how the data flows through the architecutre.
 
 ## Marocchino Architecture
 
@@ -94,24 +96,29 @@ cpu using many of the algorithms from Tomosulo.
 
 ## Pipeline Controls
 
-The marocchino has two modules for coordinating pipeline stage transfer.  The
+The marocchino has two modules for coordinating pipeline stage data propogation.  The
 control unit and the order manager.
 
-### Control Unit Signals
+### Control Unit
 
 The Control unit of the CPU is in charge of watching over the pipeline stages
 and signalling when operations can transfer from one stage to the next.  The
-marocchino does this with a series of pipeline advance (`padv_*`) signals.  In generals for the
-best efficiency all `padv_*` wires should be high at all time allowing
-instructions to progress on every clock cycle.  The `padv_*` signals include:
+marocchino does this with a series of pipeline advance (`padv_*`) signals.  In general for the
+best efficiency all `padv_*` wires should be high at all times allowing
+instructions to progress on every clock cycle.  But as we will see in reality, this
+is difficult to acheive due to pipeline stall scenarios like cache misses and branch predition misses.
+The `padv_*` signals include:
 
 *Fetch*
 The `padv_fetch_o` signal instructs the instruction fetch unit to progress.
 Internally the fetch unit has 3 stages.
+Goes high when
 
 *Decode*
 The `padv_dcod_o` signal instructs the instruction decode unit to output decodeded ops
-
+The decode unit is one stage, if `padv_dcod_o` is high, it will decode the instruction
+input every cycle.
+Goes high when
 
 *Dynamic Scheduling*
 `padv_exec_o` – to order manager, enqueues the decode ops into the Order Control
@@ -120,6 +127,8 @@ enables registering of an instruction into a reservation station
 
 Both `padv_exec_o` and `padv_*_rsrvs_o` are dependent on the execution units being
 ready and both signals will go active at the same time.
+
+The oman has multiple stages, 1 if the 
 
 *Writeback*
 `padv_wrbk_o` – to the execution units will go active when `exec_valid_i` is active
