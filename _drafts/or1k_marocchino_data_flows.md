@@ -1,22 +1,22 @@
 ---
-title: OR1K Marocchino Data Flow
+title: OR1K Marocchino Instruction Pipeline
 layout: post
-date: 2019-03-03 11:00
+date: 2019-07-18 06:43
 categories: [ hardware, embedded, openrisc ]
 ---
 
 This is an ongoing series of posts on the Marocchino CPU, an open source out-of-order
-cpu.  In this series we will review the Marocchino and it's architecture.
+[OpenRISC](https://openrisc.io) cpu.  In this series we will review the Marocchino and it's architecture.
 
-  - Marocchino in Action - A light intro and a guide to getting started with Marocchino
-  - Data Flows - (this article) An deep dive into how the Marocchino pipeline is structured
+  - [Marocchino in Action]({% post_url 2019-06-11-or1k_marocchino %}) - A light intro and a guide to getting started with Marocchino
+  - Instruction Pipeline - (this article) An deep dive into how the Marocchino pipeline is structured
   - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
 
-In the last article, [Marocchino OpenRISC in action]({% post_url 2019-06-11-or1k_marocchino %})
-we discussed the history of the CPU and how to setup setup a development environment for it.  In this
+In the last article, Marocchino OpenRISC in action we discussed the history of
+the CPU and how to setup setup a development environment for it.  In this
 article let's look a bit deeper into how the Marocchino CPU works.
 
-Let's look at how the data flows through the Marocchino [pipeline](https://en.wikipedia.org/wiki/Instruction_pipelining).
+We will look at how an instruction flows through the Marocchino [pipeline](https://en.wikipedia.org/wiki/Instruction_pipelining).
 
 ## Marocchino Architecture
 
@@ -24,9 +24,7 @@ The Marocchino source code is available on
 [github](https://github.com/openrisc/or1k_marocchino/tree/master/rtl/verilog)
 and is pretty easy to browse.
 
-```
- ::GITHUB SCREENSHOT::
-```
+![marocchino github website screenshot](/content/2019/marocchino-github.png)
 
 At first glance of the code the Marocchino may look like a traditional 5 stage
 RISC pipeline.  It has fetch, decode, execution, load/store and register write

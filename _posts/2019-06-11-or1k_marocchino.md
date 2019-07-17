@@ -12,7 +12,7 @@ In this series of posts I would like to take the reader over some key parts
 of the Marocchino and it's architecture.
 
   - Marocchino in Action - (this article) A light intro and a guide to getting started with Marocchino
-  - Data Flows - An deep dive into how the Marocchino pipeline is structured
+  - Instruction Pipeline - An deep dive into how the Marocchino pipeline is structured
   - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
 
 
