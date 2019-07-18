@@ -241,8 +241,8 @@ the second write to complete.
 ```
 
 The `padv_wrbk_i` signal from the control unit to the order manager also takes
-care of dequeuing the last instruction from the OCB.  With that the instruction
-is retired.
+care of dequeuing the last instruction from the OCB.  With that and the
+writebacks completed the instruction is said to be retired.
 
 
 ## Conclusion
