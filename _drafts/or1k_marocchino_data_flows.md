@@ -22,7 +22,15 @@ We will look at how an instruction flows through the Marocchino [pipeline](https
 
 The Marocchino source code is available on
 [github](https://github.com/openrisc/or1k_marocchino/tree/master/rtl/verilog)
-and is pretty easy to browse.
+and is easy to navigate.  We have these directories:
+
+ - `bench` - test becnh harness monitor modules
+ - `doc` - design documentation 
+ - `rtl/verilog` - the core verilog code, with toplevel modules
+   - `or1k_marocchino_top.v` - top level module, connects CPU to wishbone bus
+   - `or1k_marocchino_cpu.v` - CPU module, connects CPU pipeline
+ - `rtl/verilog/pfpu_marocchino` - the FPU implementation
+   - `pfpu_marocchino_top.v` - FPU module, wires together FPU components
 
 ![marocchino github website screenshot](/content/2019/marocchino-github.png)
 
@@ -31,28 +39,33 @@ RISC pipeline.  It has fetch, decode, execution, load/store and register write
 back modules which you might picture in your head as follows:
 
 ```
-         |
-         V
-[     FETCH                  ]
-  (or1k_marocchino_fetch.v)
-
-[     DECODE                 ]
-  (or1k_marocchino_decode.v)
-
-[      PIPELINE CRTL         ]
+  PIPELINE CRTL - progress/stall the pipeline
   (or1k_marocchino_ctrl.v)
-       EXECUTE
-  (or1k_marocchino_int_1clk.v) ALU
-  (or1k_marocchino_int_div.v)  DIVISION
-  (or1k_marocchino_int_mul.v)  MULTIPLICATION
 
-       LOAD STORE
-[  (or1k_marocchino_lsu.v)   ]
+  INSTRUCTION PIPELINE - process an instruction
 
-[      WRITE BACK            ]
-  (or1k_marocchino_rf.v)
-          |
-          V
+                        |
+                        V
+/                     FETCH                     \
+\ (or1k_marocchino_fetch.v)                     /
+                        |
+                        V
+/                     DECODE                    \
+\ (or1k_marocchino_decode.v)                    /
+                        |
+                        V
+/                     EXECUTE                   \
+| (or1k_marocchino_int_1clk.v) ALU              |
+| (or1k_marocchino_int_div.v)  DIVISION         |
+\ (or1k_marocchino_int_mul.v)  MULTIPLICATION   /
+                        |
+                        V
+/                   LOAD STORE                  \
+\ (or1k_marocchino_lsu.v)      TO/FROM RAM      /
+                        |
+                        V
+/                   WRITE BACK                  \
+\ (or1k_marocchino_rf.v)                        /
 
 ```
 
@@ -81,29 +94,50 @@ control unit and the order manager.
 
 The control unit of the CPU is in charge of watching over the pipeline stages
 and signalling when operations can transfer from one stage to the next.  The
-marocchino does this with a series of pipeline advance (`padv_*`) signals.  In general for the
-best efficiency all `padv_*` wires should be high at all times allowing
-instructions to progress on every clock cycle.  But as we will see in reality, this
-is difficult to achieve due to pipeline stall scenarios like cache misses and branch predition misses.
-The `padv_*` signals include:
+Marocchino does this with a series of pipeline advance (`padv_*`) signals.  In
+general for the best efficiency all `padv_*` wires should be high at all times
+allowing instructions to progress on every clock cycle.  But as we will see in
+reality, this is difficult to achieve due to pipeline stall scenarios like cache
+misses and branch prediction misses.  The `padv_*` signals include:
 
 #### padv_fetch_o
 
 The `padv_fetch_o` signal instructs the instruction fetch unit to progress.
 Internally the fetch unit has 3 stages.  The instruction fetch unit interacts
 with the instruction cache and instruction [memory management unit](https://en.wikipedia.org/wiki/Memory_management_unit) (MMU).
-The `padv_fetch_o` signal goes low and the pipeline stalls when the decode module is busy (`dcod_emtpy_i` is low).
-The signal `dcod_empty_i` comes from the Decode module and indicates that an
-instruction can be accepted by the decode stage.
+The `padv_fetch_o` signal goes low and the pipeline stalls when the decode
+module is busy (`dcod_emtpy_i` is low).  The signal `dcod_empty_i` comes from
+the Decode module and indicates that an instruction can be accepted by the
+decode stage.
+
+This is represented by this `assign` in [or1k_marocchino_ctrl.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_ctrl.v#L662):
+
+*Note* The `stepping` and `pstep[]` signals are related to debug single stepping, and can be
+ignored for our purposes.
+
+```
+  // Advance IFETCH
+  // Stepping condition is close to the one for DECODE
+  assign padv_fetch_o = padv_all & ((~stepping) | (dcod_empty_i & pstep[0])); // ADV. IFETCH
+
+```
 
 #### padv_dcod_o
 
-The `padv_dcod_o` signal instructs the instruction decode stage to output decoded
-operands.
-The decode unit is one stage, if `padv_dcod_o` is high, it will decode the instruction
-input every cycle.
+The `padv_dcod_o` signal instructs the instruction decode stage to output
+decoded operands.  The decode unit is one stage, if `padv_dcod_o` is high, it
+will decode the instruction input every cycle.
 The `padv_dcod_o` signal goes low if the destination reservation station for the
 operands cannot accept an instruction.
+
+This is represented by this `assign` in [or1k_marocchino_ctrl.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_ctrl.v#L676):
+
+```
+  // Advance DECODE
+  assign padv_dcod_o = padv_all & (~wrbk_rfdx_we_i) & // ADV. DECODE
+    (((~stepping) & dcod_free_i & (dcod_empty_i | ena_dcod)) | // ADV. DECODE
+       (stepping  & dcod_empty_i & pstep[0])); // ADV. DECODE
+```
 
 #### padv_exec_o and padv_*_rsrvs_o
 
@@ -111,7 +145,7 @@ The `padv_exec_o` signal to order manager enqueues decoded ops into the Order Co
 Buffer (OCB).  The OCB is a [FIFO](https://en.wikipedia.org/wiki/FIFO_(computing_and_electronics))
 queue which keeps track of the order instructions have been decoded.
 
-The `padv_*_rsrvs_o` signal to one of the reservation stations
+The `padv_*_rsrvs_o` signal wired one of the reservation stations
 enables registering of an instruction into a reservation station.  There is one
 `padv_*_rsrvs_o` signal and reservation station per execution unit. They are:
 
@@ -124,17 +158,37 @@ enables registering of an instruction into a reservation station.  There is one
    subtract, comparison and conversion between integer and floating point. 
  - `padv_lsu_rsrvs_o` - to the reservation station for the load store unit.  The
    load store unit will load data from [memory](https://en.wikipedia.org/wiki/Random-access_memory)
-   to register or store data from registers to memory.  It interacts with the
+   to registers or store data from registers to memory.  It interacts with the
    data cache and data MMU.
 
 Both `padv_exec_o` and `padv_*_rsrvs_o` are dependent on the execution units being
 ready and both signals will go high or low at the same time.
+
+This is represented by the `assign` in [or1k_marocchino_ctrl.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_ctrl.v#L690):
+
+```
+  // Advance EXECUTE (push OCB & clean up  DECODE)
+  assign padv_exec_o         = ena_exec         & padv_an_exec_unit;
+  // Per execution unit (or reservation station) advance
+  assign padv_1clk_rsrvs_o   = ena_1clk_rsrvs   & padv_an_exec_unit;
+  assign padv_muldiv_rsrvs_o = ena_muldiv_rsrvs & padv_an_exec_unit;
+  assign padv_fpxx_rsrvs_o   = ena_fpxx_rsrvs   & padv_an_exec_unit;
+  assign padv_lsu_rsrvs_o    = ena_lsu_rsrvs    & padv_an_exec_unit;
+```
 
 #### padv_wrbk_o
 
 The `padv_wrbk_o` signal to the execution units will go active when `exec_valid_i` is active
 and will finalize writing back the execution results.  The `padv_wrbk_o` signal to
 the order manager will retire the oldest instruction from the OCB.
+
+This is represented by this `assign` in [or1k_marocchino_ctrl.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_ctrl.v#L703):
+
+```
+  // Advance Write Back latches
+  wire   exec_valid_l = exec_valid_i | op_mXspr_valid;
+  assign padv_wrbk_o  = exec_valid_l & padv_all & (~wrbk_rfdx_we_i) & ((~stepping) | pstep[2]);
+```
 
 An astute reader would notice that there are no pipeline advance (`padv_*`)
 signals to each of the execution units.  This is where the order manager comes
@@ -204,6 +258,10 @@ the next cycle `wrbk_rfd2_we_o` signals the write back to register 2.
 
 The `wrbk_rfdx_we_o` signal to the control unit stalls the pipeline to allow
 the second write to complete.
+
+This is represented by this logic in
+[or1k_marocchino_oman.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_oman.v#L1007):
+
 
 ```
   // instuction requests write-back
