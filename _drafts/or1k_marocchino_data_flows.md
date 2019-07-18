@@ -24,13 +24,13 @@ The Marocchino source code is available on
 [github](https://github.com/openrisc/or1k_marocchino/tree/master/rtl/verilog)
 and is easy to navigate.  We have these directories:
 
- - `bench` - test becnh harness monitor modules
- - `doc` - design documentation 
  - `rtl/verilog` - the core verilog code, with toplevel modules
    - `or1k_marocchino_top.v` - top level module, connects CPU to wishbone bus
    - `or1k_marocchino_cpu.v` - CPU module, connects CPU pipeline
  - `rtl/verilog/pfpu_marocchino` - the FPU implementation
    - `pfpu_marocchino_top.v` - FPU module, wires together FPU components
+ - `bench` - test bench harness monitor modules
+ - `doc` - design documentation 
 
 ![marocchino github website screenshot](/content/2019/marocchino-github.png)
 
