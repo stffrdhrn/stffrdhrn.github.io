@@ -5,12 +5,9 @@ date: 2019-07-18 06:43
 categories: [ hardware, embedded, openrisc ]
 ---
 
-This is an ongoing series of posts on the Marocchino CPU, an open source out-of-order
+*This is an ongoing series of posts on the Marocchino CPU, an open source out-of-order
 [OpenRISC](https://openrisc.io) cpu.  In this series we will review the Marocchino and it's architecture.
-
-  - [Marocchino in Action]({% post_url 2019-06-11-or1k_marocchino %}) - A light intro and a guide to getting started with Marocchino
-  - Instruction Pipeline - (this article) An deep dive into how the Marocchino pipeline is structured
-  - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
+If you haven't already I suggest you start of by reading the intro in [Marocchino in Action]({% post_url 2019-06-11-or1k_marocchino %}).*
 
 In the last article, *Marocchino in Action* we discussed the history of
 the CPU and how to setup setup a development environment for it.  In this
@@ -34,9 +31,10 @@ and is easy to navigate.  We have these directories:
 
 ![marocchino github website screenshot](/content/2019/marocchino-github.png)
 
-At first glance of the code the Marocchino may look like a traditional 5 stage
-RISC pipeline.  It has fetch, decode, execution, load/store and register write
-back modules which you might picture in your head as follows:
+At first glance of the code the Marocchino may look like a [traditional 5 stage
+RISC pipeline.](https://en.wikipedia.org/wiki/Classic_RISC_pipeline)  It has
+fetch, decode, execution, load/store and register write back modules which you
+might picture in your head as follows:
 
 ```
   PIPELINE CRTL - progress/stall the pipeline
@@ -194,11 +192,11 @@ An astute reader would notice that there are no pipeline advance (`padv_*`)
 signals to each of the execution units.  This is where the order manager comes
 in.
 
-### Order Manager Signals
+### Order Manager
 
 The order manager ensures that instructions are retired in the same order that they are decoded.
 It contains a register allocation table (RAT) for hazard resolution and the OCB.
-We will go into more depth on these in the next article, but for now let's look
+We will go into more depth on the RAT in the next article, but for now let's look
 at how the order manager interacts with the instruction pipeline flow.
 
 #### exec_valid_o
@@ -206,7 +204,7 @@ at how the order manager interacts with the instruction pipeline flow.
 As the OCB is a FIFO queue the output port presents the oldest non retired
 instruction to the order manager.  The `exec_valid_o` signal to the control unit
 will go active when the `*_valid_i` signal from the execution unit and the OCB
-output instruction matches.
+output instruction match.
 
 This is represented by this `assign` in [or1k_marocchino_oman.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_oman.v#L505):
 
