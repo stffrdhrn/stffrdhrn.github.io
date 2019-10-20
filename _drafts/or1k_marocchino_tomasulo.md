@@ -26,9 +26,10 @@ The pentium U and V pipelines require [certain coding
 techniques](http://oldhome.schmorp.de/doc/opt-pairing.html) to take full
 advantage.  Achieving more parallelism requires more sophisticated data hazard
 detection and instruction scheduling.  Introduced with the IBM System/360 in the
-60's by Robert Tomasulo the *Tomosulo Algorithm* provides the building blocks to
-solve these problems.  Generally speaking no special programming is needed to
-take advantage of a Tomasulo Algorithm processor.
+60's by Robert Tomasulo, the *Tomosulo Algorithm* provides the building blocks to
+allow for multiple instruction execution parallelism.  Generally speaking no special programming is needed to
+take advantage of insruction parallelism on a processor implementing Tomasulo
+algorithm.
 
 !DIAGRAM Tomasulo's algorithm'
 
@@ -49,15 +50,14 @@ Marocchino.
 ## Tomasulo Building blocks
 
 Besides the basic CPU modules like Instruction Fetch, Decode, Register File and
-other things.
-The basic building blocks that are used in the Tomasulo algorithm are as follows:
+other things, the building blocks that are used in the Tomasulo algorithm are as follows:
 
 ![marocchino pipeline diagram](/content/2019/marocchino-pipeline.png)
 
  - [Reservation Station](https://en.wikipedia.org/wiki/Reservation_station) - A
    queue where decoded instructions are placed before they can be
    executed.  Instructions are placed in the queue with their decoded operation
-   and available arguments.  If any arguments are not available they reservation
+   and available arguments.  If any arguments are not available the reservation
    station will wait until the arguments are available before executing.
  - Execution Units - The execution units include the Arithmetic
    Logic Unit (ALU), Memory Load/Store Unit or FPU is responsible for performing
@@ -68,25 +68,28 @@ The basic building blocks that are used in the Tomasulo algorithm are as follows
  - Instruction Ids - As an instruction is queued into the ROB, or OCB in Marocchino
    it is assigned an Instruction Id which is used to track the instruction in different
    components in Marocchino code this is called the `extaddr`.
- - Register Allocation Table (RAT) - A table used for data hazard resolution.  The RAT
-   table has one cell per OpenRISC general purpose register, 32 entries.
-   Each RAT cell is addressed by register index and indicates if a register is
-   busy being produced by a queued instruction and which instruction will produce it.
+ - Register Allocation Table (RAT) - A table used for data hazard resolution.
+   The RAT table has one cell per OpenRISC general purpose register, 32 entries.
+   Each RAT cell indicates if a register is busy being produced by a queued
+   instruction and which instruction will produce it.
  - Common Data Bus - Execution units present their result to all reservation stations
-   to provide quick access to pending arguments this is referred to as the common data bus.
+   along with the register file.  Writing to the reservation station provides
+   immediate resolution of data hazards.  The link between execution units,
+   reservation stations and register file is referred to as the common data bus.
 
 ### Data Hazards
 
-As mentioned above the goal of a pipelined architecture is to retire 1
+As mentioned above the goal of a pipelined architecture is to retire one
 instruction per clock cycle.
 [Pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining) helps achieve
 this by splitting an instruction into pipeline stages i.e. Fetch, Decode,
 Execute, Load/Store and Register Write Back.  If one instruction depends on the
-results produced by the previous instruction it will be a problem as Register
-Write Back of the previous instruction may not complete before registers are
-read during the Decode or Execute phase.  This and other types of dependencies
-between instructions are called
-[hazards](https://en.wikipedia.org/wiki/Hazard_(computer_architecture)).
+results produced by a previous instruction will be a problem as register
+write back of the previous instruction may not complete before registers are
+read during the Decode phase of a instruction.  This and other types of dependencies
+between pipeline stages are called
+[hazards](https://en.wikipedia.org/wiki/Hazard_(computer_architecture)), and
+they must be avoided.
 
 The Tomasulo algorithm with its Reservation Stations, Register Allocation Tables
 and other building blocks try to avoid hazards causing pipeline stalls.  Let's look
@@ -100,7 +103,7 @@ Here we can see that `instruction 2` depends on `instruction 1` as the addition
 of `a + b` cannot be performed until `b` is produced by `instruction 1`.  
 
 Let's assume that `instruction 1` is currently executing on the `MULTIPLY` unit.
-The CPU decodes `instruction 2`, Instead of detecting a data hazard and stalling
+The CPU decodes `instruction 2`, instead of detecting a data hazard and stalling
 the pipeline `instruction 2` will be placed in the reservation station of the
 `ADD` execution unit.  The RAT indicates that `b` is busy and being produced by
 `insruction 1`.  This means `instruction 2` cannot execute right away.  Next, we
