@@ -441,7 +441,7 @@ out please feel free to contribute.
 If anything in this article could be improved, more timing diagrams, typos or fixes
 for diagrams please send [me a message on twitter](https://twitter.com/stffrdhrn).
 
-## Further Reading
+## Further Reading and Sources
  - Intel architecture manuals
    - [Intel Architecture Software Developers Manual PDF](/content/2019/vol1ref24319002.pdf) see
       - section 2.1 brief history of the intel architecture
@@ -449,7 +449,7 @@ for diagrams please send [me a message on twitter](https://twitter.com/stffrdhrn
    - [Pentium Pro Datasheet PDF](/content/2019/Intel_PentiumPro.pdf) see
       - section 2.2 The Pentium Pro Processor Pipeline
  - [University of Washington, Computer Architecture](https://courses.cs.washington.edu/courses/csep548/06au/lectures.html)
-   - [Re-order buffer](https://courses.cs.washington.edu/courses/cse548/06wi/slides/reorderBuf.pdf)
+   - [Re-order buffer](https://courses.cs.washington.edu/courses/cse548/06wi/slides/reorderBuf.pdf) - source of Pentium Pro diagram
  - [UCSD, Graduate Computer Architecture](https://cseweb.ucsd.edu/classes/wi13/cse240a/)
  - [Intel Core 2](https://en.wikipedia.org/wiki/Intel_Core_(microarchitecture))
  - [Intel Pentium Pro](https://en.wikipedia.org/wiki/Pentium_Pro)
