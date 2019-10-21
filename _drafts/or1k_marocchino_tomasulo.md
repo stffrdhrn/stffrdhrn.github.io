@@ -1,7 +1,7 @@
 ---
-title: OR1K Marocchino - Out of Order Execution
+title: OR1K Marocchino Out-of-Order Execution
 layout: post
-date: 2019-10-14 15:37
+date: 2019-10-21 15:37
 categories: [ hardware, embedded, openrisc ]
 ---
 
@@ -261,17 +261,44 @@ and the execution unit is free.
  - `busy_op_any_r` - populated with `1` when `padv_rsrvs_i` goes high indicates that
    there is an operation queued.
  - `busy_op_r` - populated with `dcod_op_i`. Represents the operation pending in the queue.
- - `busy_rda_r` - populated with data from `dcod_rfxx_i`. Represents the address of instruction operand A pending in the queue.
- - `busy_rdb_r` - populated with data from `dcod_rfxx_i`. Represents the address of instruction operand B pending in the queue.
+ - `busy_rfa_r` - populated with data from `dcod_rfxx_i`. Represents the value of operand A pending in the queue.
+ - `busy_rfb_r` - populated with data from `dcod_rfxx_i`. Represents the value of operand B pending in the queue.
 
 The reservation station resolves hazards by watching and comparing `wrbk_extadr_i`
 with the `busy_extadr_dxa_r` and `busy_extadr_dxb_r` registers.  If the two match
 it means that the instruction producing register A or B has finished writing back
 its results and the hazard can be cleared.
 
-When all hazard flags are cleared the contents of `busy_op_r` , `busy_rda_r` and
-`busy_rdb_r` will be transferred to `exec_op_any_r`, `exec_op_r`, etc.  When they
-are presented on the outputs the execution unit can take them and start processing.
+Writeback forwarding is handled via the following verilog multiplexer and register logic.
+The first bit is used to register the decoded values `dcod_rf*` from the register
+file otherwise we watch for inputs from the forwarding logic.  If there is a pending hazard
+results are forwarded from the common data bus, otherwise results are maintained.
+
+```verilog
+  // BUSY stage operands A1 & B1
+  always @(posedge cpu_clk) begin
+    if (padv_rsrvs_i) begin
+      busy_rfa1_r <= dcod_rfa1;
+      busy_rfb1_r <= dcod_rfb1;
+    end
+    else begin
+      busy_rfa1_r <= busy_rfa1;
+      busy_rfb1_r <= busy_rfb1;
+    end
+  end // @clock
+
+  // Forwarding
+  //  operand A1
+  assign busy_rfa1 =  busy_hazard_d1a1_r ? wrbk_result1_i :
+                     (busy_hazard_d2a1_r ? wrbk_result2_i : busy_rfa1_r);
+  //  operand B1
+  assign busy_rfb1 =  busy_hazard_d1b1_r ? wrbk_result1_i :
+                     (busy_hazard_d2b1_r ? wrbk_result2_i : busy_rfb1_r);
+```
+
+When all hazard flags are cleared the contents of `busy_op_r` , `busy_rfa_r` and
+`busy_rfb_r` will be transferred to `exec_op_any_r`, `exec_op_r`, etc.  They
+are presented on the outputs and the execution unit can take them and start processing.
 
 The `unit_free_o` output signals the control unit that the reservation station
 is free and can be issued another instruction.  The signal goes high when all hazards
@@ -312,21 +339,21 @@ unit.  It can retire a single instruction at a time.  The implementation is a 7
 entry FIFO queue.  This is much less than the Pentium Pro which contains 40
 slots.  The OCB receives a single instruction at time from the decoder and
 broadcasts the oldest instruction for other components to see.  Instructions are
-retired after execution writeback is complete. 
+retired after execution write back is complete. 
 
 If the OCB output indicates a branch instruction or an exception, branch logic
-is invoked.  Instead of waiting for writeback to a register the writback logic
+is invoked.  Instead of waiting for write back to a register the write back logic
 in the Marocchino will perform the branch operations.  This may include flushing
 the OCB.  Special care is taken to handle branch delay slot instruction execution.
 
 The OCB is different from a traditional Tomasulo Reorder Buffer (ROB) in that it
-does not store any execution writeback results.
+does not store any execution write back results.
 
 Each OCB entry stores:
 
  - The Instruction ID `extaddr`
  - The type of instruction
- - The register destination addresses used for writeback
+ - The register destination addresses used for write back
  - Any Fetch and Decode exceptions
 
 This can be seen as defined by the `ocbi` and `ocbi` wire buses in
@@ -374,7 +401,7 @@ This can be seen as defined by the `ocbi` and `ocbi` wire buses in
 
 ### Common Data Bus
 
-As discussed above the common data collects writeback results from execution units
+As discussed above the common data collects write back results from execution units
 and routes them for write back.
 
 This can be seen in the [or1k_marocchino_cpu.v](https://github.com/openrisc/or1k_marocchino/blob/master/rtl/verilog/or1k_marocchino_cpu.v#L1933)
@@ -403,9 +430,9 @@ can only decode 1 at a time.
 
 Furthermore many improvements can be made to Marocchino to increase performance.  Including:
 
- - Full feature reorder buffer
+ - Full featured reorder buffer
  - Parallel instruction decoding
- - Branch prediction
+ - Speculative execution; [or should we?](https://meltdownattack.com/)
  - More reservation station slots
 
 However, these come with a cost of size on the FPGA.  If you are interested in helping
