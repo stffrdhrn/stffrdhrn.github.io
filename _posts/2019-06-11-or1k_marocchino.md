@@ -13,7 +13,7 @@ of the Marocchino and it's architecture.
 
   - Marocchino in Action - (this article) A light intro and a guide to getting started with Marocchino
   - [Instruction Pipeline]({% post_url 2019-07-18-or1k_marocchino_instruction_pipeline %}) - An deep dive into how the Marocchino pipeline is structured
-  - A Tomasulo Implementation - How the Marocchino achieves Out-of-Order execution
+  - [A Tomasulo Implementation]({% post_url 2019-10-21-or1k_marocchino_tomasulo %}) - How the Marocchino achieves Out-of-Order execution
 
 
 ## Introducing Marocchino

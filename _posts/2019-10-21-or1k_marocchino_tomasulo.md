@@ -1,5 +1,5 @@
 ---
-title: OR1K Marocchino Out-of-Order Execution
+title: OR1K Marocchino A Tomasulo Implementation
 layout: post
 date: 2019-10-21 15:37
 categories: [ hardware, embedded, openrisc ]

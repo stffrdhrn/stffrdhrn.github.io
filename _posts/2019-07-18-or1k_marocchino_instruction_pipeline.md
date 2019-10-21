@@ -307,5 +307,5 @@ The Marocchino instruction pipeline is not very complicated while still being
 full featured including Caches, MMU and FPU.  We have mentioned
 a few structures such as Reservation Station and RAT which we haven't gone into
 much details on.  These help implement out-of-order superscalar execution using
-Tomasulo's algorithm.  In the next article we will go into more details on these
+Tomasulo's algorithm.  In the [next article]({% post_url 2019-10-21-or1k_marocchino_tomasulo %}) we will go into more details on these
 components and how Tomasulo works.
