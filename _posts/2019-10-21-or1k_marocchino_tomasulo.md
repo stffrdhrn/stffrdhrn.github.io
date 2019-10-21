@@ -170,14 +170,13 @@ During decode:
  - the OCB registers the `extaddr` along with other decoded instruction details
  - the RAT registers an `extaddr` for the decoded instruction to indicate which
    instruction will resolve a hazard.
- - the RAT outputs the `extaddr` indicating which queued instruction will produce a
-   register
 
 During execution:
 
  - the OCB broadcasts the `extaddr` of the oldest instruction registered in a FIFO
    fashion.  This is to indicate which instruction is to be retired and ensures
    instructions are retired in order.
+ - the RAT outputs the `extaddr` indicating which queued instruction will produce a register
  - the RAT receives an `extaddr` from the OCB output to clear allocation flags
  - the Reservation Station receives the `extaddr` with hazards to track when
    instructions have finished and results are available.
