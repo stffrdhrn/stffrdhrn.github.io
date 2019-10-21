@@ -28,10 +28,10 @@ advantage.  Achieving more parallelism requires more sophisticated data hazard
 detection and instruction scheduling.  Introduced with the IBM System/360 in the
 60's by Robert Tomasulo, the *Tomosulo Algorithm* provides the building blocks to
 allow for multiple instruction execution parallelism.  Generally speaking no special programming is needed to
-take advantage of insruction parallelism on a processor implementing Tomasulo
+take advantage of instruction parallelism on a processor implementing Tomasulo
 algorithm.
 
-!DIAGRAM Tomasulo's algorithm'
+![Tomasulo's algorithm](/content/2019/Algorithme_de_Tomasulo.png)
 
 Though the technique of out-of-order CPU execution with Tomasulo's algorithm had
 been designed in the 60's it did not make its way into popular consumer hardware
@@ -54,8 +54,6 @@ Marocchino.
 
 Besides the basic CPU modules like Instruction Fetch, Decode and Register File,
 the building blocks that are used in the Tomasulo algorithm are as follows:
-
-![marocchino pipeline diagram](/content/2019/marocchino-pipeline-tomasulo.png)
 
  - [Reservation Station](https://en.wikipedia.org/wiki/Reservation_station) - A
    queue where decoded instructions are placed before they can be
@@ -80,7 +78,11 @@ the building blocks that are used in the Tomasulo algorithm are as follows:
    immediate resolution of data hazards.  The link between execution units,
    reservation stations and register file is referred to as the common data bus.
 
-### Data Hazards
+The below diagram shows how these components are arranged in the Marocchino processor.
+
+![marocchino pipeline diagram](/content/2019/marocchino-pipeline-tomasulo.png)
+
+### Resolving Data Hazards
 
 As mentioned above the goal of a pipelined architecture is to retire one
 instruction per clock cycle.
@@ -121,7 +123,7 @@ Note, if a required reservation station is full the pipeline will stall.
 
 As mentioned above, execution units will present their output onto the common
 data bus `wrbk_result` and the data will be written into reservation stations.
-Writing the register to the reservation station which may occur before writing
+Writing the register to the reservation station may occur before writing
 back to the register file.  This is what register renaming is, as the
 register input does not come directly from the register file.
 
@@ -160,18 +162,23 @@ Every instruction that is queued by the order manager is designated
 an `extadr`.  This allows components like the reservation station and RAT tables
 to track when an instruction starts and completes executing.
 
-The insteractions between the `extadr` and other components are as follows.
+The interactions between the `extadr` and other components are as follows.
+
+During decode:
 
  - the ID generator generates the `extaddr` by incrementing a counter.
  - the OCB registers the `extaddr` along with other decoded instruction details
- - the OCB broadcasts the `extaddr` of the olded instruction registered in a FIFO
-   fashion.  This is to indicate which instruction is to be retired and ensures
-   instructions are retired in order.
  - the RAT registers an `extaddr` for the decoded instruction to indicate which
    instruction will resolve a hazard.
- - the RAT receives an `extaddr` from the OCB output to clear allocation flags
  - the RAT outputs the `extaddr` indicating which queued instruction will produce a
    register
+
+During execution:
+
+ - the OCB broadcasts the `extaddr` of the oldest instruction registered in a FIFO
+   fashion.  This is to indicate which instruction is to be retired and ensures
+   instructions are retired in order.
+ - the RAT receives an `extaddr` from the OCB output to clear allocation flags
  - the Reservation Station receives the `extaddr` with hazards to track when
    instructions have finished and results are available.
  
@@ -193,8 +200,9 @@ The outputs of the RAT cell are:
 
 ![marocchino RAT Cell diagram](/content/2019/marocchino-ratcell.png)
 
-The RAT table is made of 32 `rat_cell` modules;  1 cell per register.  The register which the cell
-is allocated to is stored within `GPR_ADR` in the rat cell.
+The RAT table is made of 32 `rat_cell` modules;  one cell per register.  The
+register which the cell is allocated to is stored within `GPR_ADR` in the rat
+cell.
 
 ![marocchino RAT diagram](/content/2019/marocchino-rat.png)
 
@@ -203,7 +211,7 @@ derived with the following logic in [or1k_marocchino_oman.v](https://github.com/
 
 The `omn2dec_hazard_d1a1_o` hazard means that the argument `a` of the decoded
 instruction will be resolved when the instruction with `extadr` in `omn2dec_extadr_dxa1_o` is
-retired.  The the `2` in `d2`, `a2` and `b2` represent the 2nd register used in 64-bit
+retired.  The `2` in `d2`, `a2` and `b2` represent the 2nd register used in 64-bit
 FPU instructions.
 
 ```verilog
@@ -238,7 +246,7 @@ Pentium Pro there were 20 reservation station slots, the Marocchino has 5 or 10
 depending if you count the execution slots.
 
 Reservation stations are populated when the pipeline advance `padv_rsrvs_i` signal comes.
-An instruction may be forewarded directly to execution if there are no hazards
+An instruction may be forwarded directly to execution if there are no hazards
 and the execution unit is free.
 
  - `busy_extadr_dxa_r` - is populated with data from `omn2dec_hazards_addrs_i`.  The `busy_extadr_dxa_r`
@@ -265,6 +273,10 @@ When all hazard flags are cleared the contents of `busy_op_r` , `busy_rda_r` and
 `busy_rdb_r` will be transferred to `exec_op_any_r`, `exec_op_r`, etc.  When they
 are presented on the outputs the execution unit can take them and start processing.
 
+The `unit_free_o` output signals the control unit that the reservation station
+is free and can be issued another instruction.  The signal goes high when all hazards
+are cleared and the busy state transfers to exec.
+
 ### Execution Units
 
 In Marocchino the execution units (also referred to as functional units)
@@ -279,7 +291,7 @@ The execution units in Marocchino are:
  - `or1k_marocchino_lsu` - handles memory load store operations.  It interfaces
    with the data cache, MMU and memory bus.
  - `pfpu_marocchino_top` - handles floating point operations.  These include
-   `ADD`, `MULTIPLY`, `I2F` etc.
+   `ADD`, `MULTIPLY`, `CMP`, `I2F` etc.
 
 Handshake signals between the reservation station and execution units are used
 to issue operations to execution units.
@@ -289,10 +301,6 @@ to issue operations to execution units.
 The `taking_op_i` is the signal from the execution unit signalling it has
 received the op and the reservation station will clear all `exec_*_o` output
 signals.
-
-The `unit_free_o` output signals the control unit that the reservation station
-is free and can be issued another instruction.  It goes high when all hazards
-are cleared.  ??
 
 
 ### Order Control Buffer
@@ -306,7 +314,7 @@ slots.  The OCB receives a single instruction at time from the decoder and
 broadcasts the oldest instruction for other components to see.  Instructions are
 retired after execution writeback is complete. 
 
-If an the OCB output indicates a branch instruction or an exception, branch logic
+If the OCB output indicates a branch instruction or an exception, branch logic
 is invoked.  Instead of waiting for writeback to a register the writback logic
 in the Marocchino will perform the branch operations.  This may include flushing
 the OCB.  Special care is taken to handle branch delay slot instruction execution.
@@ -386,12 +394,25 @@ as below.
 
 ```
 
-
-
 ### Conclusion
 
-Tomasulo's algorithm is still relevant today.  Marocchino provides an accessible
-implementation.
+Tomasulo's algorithm is still relevant today and used in many processors.
+Marocchino provides an accessible implementation.  Marocchino is however, not
+super-scalar, while Pentium Pro can decode up to 4 instructions at a time the Marocchino
+can only decode 1 at a time.
+
+Furthermore many improvements can be made to Marocchino to increase performance.  Including:
+
+ - Full feature reorder buffer
+ - Parallel instruction decoding
+ - Branch prediction
+ - More reservation station slots
+
+However, these come with a cost of size on the FPGA.  If you are interested in helping
+out please feel free to contribute.
+
+If anything in this article could be improved, more timing diagrams, typos or fixes
+for diagrams please send [me a message on twitter](https://twitter.com/stffrdhrn).
 
 ## Further Reading
  - Intel architecture manuals
