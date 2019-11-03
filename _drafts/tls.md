@@ -258,7 +258,93 @@ resolved at runtime.
 
 ```
 
-Local Exec
+Example
+
+Initial exec c code will be the same as global dynamic, howerver IE access will
+be chosed when static compiling or GD->IE relaxation is done during link time.
+
+```
+extern __thread int x;
+
+int* get_x_addr() {
+  return &x;
+}
+```
+
+```
+or1k-smh-linux-gnu-gcc -O3 -g -c tls-ie.c
+or1k-smh-linux-gnu-objdump -dr tls-ie.o
+```
+
+
+```
+tls-gd.o:     file format elf32-or1k
+
+
+Disassembly of section .text:
+
+00000000 <set_x>:
+   0:	9c 21 ff fc 	l.addi r1,r1,-4
+   4:	1a 20 00 00 	l.movhi r17,0x0
+			4: R_OR1K_TLS_IE_AHI16	x
+   8:	d4 01 48 00 	l.sw 0(r1),r9
+   c:	04 00 00 02 	l.jal 14 <set_x+0x14>
+  10:	1a 60 00 00 	l.movhi r19,0x0
+			10: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
+  14:	aa 73 00 00 	l.ori r19,r19,0x0
+			14: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
+  18:	e2 73 48 00 	l.add r19,r19,r9
+  1c:	e2 31 98 00 	l.add r17,r17,r19
+  20:	86 31 00 00 	l.lwz r17,0(r17)
+			20: R_OR1K_TLS_IE_LO16	x
+  24:	e2 31 50 00 	l.add r17,r17,r10
+  28:	d4 11 18 00 	l.sw 0(r17),r3
+  2c:	85 21 00 00 	l.lwz r9,0(r1)
+  30:	44 00 48 00 	l.jr r9
+  34:	9c 21 00 04 	l.addi r1,r1,4
+
+00000038 <get_x_addr>:
+  38:	9c 21 ff fc 	l.addi r1,r1,-4
+  3c:	1a 20 00 00 	l.movhi r17,0x0
+			3c: R_OR1K_TLS_IE_AHI16	x
+  40:	d4 01 48 00 	l.sw 0(r1),r9
+  44:	04 00 00 02 	l.jal 4c <get_x_addr+0x14>
+  48:	1a 60 00 00 	l.movhi r19,0x0
+			48: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
+  4c:	aa 73 00 00 	l.ori r19,r19,0x0
+			4c: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
+  50:	e2 73 48 00 	l.add r19,r19,r9
+  54:	e2 31 98 00 	l.add r17,r17,r19
+  58:	85 71 00 00 	l.lwz r11,0(r17)
+			58: R_OR1K_TLS_IE_LO16	x
+  5c:	85 21 00 00 	l.lwz r9,0(r1)
+  60:	e1 6b 50 00 	l.add r11,r11,r10
+  64:	44 00 48 00 	l.jr r9
+  68:	9c 21 00 04 	l.addi r1,r1,4
+```
+
+```
+tls-gd.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <set_x>:
+   0:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 7 <set_x+0x7>
+			3: R_X86_64_GOTTPOFF	x-0x4
+   7:	64 89 38             	mov    %edi,%fs:(%rax)
+   a:	c3                   	retq   
+   b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+
+0000000000000010 <get_x_addr>:
+  10:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 17 <get_x_addr+0x7>
+			13: R_X86_64_GOTTPOFF	x-0x4
+  17:	64 48 03 04 25 00 00 	add    %fs:0x0,%rax
+  1e:	00 00 
+  20:	c3                   	retq   
+```
+
+## Local Exec
 
 ```
 Before Link
@@ -278,6 +364,68 @@ After Link
    tp + off
 ```
 
+Example:
+
+```
+static __thread int x;
+
+void set(int valx) {
+  x = valx;
+}
+
+int* get_x_addr() {
+  return &x;
+}
+```
+
+```
+or1k-smh-linux-gnu-gcc -O3 -g -c tls-le.c
+or1k-smh-linux-gnu-objdump -dr tls-le.o > tls-le.or1k.S
+```
+
+```
+tls-le.o:     file format elf32-or1k
+
+
+Disassembly of section .text:
+
+00000000 <set>:
+   0:	1a 20 00 00 	l.movhi r17,0x0
+			0: R_OR1K_TLS_LE_AHI16	.LANCHOR0
+   4:	e2 31 50 00 	l.add r17,r17,r10
+   8:	44 00 48 00 	l.jr r9
+   c:	d4 11 18 00 	l.sw 0(r17),r3
+			c: R_OR1K_TLS_LE_SLO16	.LANCHOR0
+
+00000010 <get_x_addr>:
+  10:	19 60 00 00 	l.movhi r11,0x0
+			10: R_OR1K_TLS_LE_AHI16	.LANCHOR0
+  14:	e1 6b 50 00 	l.add r11,r11,r10
+  18:	44 00 48 00 	l.jr r9
+  1c:	9d 6b 00 00 	l.addi r11,r11,0
+			1c: R_OR1K_TLS_LE_LO16	.LANCHOR0
+```
+
+```
+tls-le.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <set>:
+   0:	64 89 3c 25 00 00 00 	mov    %edi,%fs:0x0
+   7:	00 
+			4: R_X86_64_TPOFF32	x
+   8:	c3                   	retq   
+   9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+
+0000000000000010 <get_x_addr>:
+  10:	64 48 8b 04 25 00 00 	mov    %fs:0x0,%rax
+  17:	00 00 
+  19:	48 05 00 00 00 00    	add    $0x0,%rax
+			1b: R_X86_64_TPOFF32	x
+  1f:	c3                   	retq   
+```
 
 ## Shared vs Static
 
