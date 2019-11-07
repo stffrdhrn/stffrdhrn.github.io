@@ -107,16 +107,16 @@ ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) 
 The .o file produced by gcc contains `.text`, `.data` and `.bss` sections.  Each section is
 mapped to program memory once per process.
 
- .text - contains program code
- .data - static and non static initialized variable values
- .bss  - static and non static non-initialized variables
- .got  - for PIC access to variables, created during link time
+ - `.text` - contains program code
+ - `.data` - static and non static initialized variable values
+ - `.bss`  - static and non static non-initialized variables
+ - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  It is populated during runtime.
 
 When we get to binaries that use TLS we will also have `.tdata` and `.tbss`.  Each section
 is dynamically allocated into the process heap during runtime once per each thread.
 
- .tdata - static and non static initialized thread local variables
- .tbss  - static and non static non-initialized thread local variables
+ `.tdata` - static and non static initialized thread local variables
+ `.tbss`  - static and non static non-initialized thread local variables
 
 ## TLS memory layout
 
@@ -133,31 +133,35 @@ data sections.  The Thread Control Block a structure which points to the DTV, it
 by the first thread local data section and proceeded by the pthread structure.
 
 ```
-
-dtv[]
-  INSTALL_DTV
-  |
-  |         INSTALL_NEW_DTV
-  V         V
-[ dtv[0] , dtv[1] , dtv[2], .... ]
-  counter   |       \
-            |        \_____
-            V              V
-/--Init--\/----Local-----\/----mod[2]-----\/--...
-| pre tcb | tbss    tdata | tbss   tdata   |  ...
+           INSTALL_DTV
+              |
+              |         INSTALL_NEW_DTV
+              V         V
+  dtv[]   [ dtv[0], dtv[1], dtv[2], .... ]
+            counter   |       \
+                      |        \_____
+                      V              V
+/------TCB-------\/----TLS[0]-----\/----TLS[1]-----\/--...
+| pthread tcbhead | tbss    tdata | tbss   tdata   |   ...
+\----------------/\---------------/\---------------/\--...
           ^
           |
    TP-----/
-
 ```
 
-### TP
+### Thread Pointer (TP)
+
+The Thread Pointer is different for each thread.
+
  - The value stored in `r10` points to the Initial Block
 
+### Tread Control Block (TCB)
 
-### Initial Block
- - pre - the `pthread` struct for the current struct, contains tid etc. Indexed by TP - TCB size - Pthread size
- - tcb - the `tcbhead_t` struct, machine dependent for openrisc, contains pointer to DTV.  Indexed by TP - TCB size.
+Contains the data pointed to by the Thread Pointer.  Each thread has a different
+TCB and DTV.  The TCB consists of:
+
+ - `pthread` - the `pthread` struct for the current thread, contains tid etc. Located by `TP - TCB size - Pthread size`
+ - `tcbhead` - the `tcbhead_t` struct, machine dependent, contains pointer to DTV.  Located by `TP - TCB size`.
 
 TCB for openrisc:
 
@@ -166,13 +170,16 @@ typedef struct {
   dtv_t *dtv;
 } tcbhead_t
 ```
- - dtv_t - is a pointer to the dtv array, points to entry `dtv[1]`
+ - `dtv` - is a pointer to the dtv array, points to entry `dtv[1]`
 
-### DTV
- - an array of pointers to each .tbss/.tdata block of memory.  The first entry contains the generation
-   counter.
+### Dynamic Thread Vector (DTV)
+The DTV array of pointers to each TLS (`.tbss`, `.tdata`) block of memory.  The
+first entry in the DTV array contains the generation counter.  The generation
+counter is usually indexed as DTV[-1] as is it the entry pointed to before where
+the TCB head pointer points.  The generation counter is really just the vector
+size.
 
-The dtv_t union
+The `dtv_t` union
 
 ```
 typedef struct {
@@ -188,21 +195,20 @@ typedef union {
 Each `dtv_t` entry can be either a counter of a pointer.  By convention the first entry, `dtv[0]` is a counter and
 the rest are pointers.
 
-### Local (or mod[1])
- - tbss - the `.tbss` section for the current thread from the current process
- - tdata - the `.tdata` section for the current thread from the current process
+### Local (or TLS[1])
+ - `tbss` - the `.tbss` section for the current thread from the current process
+ - `tdata` - the `.tdata` section for the current thread from the current process
 
-### mod[2]
- - tbss - the `.tbss` section for variables defined in the first shared library loaded by the current process
- - tdata - the `.tdata` section for the variables defined in the first shared library loaded by the current process
+### TLS[2]
+ - `tbss` - the `.tbss` section for variables defined in the first shared library loaded by the current process
+ - `tdata` - the `.tdata` section for the variables defined in the first shared library loaded by the current process
 
-
-### Setting up the TCB
+## Setting up the TCB
 
 The below macros defined in `tls.h` for OpenRISC and provide the functionality to setup
 the TCB and DTV.
 
-#### INSTALL_DTV
+### INSTALL_DTV
 
 ```
 #define INSTALL_DTV(tcbp, dtvp) (((tcbhead_t *) (tcbp))->dtv = (dtvp) + 1)
@@ -213,7 +219,7 @@ During the initial thread structure allocation.
   - dtvp+1 means we want the TCB to point to point to dtv[1]
   - called to set dtv in the control block
 
-#### TLS_INIT_TP
+### TLS_INIT_TP
 
 ```
 #define TLS_INIT_TP(tcbp)  __thread_self = ((tcbhead_t *)tcbp + 1); 
@@ -223,7 +229,7 @@ After all allocation is done we set `__thread_self`, the Thread Pointer.
 
   - (tcbp + 1) means we want to point just after tcb
 
-#### THREAD_DTV
+### THREAD_DTV
 
 ```
 #define THREAD_DTV ((((tcbhead_t *)__thread_self)-1)->dtv)
@@ -231,7 +237,7 @@ After all allocation is done we set `__thread_self`, the Thread Pointer.
 
 Alias for the current threads DTV pointer.
 
-#### INSTALL_NEW_DTV
+### INSTALL_NEW_DTV
 
 ```
 #define INSTALL_NEW_DTV(dtv) (THREAD_DTV() = (dtv))
@@ -242,7 +248,7 @@ to update the TCB DTV pointer.
 
  - when called the passed dtv is actually dtv[1], this is confusing as it is not consistent with `INSTALL_DTV`
 
-## The function `__tls_get_addr()`
+### The function `__tls_get_addr()`
 
 The `__tls_get_addr()` can be used at any time to traverse the TCB and return a variables
 address given the module index and thread local data section offset.
@@ -654,7 +660,7 @@ convert it to IE access.
 
 
 ## Further Reading
-
+- GOT and PLT - https://www.technovelty.org/linux/plt-and-got-the-key-to-code-sharing-and-dynamic-libraries.html
 - Android - https://android.googlesource.com/platform/bionic/+/HEAD/docs/elf-tls.md
 - Oracle - https://docs.oracle.com/cd/E19683-01/817-3677/chapter8-20/index.html
 - Drepper - https://www.akkadia.org/drepper/tls.pdf
