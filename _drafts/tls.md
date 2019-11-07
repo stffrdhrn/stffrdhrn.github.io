@@ -16,6 +16,19 @@ I try to fill in those gaps.
 
 We will attempt to answer these in this illustrated article.
 
+## Sections
+
+ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
+
+The .o file produced by gcc contains `.text`, `.data` and `.bss` sections.  Each section is
+mapped to program memory once per process.
+
+ - `.text` - contains program code
+ - `.data` - static and non static initialized variable values
+ - `.bss`  - static and non static non-initialized variables
+ - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  It is populated during runtime.
+
+
 ## Relocations
 
 A relocation is a placeholder that is added by the compiler when creating object
@@ -48,6 +61,7 @@ int* get_x_addr() {
 or1k-smh-linux-gnu-gcc -O3 -g -c relocation.c
 or1k-smh-linux-gnu-objdump -dr relocation.o
 ```
+
 
 ### Compiler Output
 
@@ -98,25 +112,16 @@ A thread local variable is a variable that will have a unique value per thread.
 Each time a new thread is created, the space required to store the thread local
 variables is allocated.
 
-It might be a bit more clear if we describe ELF sections next.
+TLS variables are stored in dynamic TLS sections.
 
-## Sections
-
-ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
-
-The .o file produced by gcc contains `.text`, `.data` and `.bss` sections.  Each section is
-mapped to program memory once per process.
-
- - `.text` - contains program code
- - `.data` - static and non static initialized variable values
- - `.bss`  - static and non static non-initialized variables
- - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  It is populated during runtime.
+## TLS Sections
 
 When we get to binaries that use TLS we will also have `.tdata` and `.tbss`.  Each section
 is dynamically allocated into the process heap during runtime once per each thread.
 
  `.tdata` - static and non static initialized thread local variables
  `.tbss`  - static and non static non-initialized thread local variables
+
 
 ## TLS memory layout
 
@@ -596,12 +601,16 @@ Disassembly of section .text:
   1f:	c3                   	retq   
 ```
 
-## Shared vs Static
+## TLS Relocation Summary
+
+### Handling Shared vs Static Linking
 
   - Shared - got + rela, for runtime linking i.e.
       - R_OR1K_TLS_DTPMOD - module index
       - R_OR1K_TLS_DTPOFF - offset in module tbss
   - Static - got only
+
+
 
 ## BFD
 
