@@ -1,10 +1,10 @@
 
 # ELF Binary Relocations and TLS
 
-Recently I have been working on getting the [OpenRISC glibc]()
+Recently I have been working on getting the [OpenRISC glibc](https://github.com/openrisc/or1k-glibc)
 port ready for upstreaming.  Part of this work has been to run the glibc
-testsuite and get the tests to pass.  The [glibc testsuite]()
- has a comprehensive set of linker and runtime relocation tests.
+testsuite and get the tests to pass.  The [glibc testsuite](https://sourceware.org/glibc/wiki/Testing/Testsuite)
+has a comprehensive set of linker and runtime relocation tests.
 
 In order to fix issues with tests I had to learn more than I did before about ELF Relocations
 , Thread Local Storage and the binutils linker implementation in BFD.  There is a lot of
@@ -13,21 +13,34 @@ I try to fill in those gaps.
 
  - What are relocations?
  - What is TLS?
+ - How do these progress from GCC to the Linker into our final executable?
+
+![GCC and Linker](/content/2019/gcc-obj-ld.png)
 
 We will attempt to answer these in this illustrated article.
 
-## Sections
+All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
+project which is available on github.
+
+## ELF Segments and Sections
+
+Before we can talk about relocations we need to talk a bit about what makes up
+ELF binaries.
+
+![ELF Program](/content/2019/elf-program.png)
+
+![ELF Object](/content/2019/elf-obj.png)
 
 ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
 
-The .o file produced by gcc contains `.text`, `.data` and `.bss` sections.  Each section is
-mapped to program memory once per process.
+The .o file produced by [gcc](https://gcc.gnu.org/onlinedocs/gcc-9.2.0/gcc/Overall-Options.html#index-c)
+contains `.text`, `.data` and `.bss` sections.  Each section is mapped to program
+memory once per process.
 
  - `.text` - contains program code
  - `.data` - static and non static initialized variable values
  - `.bss`  - static and non static non-initialized variables
  - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  It is populated during runtime.
-
 
 ## Relocations
 
