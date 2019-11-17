@@ -25,24 +25,47 @@ project which is available on github.
 ## ELF Segments and Sections
 
 Before we can talk about relocations we need to talk a bit about what makes up
-ELF binaries.
+ELF binaries.  There are two basic ELF binaries:
 
-![ELF Program](/content/2019/elf-program.png)
+ - ELF Objects - produced by a compiler, contains a collection of sections
+ - ELF Program - an executable program, contains sections grouped into segments.
+
+### An ELF Object
 
 ![ELF Object](/content/2019/elf-obj.png)
 
-ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
+The compiler generates object files, these contain sections of binary data and
+these are not executable.
 
-The .o file produced by [gcc](https://gcc.gnu.org/onlinedocs/gcc-9.2.0/gcc/Overall-Options.html#index-c)
-contains `.text`, `.data` and `.bss` sections.  Each section is mapped to program
-memory once per process.
+The the object file produced by [gcc](https://gcc.gnu.org/onlinedocs/gcc-9.2.0/gcc/Overall-Options.html#index-c)
+contains `.rela.text`, `.text`, `.data` and `.bss` sections. 
 
- - `.text` - contains program code
+ - `.rela.text` - a list of relocations against the `.text` section
+ - `.text` - contains compiled program machine code
  - `.data` - static and non static initialized variable values
  - `.bss`  - static and non static non-initialized variables
- - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  It is populated during runtime.
+
+### An ELF Program
+
+![ELF Program](/content/2019/elf-program.png)
+
+ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
+
+A segment contains a group of sections and the segment defines how the data should
+be loaded into memory for program exection.
+
+Each segment is mapped to program memory once per process.  Program files contain
+most of the same sections as objects but there are some differences.
+
+ - `.text` - contains executable program code, there is no `.rela.text` section
+ - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  May be populated during runtime.
 
 ## Relocations
+
+As mentioned an object file by itself is not executable.  One reason is that
+the `.text` section will still contain relocations (or placeholders) for the
+addresses of variables located in the `.data` and `.bss` sections.  In general
+these placeholders will just be `0` in the machine code.
 
 A relocation is a placeholder that is added by the compiler when creating object
 files and then filled in by the linker.  There are
@@ -56,12 +79,12 @@ Dynamic link relocations
 
 ### Example: `relocation.c`
 
-In the example below we have a simple static variable 
+In the example below we have a simple static variable:
 
 ```
 static int x;
 
-void set(int val) {
+void set_x(int val) {
   x = val;
 }
 
@@ -70,9 +93,16 @@ int* get_x_addr() {
 }
 ```
 
+To Compile
 ```
 or1k-smh-linux-gnu-gcc -O3 -g -c relocation.c
 or1k-smh-linux-gnu-objdump -dr relocation.o
+```
+
+To Link
+```
+or1k-smh-linux-gnu-gcc -O3 -g -o relocation relocation.o
+or1k-smh-linux-gnu-objdump -dr relocation
 ```
 
 
@@ -85,11 +115,7 @@ linking stage to provide access to the actual variable addresses.
 These empty parts of the `.text` section are relocations.
 
 ```
-./nontls.o:     file format elf32-or1k
-
-Disassembly of section .text:
-
-00000000 <set>:
+00000000 <set_x>:
    0:   1a 20 00 00     l.movhi r17,[0]      # 0  R_OR1K_AHI16 .bss
    4:   44 00 48 00     l.jr r9
    8:   d4 11 18 00      l.sw [0](r17),r3    # 8  R_OR1K_SLO16 .bss
@@ -102,6 +128,53 @@ Disassembly of section .text:
 
 After linking the `0` values will be replaced with actuall offset values, there
 will be no relocations left.
+
+### Linker output
+
+As we can see from the linker output the places in the code that had relocations
+are not replaced with values.  For example `1a 20 00 00` has become `1a 20 00 0a`.
+
+
+```
+0000228c <set_x>:
+    228c:	1a 20 00 0a 	l.movhi r17,0xa
+    2290:	44 00 48 00 	l.jr r9
+    2294:	d7 b1 1e 60 	l.sw -4512(r17),r3
+
+00002298 <get_x_addr>:
+    2298:	19 60 00 0a 	l.movhi r11,0xa
+    229c:	44 00 48 00 	l.jr r9
+    22a0:	9d 6b ee 60 	l.addi r11,r11,-4512
+```
+
+## Types of Relocations
+
+As we saw above, a simple program resulted in 4 different relocations.  These
+are all different as well.  We saw:
+
+  - `R_OR1K_AHI16`
+  - `R_OR1K_SLO16`
+  - `R_OR1K_LO_16_IN_INSN`
+
+The need for different relations comes from the different requirements for the
+relocation.  Processing of a relocation involves usually a very simple transform
+, each relocation defines a different tansform.
+
+  - The input of a relocation is usually a variable address that is unknown
+    at compile time.
+  - The translation involves manipulating the address as required by the machine
+    code in some way.  For example take the upper 16 bits of the address.
+  - The output of a relocation is placing the transformed value into machine
+    code text.
+
+To be more specific about the above relocations we have:
+
+  - `R_OR1K_AHI16` - take the upper 16 bits of input and place in the lower 16 bits of the destination
+  - `R_OR1K_SLO16` - take the lower 16 bits of input and split and place into the destination `((value & 0xf800) << 10) | (value & 0x7ff)`
+  - `R_OR1K_LO_16_IN_INSN` - take the lower 16 bits of input and place in the lower 16 bits of the destination
+
+These use different methods due what each instruction does, and where each instruction
+encodes its immediate value.
 
 ## Thread Local Storage
 
@@ -156,9 +229,9 @@ by the first thread local data section and proceeded by the pthread structure.
               |         INSTALL_NEW_DTV
               V         V
   dtv[]   [ dtv[0], dtv[1], dtv[2], .... ]
-            counter   |       \
-                      |        \_____
-                      V              V
+            counter ^ |       \
+               ----/  |        \_____
+              /       V              V
 /------TCB-------\/----TLS[0]-----\/----TLS[1]-----\/--...
 | pthread tcbhead | tbss    tdata | tbss   tdata   |   ...
 \----------------/\---------------/\---------------/\--...
