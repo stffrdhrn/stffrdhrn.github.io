@@ -578,9 +578,9 @@ h - store detail for each symbol, how many got entries required
 ```
 #define elf_backend_relocate_sectio nor1k_elf_relocate_section
   - For symbol, write got section, write rela if dynamic
-    - Write entry to GOT only once per symbol
+     - Write entry to GOT only once per symbol
   - run or1k_final_link_relocate
-    - Write actual value to text
+     - Write actual value to text
 
 #define elf_backend_create_dynamic_sections 
 #define elf_backend_finish_dynamic_sections
@@ -600,12 +600,12 @@ Global Variable - code will be GOTBASE + offset - the offset is determined at li
  - GD - code will load MOD and OFF from GOT and call __tls_get_addr
  - LD - code will load a base with __tls_get_addr, then use local offsets for subsequent calls to load variable addresses.  Useful if more than one variables are accessed, it saves from having to do multiple calls to __tls_get_addr.
  - IE - code will load OFFSET got  and add to TP directly
- -- tp = TP
- -- tmp = load ie from GOT
- -- res = tmp + tp
+    - tp = TP
+    - tmp = load ie from GOT
+    - res = tmp + tp
  - LOCAL - code wil$l have OFFSET directly + TP directly - offset is determined as link time
- -- tmp = tls offset
- -- res = tp + tmp
+    - tmp = tls offset
+    - res = tp + tmp
 
 ## Relaxation
 
