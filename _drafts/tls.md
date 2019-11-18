@@ -183,9 +183,10 @@ TLS variables are stored in dynamic TLS sections.
 When we get to binaries that use TLS we will also have `.tdata` and `.tbss`.  Each section
 is dynamically allocated into the process heap during runtime once per each thread.
 
- `.tdata` - static and non static initialized thread local variables
- `.tbss`  - static and non static non-initialized thread local variables
+ - `.tdata` - static and non static initialized thread local variables
+ - `.tbss`  - static and non static non-initialized thread local variables
 
+These exist in a special `TLS` segment which is loaded per thread.
 
 ## TLS memory layout
 
