@@ -77,33 +77,22 @@ Link time relocation
 Dynamic link relocations
   - Place holder is filled during runtime.  i.e. Procedure Link Table
 
-### Example: `relocation.c`
+### Example
+
+File: [nontls.c](https://github.com/stffrdhrn/tls-examples/blob/master/nontls.c)
 
 In the example below we have a simple static variable:
 
 ```
 static int x;
 
-void set_x(int val) {
-  x = val;
-}
-
 int* get_x_addr() {
   return &x;
 }
 ```
 
-To Compile
-```
-or1k-smh-linux-gnu-gcc -O3 -g -c relocation.c
-or1k-smh-linux-gnu-objdump -dr relocation.o
-```
-
-To Link
-```
-or1k-smh-linux-gnu-gcc -O3 -g -o relocation relocation.o
-or1k-smh-linux-gnu-objdump -dr relocation
-```
+The steps to compile and link can be found in the `tls-examples` project hosting
+the source examples.
 
 
 ### Compiler Output
@@ -115,11 +104,6 @@ linking stage to provide access to the actual variable addresses.
 These empty parts of the `.text` section are relocations.
 
 ```
-00000000 <set_x>:
-   0:   1a 20 00 00     l.movhi r17,[0]      # 0  R_OR1K_AHI16 .bss
-   4:   44 00 48 00     l.jr r9
-   8:   d4 11 18 00      l.sw [0](r17),r3    # 8  R_OR1K_SLO16 .bss
-
 0000000c <get_x_addr>:
    c:   19 60 00 00     l.movhi r11,[0]      # c  R_OR1K_AHI16 .bss
   10:   44 00 48 00     l.jr r9
@@ -136,11 +120,6 @@ are not replaced with values.  For example `1a 20 00 00` has become `1a 20 00 0a
 
 
 ```
-0000228c <set_x>:
-    228c:	1a 20 00 0a 	l.movhi r17,0xa
-    2290:	44 00 48 00 	l.jr r9
-    2294:	d7 b1 1e 60 	l.sw -4512(r17),r3
-
 00002298 <get_x_addr>:
     2298:	19 60 00 0a 	l.movhi r11,0xa
     229c:	44 00 48 00 	l.jr r9
@@ -153,7 +132,6 @@ As we saw above, a simple program resulted in 4 different relocations.  These
 are all different as well.  We saw:
 
   - `R_OR1K_AHI16`
-  - `R_OR1K_SLO16`
   - `R_OR1K_LO_16_IN_INSN`
 
 The need for different relations comes from the different requirements for the
@@ -170,7 +148,6 @@ relocation.  Processing of a relocation involves usually a very simple transform
 To be more specific about the above relocations we have:
 
   - `R_OR1K_AHI16` - take the upper 16 bits of input and place in the lower 16 bits of the destination
-  - `R_OR1K_SLO16` - take the lower 16 bits of input and split and place into the destination `((value & 0xf800) << 10) | (value & 0x7ff)`
   - `R_OR1K_LO_16_IN_INSN` - take the lower 16 bits of input and place in the lower 16 bits of the destination
 
 These use different methods due what each instruction does, and where each instruction
@@ -180,7 +157,8 @@ encodes its immediate value.
 
 Did you know that in a C or C++ you could prefix variables with `__thread` or
 `thread_local` respectively?  These prefixes are used to create thread local variables.
-Example:
+
+### Example
 
 C:
 
@@ -383,7 +361,9 @@ info got which should contain 2 arguments to __tls_get_addr.
 ![Global Dynamic Program](/content/2019/tls-gd-exe.png)
 
 
-Example:
+### Example
+
+File: [tls-gd.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-gd.c)
 
 ```
 extern __thread int x;
@@ -391,13 +371,6 @@ extern __thread int x;
 int* get_x_addr() {
   return &x;
 }
-```
-
-Compile and disassembly
-
-```
-or1k-smh-linux-gnu-gcc -O3 -fpic -g -c tls-gd.c
-or1k-smh-linux-gnu-objdump -dr tls-gd.o
 ```
 
 ```
@@ -466,11 +439,6 @@ int sum() {
 ```
 
 ```
-gcc -O3 -fpic -g -c tls-ld.c
-objdump -dr tls-ld.o
-```
-
-```
 tls-ld.o:     file format elf64-x86-64
 
 Disassembly of section .text:
@@ -505,6 +473,8 @@ resolved at runtime.
 
 ### Example
 
+File: [tls-ie.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ie.c)
+
 Initial exec c code will be the same as global dynamic, howerver IE access will
 be chosed when static compiling or GD->IE relaxation is done during link time.
 
@@ -516,38 +486,8 @@ int* get_x_addr() {
 }
 ```
 
-```
-or1k-smh-linux-gnu-gcc -O3 -g -c tls-ie.c
-or1k-smh-linux-gnu-objdump -dr tls-ie.o
-```
-
 
 ```
-tls-gd.o:     file format elf32-or1k
-
-
-Disassembly of section .text:
-
-00000000 <set_x>:
-   0:	9c 21 ff fc 	l.addi r1,r1,-4
-   4:	1a 20 00 00 	l.movhi r17,0x0
-			4: R_OR1K_TLS_IE_AHI16	x
-   8:	d4 01 48 00 	l.sw 0(r1),r9
-   c:	04 00 00 02 	l.jal 14 <set_x+0x14>
-  10:	1a 60 00 00 	l.movhi r19,0x0
-			10: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
-  14:	aa 73 00 00 	l.ori r19,r19,0x0
-			14: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
-  18:	e2 73 48 00 	l.add r19,r19,r9
-  1c:	e2 31 98 00 	l.add r17,r17,r19
-  20:	86 31 00 00 	l.lwz r17,0(r17)
-			20: R_OR1K_TLS_IE_LO16	x
-  24:	e2 31 50 00 	l.add r17,r17,r10
-  28:	d4 11 18 00 	l.sw 0(r17),r3
-  2c:	85 21 00 00 	l.lwz r9,0(r1)
-  30:	44 00 48 00 	l.jr r9
-  34:	9c 21 00 04 	l.addi r1,r1,4
-
 00000038 <get_x_addr>:
   38:	9c 21 ff fc 	l.addi r1,r1,-4
   3c:	1a 20 00 00 	l.movhi r17,0x0
@@ -569,18 +509,6 @@ Disassembly of section .text:
 ```
 
 ```
-tls-gd.o:     file format elf64-x86-64
-
-
-Disassembly of section .text:
-
-0000000000000000 <set_x>:
-   0:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 7 <set_x+0x7>
-			3: R_X86_64_GOTTPOFF	x-0x4
-   7:	64 89 38             	mov    %edi,%fs:(%rax)
-   a:	c3                   	retq   
-   b:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
-
 0000000000000010 <get_x_addr>:
   10:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 17 <get_x_addr+0x7>
 			13: R_X86_64_GOTTPOFF	x-0x4
@@ -599,14 +527,12 @@ Disassembly of section .text:
 
 ![Local Exec Program](/content/2019/tls-le-exe.png)
 
-Example:
+### Example
+
+File: [tls-le.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-le.c)
 
 ```
 static __thread int x;
-
-void set(int valx) {
-  x = valx;
-}
 
 int* get_x_addr() {
   return &x;
@@ -614,24 +540,6 @@ int* get_x_addr() {
 ```
 
 ```
-or1k-smh-linux-gnu-gcc -O3 -g -c tls-le.c
-or1k-smh-linux-gnu-objdump -dr tls-le.o > tls-le.or1k.S
-```
-
-```
-tls-le.o:     file format elf32-or1k
-
-
-Disassembly of section .text:
-
-00000000 <set>:
-   0:	1a 20 00 00 	l.movhi r17,0x0
-			0: R_OR1K_TLS_LE_AHI16	.LANCHOR0
-   4:	e2 31 50 00 	l.add r17,r17,r10
-   8:	44 00 48 00 	l.jr r9
-   c:	d4 11 18 00 	l.sw 0(r17),r3
-			c: R_OR1K_TLS_LE_SLO16	.LANCHOR0
-
 00000010 <get_x_addr>:
   10:	19 60 00 00 	l.movhi r11,0x0
 			10: R_OR1K_TLS_LE_AHI16	.LANCHOR0
@@ -642,18 +550,6 @@ Disassembly of section .text:
 ```
 
 ```
-tls-le.o:     file format elf64-x86-64
-
-
-Disassembly of section .text:
-
-0000000000000000 <set>:
-   0:	64 89 3c 25 00 00 00 	mov    %edi,%fs:0x0
-   7:	00 
-			4: R_X86_64_TPOFF32	x
-   8:	c3                   	retq   
-   9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
-
 0000000000000010 <get_x_addr>:
   10:	64 48 8b 04 25 00 00 	mov    %fs:0x0,%rax
   17:	00 00 
@@ -704,12 +600,12 @@ Global Variable - code will be GOTBASE + offset - the offset is determined at li
  - GD - code will load MOD and OFF from GOT and call __tls_get_addr
  - LD - code will load a base with __tls_get_addr, then use local offsets for subsequent calls to load variable addresses.  Useful if more than one variables are accessed, it saves from having to do multiple calls to __tls_get_addr.
  - IE - code will load OFFSET got  and add to TP directly
-  - tp = TP
-  - tmp = load ie from GOT
-  - res = tmp + tp
+ -- tp = TP
+ -- tmp = load ie from GOT
+ -- res = tmp + tp
  - LOCAL - code wil$l have OFFSET directly + TP directly - offset is determined as link time
-  - tmp = tls offset
-  - res = tp + tmp
+ -- tmp = tls offset
+ -- res = tp + tmp
 
 ## Relaxation
 
