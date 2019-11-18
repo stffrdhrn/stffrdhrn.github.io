@@ -700,18 +700,16 @@ In gcc we have riscv_legitimize_tls_address.  It takes an address of a variable
 and generates code to load that address based on variable properties.
 
 Global Variable - code will be GOTBASE + offset - the offset is determined at link time
-GD - code will load MOD and OFF from GOT and call __tls_get_addr
 
-LD - code will load a base with __tls_get_addr, then use local offsets for subsequent calls to load variable addresses.  Useful if more than one variables are accessed, it saves from having to do multiple calls to __tls_get_addr.
-
-IE - code will load OFFSET got  and add to TP directly
-  tp = TP
-  tmp = load ie from GOT
-  res = tmp + tp
-
-LOCAL - code wil$l have OFFSET directly + TP directly - offset is determined as link time
-  tmp = tls offset
-  res = tp + tmp
+ - GD - code will load MOD and OFF from GOT and call __tls_get_addr
+ - LD - code will load a base with __tls_get_addr, then use local offsets for subsequent calls to load variable addresses.  Useful if more than one variables are accessed, it saves from having to do multiple calls to __tls_get_addr.
+ - IE - code will load OFFSET got  and add to TP directly
+  - tp = TP
+  - tmp = load ie from GOT
+  - res = tmp + tp
+ - LOCAL - code wil$l have OFFSET directly + TP directly - offset is determined as link time
+  - tmp = tls offset
+  - res = tp + tmp
 
 ## Relaxation
 
