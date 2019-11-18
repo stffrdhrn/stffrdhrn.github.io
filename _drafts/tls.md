@@ -428,6 +428,9 @@ No supported on openrisc
 
 ![Local Dynamic Program](/content/2019/tls-ld-exe.png)
 
+### Example
+
+File: [tls-ld.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ld.c)
 
 ```
 static __thread int x;
