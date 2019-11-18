@@ -371,29 +371,17 @@ __tls_get_addr (tls_index *ti)
 
 ## Global Dynamic
 
-```
-Before link text contains 1 placeholder for offset for placeholder
+### Before Linking
+
+![Global Dynamic Object](/content/2019/tls-gd-obj.png)
+
+Before linking the `.text` contains 1 placeholder for offset for placeholder
 info got which should contain 2 arguments to __tls_get_addr.
 
-----text----
-|          |
-| a []     |  R_OR1K_TLS_GD_HI16,R_OR1K_TLS_GD_LO16
-|          |
------------|
+### After Linking
 
-After Link
+![Global Dynamic Program](/content/2019/tls-gd-exe.png)
 
- ---text----   ---got---       --rela------
-|           | |         |     |            |
-| a [---------> mod [ ] |<----| TLS_DTPMOD |
-|___________| | off [ ] |<----| TLS_DTPOFF |
-              |_________|     |____________|
-                      |
-                      ==============|-----|
-                                    V     V
-                     __tls_get_addr(mod, off)
-
-```
 
 Example:
 
@@ -459,6 +447,15 @@ Disassembly of section .text:
 
 No supported on openrisc
 
+### Before Linking
+
+![Local Dynamic Object](/content/2019/tls-ld-obj.png)
+
+### After Linking
+
+![Local Dynamic Program](/content/2019/tls-ld-exe.png)
+
+
 ```
 static __thread int x;
 static __thread int y;
@@ -491,34 +488,22 @@ Disassembly of section .text:
  
 ## Initial Exec
 
-```
-Before Link
+### Before Linking
 
-----text----
-|          |
-| a []     |
-|          |
------------|
+![Initial Exec Object](/content/2019/tls-ie-obj.png)
 
 Text contains a placeholder for the got address of
 the offset.
 
-After Link
 
-----text----   ---got---      ---rela------
-|           | |         |     |            |
-| a [--------->         |     |            |
-|___________| | off [ ] |<----| TLS_DTPOFF |
-              |_________|     |____________|
+### After Linking
 
-   tp + off
+![Initial Exec Program](/content/2019/tls-ie-exe.png)
 
 Text contains the actual got offset, but the got value will be
 resolved at runtime.
 
-```
-
-Example
+### Example
 
 Initial exec c code will be the same as global dynamic, howerver IE access will
 be chosed when static compiling or GD->IE relaxation is done during link time.
@@ -606,23 +591,13 @@ Disassembly of section .text:
 
 ## Local Exec
 
-```
-Before Link
+### Before Linking
 
-----text-------
-|              |
-|  a = tp + [] |  R_OR1K_TLS_LE_HI16  
-|______________|
+![Local Exec Object](/content/2019/tls-le-obj.png)
 
-After Link
+### After Linking
 
-----text--------
-|               |
-|  a = tp + off |
-|_______________|
-
-   tp + off
-```
+![Local Exec Program](/content/2019/tls-le-exe.png)
 
 Example:
 
