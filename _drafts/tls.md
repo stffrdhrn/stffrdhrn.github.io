@@ -11,9 +11,15 @@ In order to fix issues with tests I had to learn more than I did before about EL
 documentation available, but it's a bit hard to follow as it assumes certain knowledge, here
 I try to fill in those gaps.
 
- - What are relocations?
- - What is TLS?
- - How do these progress from GCC to the Linker into our final executable?
+ - Why are they needed and how do they work?
+    - What are relocations?
+    - What is TLS?
+    - How do they look like? from GCC to the Linker into our final executable?
+
+ - How are they implemented?
+    - In GCC?
+    - In the Linker?
+    - in GLIBC?
 
 ![GCC and Linker](/content/2019/gcc-obj-ld.png)
 
@@ -22,13 +28,36 @@ We will attempt to answer these in this illustrated article.
 All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
 project which is available on github.
 
+On linux, you can download it and `make` it with your favorite toolchain.
+By default it will cross compile using an [openrisc toolchain](https://openrisc.io/software).
+This can be overriden with the `CROSS_COMPILE` variable.
+For example, to build for your current host.
+
+```
+$ git clone git@github.com:stffrdhrn/tls-examples.git
+$ make CROSS_COMPILE=
+gcc -fpic -c -o tls-gd-dynamic.o tls-gd.c -Wall -O2 -g
+gcc -fpic -c -o nontls-dynamic.o nontls.c -Wall -O2 -g
+...
+objdump -dr x-static.o > x-static.S
+objdump -dr xy-static.o > xy-static.S
+```
+
+Now we can get started.
+
 ## ELF Segments and Sections
 
 Before we can talk about relocations we need to talk a bit about what makes up
-ELF binaries.  There are two basic ELF binaries:
+[ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) binaries.
+This is a prerequisite as relocations and TLS are part of ELF binaries.  There
+are a few basic ELF binary types:
 
- - ELF Objects - produced by a compiler, contains a collection of sections
- - ELF Program - an executable program, contains sections grouped into segments.
+ - Objects (`.o`) - produced by a compiler, contains a collection of sections, also call relocatable files.
+ - Program - an executable program, contains sections grouped into segments.
+ - Shared Objects (`.so`) - a program library, contains sections grouped into segments.
+ - Core Files - core dump of program memory, these are also ELF binaries
+
+Here we will discuss Object Files and Program Files.
 
 ### An ELF Object
 
@@ -60,12 +89,147 @@ most of the same sections as objects but there are some differences.
  - `.text` - contains executable program code, there is no `.rela.text` section
  - `.got`  - the [global offset table](https://en.wikipedia.org/wiki/Global_Offset_Table) used to access variables, created during link time.  May be populated during runtime.
 
-## Relocations
+### Looking at ELF binaries (`readelf`)
 
-As mentioned an object file by itself is not executable.  One reason is that
-the `.text` section will still contain relocations (or placeholders) for the
+The `readelf` tool can give lots of insight into elf binaries.
+
+Some examples:
+
+#### Reading sections of an Object file
+
+Using the `-S` option we can read sections from an elf file.
+As we can see below we have the `.text`, `.rela.text`, `.bss` and many other
+sections.
+
+```
+$ readelf -S tls-le-static.o
+There are 20 section headers, starting at offset 0x604:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        00000000 000034 000020 00  AX  0   0  4
+  [ 2] .rela.text        RELA            00000000 0003f8 000030 0c   I 17   1  4
+  [ 3] .data             PROGBITS        00000000 000054 000000 00  WA  0   0  1
+  [ 4] .bss              NOBITS          00000000 000054 000000 00  WA  0   0  1
+  [ 5] .tbss             NOBITS          00000000 000054 000004 00 WAT  0   0  4
+  [ 6] .debug_info       PROGBITS        00000000 000054 000074 00      0   0  1
+  [ 7] .rela.debug_info  RELA            00000000 000428 000084 0c   I 17   6  4
+  [ 8] .debug_abbrev     PROGBITS        00000000 0000c8 00007c 00      0   0  1
+  [ 9] .debug_aranges    PROGBITS        00000000 000144 000020 00      0   0  1
+  [10] .rela.debug_arang RELA            00000000 0004ac 000018 0c   I 17   9  4
+  [11] .debug_line       PROGBITS        00000000 000164 000087 00      0   0  1
+  [12] .rela.debug_line  RELA            00000000 0004c4 00006c 0c   I 17  11  4
+  [13] .debug_str        PROGBITS        00000000 0001eb 00007a 01  MS  0   0  1
+  [14] .comment          PROGBITS        00000000 000265 00002b 01  MS  0   0  1
+  [15] .debug_frame      PROGBITS        00000000 000290 000030 00      0   0  4
+  [16] .rela.debug_frame RELA            00000000 000530 000030 0c   I 17  15  4
+  [17] .symtab           SYMTAB          00000000 0002c0 000110 10     18  15  4
+  [18] .strtab           STRTAB          00000000 0003d0 000025 00      0   0  1
+  [19] .shstrtab         STRTAB          00000000 000560 0000a1 00      0   0  1
+```
+
+#### Reading the sections of a Program file
+
+Using the `-S` option on a Program file we can also read the sections.  The file
+type does not matter as long as it is and ELF we can read the sections.
+As we can see below there is no long a `rela.text` section, but we have others
+including the `.got` section.
+
+```
+$ readelf -S tls-le-static
+There are 31 section headers, starting at offset 0x32e8fc:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .text             PROGBITS        000020d4 0000d4 080304 00  AX  0   0  4
+  [ 2] __libc_freeres_fn PROGBITS        000823d8 0803d8 001118 00  AX  0   0  4
+  [ 3] .rodata           PROGBITS        000834f0 0814f0 01544c 00   A  0   0  4
+  [ 4] __libc_subfreeres PROGBITS        0009893c 09693c 000024 00   A  0   0  4
+  [ 5] __libc_IO_vtables PROGBITS        00098960 096960 0002f4 00   A  0   0  4
+  [ 6] __libc_atexit     PROGBITS        00098c54 096c54 000004 00   A  0   0  4
+  [ 7] .eh_frame         PROGBITS        00098c58 096c58 0027a8 00   A  0   0  4
+  [ 8] .gcc_except_table PROGBITS        0009b400 099400 000089 00   A  0   0  1
+  [ 9] .note.ABI-tag     NOTE            0009b48c 09948c 000020 00   A  0   0  4
+  [10] .tdata            PROGBITS        0009dc28 099c28 000010 00 WAT  0   0  4
+  [11] .tbss             NOBITS          0009dc38 099c38 000024 00 WAT  0   0  4
+  [12] .init_array       INIT_ARRAY      0009dc38 099c38 000004 04  WA  0   0  4
+  [13] .fini_array       FINI_ARRAY      0009dc3c 099c3c 000008 04  WA  0   0  4
+  [14] .data.rel.ro      PROGBITS        0009dc44 099c44 0003bc 00  WA  0   0  4
+  [15] .data             PROGBITS        0009e000 09a000 000de0 00  WA  0   0  4
+  [16] .got              PROGBITS        0009ede0 09ade0 000064 04  WA  0   0  4
+  [17] .bss              NOBITS          0009ee44 09ae44 000bec 00  WA  0   0  4
+  [18] __libc_freeres_pt NOBITS          0009fa30 09ae44 000014 00  WA  0   0  4
+  [19] .comment          PROGBITS        00000000 09ae44 00002a 01  MS  0   0  1
+  [20] .debug_aranges    PROGBITS        00000000 09ae6e 002300 00      0   0  1
+  [21] .debug_info       PROGBITS        00000000 09d16e 0fd048 00      0   0  1
+  [22] .debug_abbrev     PROGBITS        00000000 19a1b6 0270ca 00      0   0  1
+  [23] .debug_line       PROGBITS        00000000 1c1280 0ce95c 00      0   0  1
+  [24] .debug_frame      PROGBITS        00000000 28fbdc 0063bc 00      0   0  4
+  [25] .debug_str        PROGBITS        00000000 295f98 011e35 01  MS  0   0  1
+  [26] .debug_loc        PROGBITS        00000000 2a7dcd 06c437 00      0   0  1
+  [27] .debug_ranges     PROGBITS        00000000 314204 00c900 00      0   0  1
+  [28] .symtab           SYMTAB          00000000 320b04 0075d0 10     29 926  4
+  [29] .strtab           STRTAB          00000000 3280d4 0066ca 00      0   0  1
+  [30] .shstrtab         STRTAB          00000000 32e79e 00015c 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), I (info),
+  L (link order), O (extra OS processing required), G (group), T (TLS),
+  C (compressed), x (unknown), o (OS specific), E (exclude),
+  p (processor specific)
+```
+
+#### Reading segments from a Program file
+
+Using the `-l` option on a Program file we can read the segments.
+Notice how segments map from file offsets to memory offsets and alignment.
+The two different `LOAD` segments are segregated by read only/execute and read/write.
+Each section is also mapped to a segment here.  As we can see `.text is in the first `LOAD` segment
+which is executable as expected.
+
+```
+$ readelf -l tls-le-static
+
+Elf file type is EXEC (Executable file)
+Entry point 0x2104
+There are 5 program headers, starting at offset 52
+
+Program Headers:
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x000000 0x00002000 0x00002000 0x994ac 0x994ac R E 0x2000
+  LOAD           0x099c28 0x0009dc28 0x0009dc28 0x0121c 0x01e1c RW  0x2000
+  NOTE           0x09948c 0x0009b48c 0x0009b48c 0x00020 0x00020 R   0x4
+  TLS            0x099c28 0x0009dc28 0x0009dc28 0x00010 0x00034 R   0x4
+  GNU_RELRO      0x099c28 0x0009dc28 0x0009dc28 0x003d8 0x003d8 R   0x1
+
+ Section to Segment mapping:
+  Segment Sections...
+   00     .text __libc_freeres_fn .rodata __libc_subfreeres __libc_IO_vtables __libc_atexit .eh_frame .gcc_except_table .note.ABI-tag 
+   01     .tdata .init_array .fini_array .data.rel.ro .data .got .bss __libc_freeres_ptrs 
+   02     .note.ABI-tag 
+   03     .tdata .tbss 
+   04     .tdata .init_array .fini_array .data.rel.ro 
+```
+
+#### Reading segments from an Object file
+
+Using the `-l` option with an Object file does not work as we can see below.
+
+```
+readelf -l tls-le-static.o
+
+There are no program headers in this file.
+```
+
+## Relocation entries
+
+As mentioned an object file by itself is not executable.  The main reason is that
+there are no program headers as we just saw.  Another reason is that
+the `.text` section will still contain relocation entries (or placeholders) for the
 addresses of variables located in the `.data` and `.bss` sections.  In general
-these placeholders will just be `0` in the machine code.
+these placeholders will just be `0` in the machine code.  So, if we tried to run
+the machine code in an object file we would end up with Segmentation faults ([SEGV](https://en.wikipedia.org/wiki/Segmentation_fault)).
 
 A relocation is a placeholder that is added by the compiler when creating object
 files and then filled in by the linker.  There are
@@ -73,15 +237,19 @@ two types of relocations.  Link time relocations, dynamic relocations.
 
 Link time relocation
   - Place holder filled in when `.o` files are linked to create executables or libraries
+  - For example, relocation entries in `.text` sections
 
 Dynamic link relocations
   - Place holder is filled during runtime.  i.e. Procedure Link Table
+  - For example, relocation entries added to `.got` and `.plt` sections which link
+    to shared objects.
 
 ### Example
 
 File: [nontls.c](https://github.com/stffrdhrn/tls-examples/blob/master/nontls.c)
 
-In the example below we have a simple static variable:
+In the example below we have a simple static variable that when compiled will
+contain a relocation entry as a placeholder to the actual location in memory:
 
 ```
 static int x;
@@ -97,11 +265,11 @@ the source examples.
 
 ### Compiler Output
 
-In the output below we can see that access to the variable `x` uses
-a literal `0` in each instruction.  These bits are to be filled in during
+In the output below we can see that access to the variable `x` which is in `.bss`
+is referenced by a literal `0` in each instruction.  These bits are to be filled in during
 linking stage to provide access to the actual variable addresses.
 
-These empty parts of the `.text` section are relocations.
+These empty parts of the `.text` section are relocation entries.
 
 ```
 0000000c <get_x_addr>:
@@ -113,11 +281,20 @@ These empty parts of the `.text` section are relocations.
 After linking the `0` values will be replaced with actuall offset values, there
 will be no relocations left.
 
+The instructions can be understood as follows (take note that openrisc has a branch delay
+slot, meaning the instruction after the branch is run before the branch is take).
+
+ - `l.movhi` - move the value `[0]` into high bits of register `r11`, clearing the lower bits.
+ - `l.addi` - add the value in register `r11` to the value `[0]` and store the results in `r11`.
+ - `l.jr` - jump the the address in `r9`
+
+This constructs the address of `x` out of 2 16-bit values into `r11`, `r11` is the function
+return value register in openrisc.  It then returns from the function as `r9` is the link register.
+
 ### Linker output
 
-As we can see from the linker output the places in the code that had relocations
-are not replaced with values.  For example `1a 20 00 00` has become `1a 20 00 0a`.
-
+As we can see from the linker output the places in the code that had relocation place holders
+are now replaced with values.  For example `1a 20 00 00` has become `1a 20 00 0a`.
 
 ```
 00002298 <get_x_addr>:
@@ -126,15 +303,24 @@ are not replaced with values.  For example `1a 20 00 00` has become `1a 20 00 0a
     22a0:	9d 6b ee 60 	l.addi r11,r11,-4512
 ```
 
+If we calculate `0xa << 16 + -4512 (fee60)` we see get `0009ee60`.  That is the
+same location of `x` within our binary.  This we can check with `readelf -s`
+which lists all symbols.
+
+```
+$ readelf -s nontls-static | grep ' x'
+    42: 0009ee60     4 OBJECT  LOCAL  DEFAULT   17 x
+```
+
 ## Types of Relocations
 
-As we saw above, a simple program resulted in 4 different relocations.  These
-are all different as well.  We saw:
+As we saw above, a simple program resulted in 2 different relocation entries just to compose the address of 1 variable.
+We saw:
 
   - `R_OR1K_AHI16`
   - `R_OR1K_LO_16_IN_INSN`
 
-The need for different relations comes from the different requirements for the
+The need for different relation types comes from the different requirements for the
 relocation.  Processing of a relocation involves usually a very simple transform
 , each relocation defines a different tansform.
 
