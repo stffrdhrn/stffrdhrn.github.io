@@ -23,8 +23,6 @@ section on relocations.  In this article I will try to fill in those gaps.
     - In the Linker?
     - in GLIBC?
 
-![GCC and Linker](/content/2019/gcc-obj-ld.png)
-
 We will attempt to answer these in this illustrated article.
 
 All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
@@ -239,6 +237,31 @@ The relocation entries are to be filled in with addresses pointing to data.
 Relocation entries can be made in code such as the `.text` section or in data
 sections like the `.got` section.  For example:
 
+## Resolving Relocations
+
+![GCC and Linker](/content/2019/gcc-obj-ld.png)
+
+As seen in the diagram above relocations may be resolved and patched during link
+time or execution time.  The diagram above shows relocation entries as white boxes.
+During link time these are filled in in the `.text` section, but created in the `.got` section.
+During the execution all processes share the same `.text` section, but each has
+a copy of the `.got` section and the relocation entries may be resoved differently.
+
+Relocation entries are filled at link time or dynamically during execution.
+
+Link time relocation
+  - Place holder is filled in when ELF object files are linked to create executables or libraries
+  - For example, relocation entries in `.text` sections
+
+Dynamic link relocations
+  - Place holder is filled during runtime.  i.e. Procedure Link Table
+  - For example, relocation entries added to `.got` and `.plt` sections which link
+    to shared objects.
+
+In general link time relocations are used to fill in relocation entries in code.
+Dynamic relocations fill in relocation entries in data sections.  We can
+see some examples below.
+
 ### A Code Relocation Entry 
 
 Output of `or1k-smh-linux-gnu-objdump -dr tls-gd-dynamic.o`
@@ -293,19 +316,6 @@ Hex dump of section '.got':
 In this example we can see that the relocation entry is not applied to machine
 code but to the address `0x601c` part of the `.got` section.  This is the global
 offset table which contains addresses of global data.
-
-## Types of Relocation
-
-There are two types of relocations.  Link time relocations, dynamic relocations.
-
-Link time relocation
-  - Place holder filled in when `.o` files are linked to create executables or libraries
-  - For example, relocation entries in `.text` sections
-
-Dynamic link relocations
-  - Place holder is filled during runtime.  i.e. Procedure Link Table
-  - For example, relocation entries added to `.got` and `.plt` sections which link
-    to shared objects.
 
 ### Example
 
