@@ -8,13 +8,15 @@ has a comprehensive set of linker and runtime relocation tests.
 
 In order to fix issues with tests I had to learn more than I did before about ELF Relocations
 , Thread Local Storage and the binutils linker implementation in BFD.  There is a lot of
-documentation available, but it's a bit hard to follow as it assumes certain knowledge, here
-I try to fill in those gaps.
+documentation available, but it's a bit hard to follow as it assumes certain
+knowledge, for example have a look at the Solaris [Linker and Libraries](https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html)
+section on relocations.  In this article I will try to fill in those gaps.
 
  - Why are they needed and how do they work?
-    - What are relocations?
-    - What is TLS?
-    - How do they look like? from GCC to the Linker into our final executable?
+    - Relocations
+    - TLS
+
+ - What do the ELF binaries look like from GCC to the Linker into our final executable?
 
  - How are they implemented?
     - In GCC?
@@ -26,11 +28,11 @@ I try to fill in those gaps.
 We will attempt to answer these in this illustrated article.
 
 All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
-project which is available on github.
+project.  Please check it out.
 
-On linux, you can download it and `make` it with your favorite toolchain.
+On Linux, you can download it and `make` it with your favorite toolchain.
 By default it will cross compile using an [openrisc toolchain](https://openrisc.io/software).
-This can be overriden with the `CROSS_COMPILE` variable.
+This can be overridden with the `CROSS_COMPILE` variable.
 For example, to build for your current host.
 
 ```
@@ -66,8 +68,8 @@ Here we will discuss Object Files and Program Files.
 The compiler generates object files, these contain sections of binary data and
 these are not executable.
 
-The the object file produced by [gcc](https://gcc.gnu.org/onlinedocs/gcc-9.2.0/gcc/Overall-Options.html#index-c)
-contains `.rela.text`, `.text`, `.data` and `.bss` sections. 
+The object file produced by [gcc](https://gcc.gnu.org/onlinedocs/gcc-9.2.0/gcc/Overall-Options.html#index-c)
+generally contains `.rela.text`, `.text`, `.data` and `.bss` sections.
 
  - `.rela.text` - a list of relocations against the `.text` section
  - `.text` - contains compiled program machine code
@@ -81,9 +83,9 @@ contains `.rela.text`, `.text`, `.data` and `.bss` sections.
 ELF binaries are made of [sections](https://en.wikipedia.org/wiki/Data_segment) and segments.
 
 A segment contains a group of sections and the segment defines how the data should
-be loaded into memory for program exection.
+be loaded into memory for program execution.
 
-Each segment is mapped to program memory once per process.  Program files contain
+Each segment is mapped to program memory by the kernel when a process is created.  Program files contain
 most of the same sections as objects but there are some differences.
 
  - `.text` - contains executable program code, there is no `.rela.text` section
@@ -91,11 +93,11 @@ most of the same sections as objects but there are some differences.
 
 ### Looking at ELF binaries (`readelf`)
 
-The `readelf` tool can give lots of insight into elf binaries.
+The `readelf` tool can help inspect elf binaries.
 
 Some examples:
 
-#### Reading sections of an Object file
+#### Reading Sections of an Object File
 
 Using the `-S` option we can read sections from an elf file.
 As we can see below we have the `.text`, `.rela.text`, `.bss` and many other
@@ -129,11 +131,11 @@ Section Headers:
   [19] .shstrtab         STRTAB          00000000 000560 0000a1 00      0   0  1
 ```
 
-#### Reading the sections of a Program file
+#### Reading Sections of a Program File
 
-Using the `-S` option on a Program file we can also read the sections.  The file
-type does not matter as long as it is and ELF we can read the sections.
-As we can see below there is no long a `rela.text` section, but we have others
+Using the `-S` option on a program file we can also read the sections.  The file
+type does not matter as long as it is an ELF we can read the sections.
+As we can see below there is no longer a `rela.text` section, but we have others
 including the `.got` section.
 
 ```
@@ -180,11 +182,11 @@ Key to Flags:
   p (processor specific)
 ```
 
-#### Reading segments from a Program file
+#### Reading Segments from a Program File
 
-Using the `-l` option on a Program file we can read the segments.
+Using the `-l` option on a program file we can read the segments.
 Notice how segments map from file offsets to memory offsets and alignment.
-The two different `LOAD` segments are segregated by read only/execute and read/write.
+The two different `LOAD` type segments are segregated by read only/execute and read/write.
 Each section is also mapped to a segment here.  As we can see `.text is in the first `LOAD` segment
 which is executable as expected.
 
@@ -212,9 +214,9 @@ Program Headers:
    04     .tdata .init_array .fini_array .data.rel.ro 
 ```
 
-#### Reading segments from an Object file
+#### Reading Segments from an Object File
 
-Using the `-l` option with an Object file does not work as we can see below.
+Using the `-l` option with an object file does not work as we can see below.
 
 ```
 readelf -l tls-le-static.o
@@ -226,14 +228,75 @@ There are no program headers in this file.
 
 As mentioned an object file by itself is not executable.  The main reason is that
 there are no program headers as we just saw.  Another reason is that
-the `.text` section will still contain relocation entries (or placeholders) for the
-addresses of variables located in the `.data` and `.bss` sections.  In general
-these placeholders will just be `0` in the machine code.  So, if we tried to run
+the `.text` section still contains relocation entries (or placeholders) for the
+addresses of variables located in the `.data` and `.bss` sections.
+These placeholders will just be `0` in the machine code.  So, if we tried to run
 the machine code in an object file we would end up with Segmentation faults ([SEGV](https://en.wikipedia.org/wiki/Segmentation_fault)).
 
-A relocation is a placeholder that is added by the compiler when creating object
-files and then filled in by the linker.  There are
-two types of relocations.  Link time relocations, dynamic relocations.
+A relocation entry is a placeholder that is added by the compiler or linker when
+producing ELF binaries.
+The relocation entries are to be filled in with addresses pointing to data.
+Relocation entries can be made in code such as the `.text` section or in data
+sections like the `.got` section.  For example:
+
+### A Code Relocation Entry 
+
+Output of `or1k-smh-linux-gnu-objdump -dr tls-gd-dynamic.o`
+
+```
+  70:   04 00 00 00     l.jal [0]     # 70: R_OR1K_PLT26        __tls_get_addr
+```
+
+In this example we can see some machine code at address `0x70`.  It is `l.jal`
+the openrisc a jump to the address in the immediate and set the
+link register instruction.  Immediate means that the value is encoded in the instruction.
+Currently the immediate address we want to jump to is `[0]` and there is a
+relocation entry.
+
+The relocation entry is in the comment `70: R_OR1K_PLT26        __tls_get_addr`.
+We can also see with the `readelf` utility using the `-r` option.
+
+```
+Relocation section '.rela.text' at offset 0x530 contains 10 entries:
+ Offset     Info    Type            Sym.Value  Sym. Name + Addend
+...
+0000002c  00000d0f R_OR1K_PLT26      00000000   __tls_get_addr + 0
+```
+
+The relocation entry explains how to and where to apply to the relocation entry.
+It contains:
+ - `Offset` - the location in the binary that needs to be updated
+ - `Info` - the encoded value containing the `Type, Sym and Addend`, which is
+     broken down to:
+   - `Type` - the type of relocation (the formula for what is to be performed is defined in the
+     linker)
+   - `Sym. Value` - the address value (if known) of the symbol in the symbol table.
+   - `Sym. Name` - the name of the symbol (variable name) that this relocation needs to find
+     during link time.
+ - `Addend` - an value that needs to be added to the derived symbol address.
+   This is used to with arrays (i.e. for a relocation referencing `a[14]` we would have **Sym. Name** `a` an **Addend** of the data size of `a` times `14`)
+
+### A Data Relocation Entry
+
+Output of `or1k-smh-linux-gnu-objdump -x .got -r nontls-dynamic`
+
+```
+Relocation section '.rela.dyn' at offset 0x204 contains 1 entry:
+ Offset     Info    Type            Sym.Value  Sym. Name + Addend
+0000601c  00000113 R_OR1K_GLOB_DAT   00006008   i + 0
+
+Hex dump of section '.got':
+  0x0000600c 00005f20 00000000 00000000 0000221c 
+  0x0000601c 00000000                            
+```
+
+In this example we can see that the relocation entry is not applied to machine
+code but to the address `0x601c` part of the `.got` section.  This is the global
+offset table which contains addresses of global data.
+
+## Types of Relocation
+
+There are two types of relocations.  Link time relocations, dynamic relocations.
 
 Link time relocation
   - Place holder filled in when `.o` files are linked to create executables or libraries
@@ -478,7 +541,7 @@ During the initial thread structure allocation.
 ### TLS_INIT_TP
 
 ```
-#define TLS_INIT_TP(tcbp)  __thread_self = ((tcbhead_t *)tcbp + 1); 
+#define TLS_INIT_TP(tcbp)  __thread_self = ((tcbhead_t *)tcbp + 1);
 ```
 
 After all allocation is done we set `__thread_self`, the Thread Pointer.
@@ -814,6 +877,7 @@ convert it to IE access.
 
 
 ## Further Reading
+- Bottums Up - http://bottomupcs.sourceforge.net/csbu/x3735.htm
 - GOT and PLT - https://www.technovelty.org/linux/plt-and-got-the-key-to-code-sharing-and-dynamic-libraries.html
 - Android - https://android.googlesource.com/platform/bionic/+/HEAD/docs/elf-tls.md
 - Oracle - https://docs.oracle.com/cd/E19683-01/817-3677/chapter8-20/index.html
