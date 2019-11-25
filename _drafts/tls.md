@@ -241,43 +241,27 @@ sections like the `.got` section.  For example:
 
 ![GCC and Linker](/content/2019/gcc-obj-ld.png)
 
-As seen in the diagram above relocations may be resolved and patched during link
-time or execution time.  The diagram above shows relocation entries as white boxes.
-During link time these are filled in in the `.text` section, but created in the `.got` section.
-During the execution all processes share the same `.text` section, but each has
-a copy of the `.got` section and the relocation entries may be resoved differently.
+The diagram above shows relocation entries as white circles.
+Relocation entries may be filled at link time or dynamically during execution.
 
-Relocation entries are filled at link time or dynamically during execution.
-
-Link time relocation
-  - Place holder is filled in when ELF object files are linked to create executables or libraries
+Link time relocations
+  - Place holders are filled in when ELF object files are linked by the linker to create executables or libraries
   - For example, relocation entries in `.text` sections
 
-Dynamic link relocations
-  - Place holder is filled during runtime.  i.e. Procedure Link Table
+Dynamic relocations
+  - Place holders is filled during runtime by the dynamic linker.  i.e. Procedure Link Table
   - For example, relocation entries added to `.got` and `.plt` sections which link
     to shared objects.
 
 In general link time relocations are used to fill in relocation entries in code.
-Dynamic relocations fill in relocation entries in data sections.  We can
-see some examples below.
+Dynamic relocations fill in relocation entries in data sections.
 
-### A Code Relocation Entry 
+### Listing Relocation Entries
 
-Output of `or1k-smh-linux-gnu-objdump -dr tls-gd-dynamic.o`
+A list of relocations in a ELF binary can printed using `readelf` with
+the `-r` options.
 
-```
-  70:   04 00 00 00     l.jal [0]     # 70: R_OR1K_PLT26        __tls_get_addr
-```
-
-In this example we can see some machine code at address `0x70`.  It is `l.jal`
-the openrisc a jump to the address in the immediate and set the
-link register instruction.  Immediate means that the value is encoded in the instruction.
-Currently the immediate address we want to jump to is `[0]` and there is a
-relocation entry.
-
-The relocation entry is in the comment `70: R_OR1K_PLT26        __tls_get_addr`.
-We can also see with the `readelf` utility using the `-r` option.
+Output of `readelf -r tls-gd-dynamic.o`
 
 ```
 Relocation section '.rela.text' at offset 0x530 contains 10 entries:
@@ -286,7 +270,7 @@ Relocation section '.rela.text' at offset 0x530 contains 10 entries:
 0000002c  00000d0f R_OR1K_PLT26      00000000   __tls_get_addr + 0
 ```
 
-The relocation entry explains how to and where to apply to the relocation entry.
+The relocation entry list explains how to and where to apply the relocation entry.
 It contains:
  - `Offset` - the location in the binary that needs to be updated
  - `Info` - the encoded value containing the `Type, Sym and Addend`, which is
@@ -298,24 +282,6 @@ It contains:
      during link time.
  - `Addend` - an value that needs to be added to the derived symbol address.
    This is used to with arrays (i.e. for a relocation referencing `a[14]` we would have **Sym. Name** `a` an **Addend** of the data size of `a` times `14`)
-
-### A Data Relocation Entry
-
-Output of `or1k-smh-linux-gnu-objdump -x .got -r nontls-dynamic`
-
-```
-Relocation section '.rela.dyn' at offset 0x204 contains 1 entry:
- Offset     Info    Type            Sym.Value  Sym. Name + Addend
-0000601c  00000113 R_OR1K_GLOB_DAT   00006008   i + 0
-
-Hex dump of section '.got':
-  0x0000600c 00005f20 00000000 00000000 0000221c 
-  0x0000601c 00000000                            
-```
-
-In this example we can see that the relocation entry is not applied to machine
-code but to the address `0x601c` part of the `.got` section.  This is the global
-offset table which contains addresses of global data.
 
 ### Example
 
