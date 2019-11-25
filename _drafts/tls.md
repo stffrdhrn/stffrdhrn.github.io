@@ -266,8 +266,12 @@ Output of `readelf -r tls-gd-dynamic.o`
 ```
 Relocation section '.rela.text' at offset 0x530 contains 10 entries:
  Offset     Info    Type            Sym.Value  Sym. Name + Addend
-...
+00000000  00000f16 R_OR1K_TLS_GD_HI1 00000000   x + 0
+00000008  00000f17 R_OR1K_TLS_GD_LO1 00000000   x + 0
+00000020  0000100c R_OR1K_GOTPC_HI16 00000000   _GLOBAL_OFFSET_TABLE_ - 4
+00000024  0000100d R_OR1K_GOTPC_LO16 00000000   _GLOBAL_OFFSET_TABLE_ + 0
 0000002c  00000d0f R_OR1K_PLT26      00000000   __tls_get_addr + 0
+...
 ```
 
 The relocation entry list explains how to and where to apply the relocation entry.
