@@ -1,5 +1,4 @@
-
-# ELF Binary Relocations and TLS
+# ELF Binaries and Relocation Entries
 
 Recently I have been working on getting the [OpenRISC glibc](https://github.com/openrisc/or1k-glibc)
 port ready for upstreaming.  Part of this work has been to run the glibc
@@ -12,23 +11,10 @@ documentation available, but it's a bit hard to follow as it assumes certain
 knowledge, for example have a look at the Solaris [Linker and Libraries](https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html)
 section on relocations.  In this article I will try to fill in those gaps.
 
-Three part series on 
- - ELF binaries and Relocation entries
+This will be an illustrated 3 part series covering
+ - ELF Binaries and Relocation entries
  - Thread Local Storage
  - How Relocations and Thread Local Store are implemented
-
- - Why are they needed and how do they work?
-    - Relocations
-    - TLS
-
- - What do the ELF binaries look like from GCC to the Linker into our final executable?
-
- - How are they implemented?
-    - In GCC?
-    - In the Linker?
-    - in GLIBC?
-
-We will attempt to answer these in this illustrated article.
 
 All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
 project.  Please check it out.
@@ -289,8 +275,8 @@ It contains:
    - `Sym. Value` - the address value (if known) of the symbol in the symbol table.
    - `Sym. Name` - the name of the symbol (variable name) that this relocation needs to find
      during link time.
- - `Addend` - an value that needs to be added to the derived symbol address.
-   This is used to with arrays (i.e. for a relocation referencing `a[14]` we would have **Sym. Name** `a` an **Addend** of the data size of `a` times `14`)
+ - `Addend` - a value that needs to be added to the derived symbol address.
+   This is used to with arrays (i.e. for a relocation referencing `a[14]` we would have **Sym. Name** `a` and an **Addend** of the data size of `a` times `14`)
 
 ### Example
 
@@ -332,9 +318,6 @@ Addr.   Machine Code    Assembly             Relocations
   10:   44 00  48 00    l.jr r9
   14:   9d 6b [00 00]    l.addi r11,r11,[0]  # 14 R_OR1K_LO_16_IN_INSN        .bss
 ```
-
-After linking the `0` values will be replaced with actual address offset components, there
-will be no relocations left.
 
 The function `get_x_addr` will return the address of variable `x`.
 We can look at the assembly instruction to understand how this is done.  Some background
