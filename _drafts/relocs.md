@@ -12,7 +12,7 @@ knowledge, for example have a look at the Solaris [Linker and Libraries](https:/
 section on relocations.  In this article I will try to fill in those gaps.
 
 This will be an illustrated 3 part series covering
- - ELF Binaries and Relocation entries
+ - ELF Binaries and Relocation Entries
  - Thread Local Storage
  - How Relocations and Thread Local Store are implemented
 
@@ -233,7 +233,7 @@ sections like the `.got` section.  For example:
 ![GCC and Linker](/content/2019/gcc-obj-ld.png)
 
 The diagram above shows relocation entries as white circles.
-Relocation entries may be filled at link time or dynamically during execution.
+Relocation entries may be filled or resolved at link-time or dynamically during execution.
 
 Link time relocations
   - Place holders are filled in when ELF object files are linked by the linker to create executables or libraries
@@ -243,6 +243,9 @@ Dynamic relocations
   - Place holders is filled during runtime by the dynamic linker.  i.e. Procedure Link Table
   - For example, relocation entries added to `.got` and `.plt` sections which link
     to shared objects.
+
+*Note: Statically built binaries do not have any dynamic relocations and are not
+loaded with the dynamic linker.*
 
 In general link time relocations are used to fill in relocation entries in code.
 Dynamic relocations fill in relocation entries in data sections.
@@ -272,7 +275,7 @@ It contains:
      broken down to:
    - `Type` - the type of relocation (the formula for what is to be performed is defined in the
      linker)
-   - `Sym. Value` - the address value (if known) of the symbol in the symbol table.
+   - `Sym. Value` - the address value (if known) of the symbol.
    - `Sym. Name` - the name of the symbol (variable name) that this relocation needs to find
      during link time.
  - `Addend` - a value that needs to be added to the derived symbol address.
@@ -295,7 +298,7 @@ int* get_x_addr() {
 
 Let's see what happens when we compile this source.
 
-*The steps to compile and link can be found in the `tls-examples` project hosting
+*The steps to compile and link can be found in the [tls-examples](https://github.com/stffrdhrn/tls-examples) project hosting
 the source examples.*
 
 
@@ -425,7 +428,3 @@ and runtime relocation entries play big part in how TLS works.
 ## Further Reading
 - Bottums Up - http://bottomupcs.sourceforge.net/csbu/x3735.htm
 - GOT and PLT - https://www.technovelty.org/linux/plt-and-got-the-key-to-code-sharing-and-dynamic-libraries.html
-- Android - https://android.googlesource.com/platform/bionic/+/HEAD/docs/elf-tls.md
-- Oracle - https://docs.oracle.com/cd/E19683-01/817-3677/chapter8-20/index.html
-- Drepper - https://www.akkadia.org/drepper/tls.pdf
-- Deep Dive - https://chao-tic.github.io/blog/2018/12/25/tls
