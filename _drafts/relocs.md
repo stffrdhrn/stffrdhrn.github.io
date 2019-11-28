@@ -405,8 +405,22 @@ encodes its immediate value.
 
 For full listings refer to architecture manuals.
 
-https://docs.oracle.com/cd/E19683-01/817-3677/chapter6-54839/index.html
+  - [Linkers and Libraries](https://docs.oracle.com/cd/E19683-01/817-3677/chapter6-54839/index.html) - Oracle's documentation on Intel and Sparc relocations
+  - [Binutils OpenRISC Relocs](https://sourceware.org/binutils/docs-2.33.1/as/OpenRISC_002dRelocs.html) - Binutil Manual containing details on OpenRISC relocations
+  - [ELF for ARM](https://static.docs.arm.com/ihi0044/e/IHI0044E_aaelf.pdf)[pdf] - ARM Relocation Types table on page 25
 
+Take a look and see if you can understand how to read these now.
+
+## Summary
+
+In this article we have discussed what ELF binaries are and how they can be read.
+We have talked about how from Compilation to Linking to Runtime relocation entries
+are used to communicate which parts of a program which remain to be resolved.  We
+then discussed how relocation types provide a formula and bit-mask for updating
+the places in ELF binaries that need to be filled in.
+
+In the next article we will discuss how Thread Local Storage works, Both link-time
+and runtime relocation entries play big part in how TLS works.
 
 ## Further Reading
 - Bottums Up - http://bottomupcs.sourceforge.net/csbu/x3735.htm
