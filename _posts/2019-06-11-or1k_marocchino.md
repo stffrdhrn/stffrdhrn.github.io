@@ -29,7 +29,7 @@ the main branch was the Marocchino.  I had never paid much attention to the
 Marocchino pipeline.
 
 Around the same time the author of Marocchino sent a mail mentioning he could
-not used the new GCC port as is was missing Single and Double precision FPU
+not use the new GCC port as it was missing Single and Double precision FPU
 support.  Using the new verification pipeline I set out to start working on
 adding single and double precision floating point support to the OpenRISC gcc
 port.  My verification target would be the Marocchino pipeline.
@@ -451,7 +451,7 @@ Result is = 1330
 Now, if we look at [the VCD trace file](/content/2019/c-testlog.vcd) we can see the
 below trace.  Notice that with the c program we can observe better pipelining where
 an instruction can be executed every clock cycle.  This is because caches have
-been initialized as part of the newlib c-runtime initialization, Great!
+been initialized as part of the newlib c-runtime initialization, great!
 
 ![c tracefile vcd](/content/2019/c-marocchino-trace.png)
 
@@ -469,4 +469,4 @@ now:
   - Develop c programs and test them on the Marocchino or other OpenRISC processors
 
 In the next article we will look more into how the above programs actually flow
-through the Marocchino pipeline.  Stay tuned.
+through the Marocchino pipeline. Stay tuned.
