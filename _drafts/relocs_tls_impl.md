@@ -1,35 +1,56 @@
 ---
-title: Thread Local Storage
+title: ELF TLS Access Models
 layout: post
 date: 2019-11-29 06:47
 categories: [ hardware, embedded, openrisc ]
 ---
 
-*This is an ongoing series of posts on ELF Binary Relocations and Thread
-Local Storage.  This article covers only Thread Local Storage and assumes
-the reader has had a primer in ELF Relocations, if not please start with
-my previous article [ELF Binaries and Relocation Entries]({% post_url
-2019-11-29-relocs %})*
 
-In the last article we covered ELF Binary internals and how relocation entries
-are used to during link time to allow our programs to access symbols (variables).
-However, what if we want a different variable instance for each thread, as is
-requested with the thread local `__thread` prefix?  This is where thread local
-storage (TLS) data structures and access models come in.
+# ELF Binary Relocations and TLS
 
-In this article we will discuss how Thread Local Storage works.  Our outline:
+Recently I have been working on getting the [OpenRISC glibc](https://github.com/openrisc/or1k-glibc)
+port ready for upstreaming.  Part of this work has been to run the glibc
+testsuite and get the tests to pass.  The [glibc testsuite](https://sourceware.org/glibc/wiki/Testing/Testsuite)
+has a comprehensive set of linker and runtime relocation tests.
 
- - TLS Sections
- - TLS data structures
- - TLS access models
-   - Global Dynamic (or General Dynamic)
-   - Local Dynamic
-   - Initial Exec
-   - Local Exec
- - Relocation Relaxation
+In order to fix issues with tests I had to learn more than I did before about ELF Relocations
+, Thread Local Storage and the binutils linker implementation in BFD.  There is a lot of
+documentation available, but it's a bit hard to follow as it assumes certain
+knowledge, for example have a look at the Solaris [Linker and Libraries](https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-54839.html)
+section on relocations.  In this article I will try to fill in those gaps.
 
-As before, the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
+ - Why are they needed and how do they work?
+    - Relocations
+    - TLS
+
+ - What do the ELF binaries look like from GCC to the Linker into our final executable?
+
+ - How are they implemented?
+    - In GCC?
+    - In the Linker?
+    - in GLIBC?
+
+We will attempt to answer these in this illustrated article.
+
+All of the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
 project.  Please check it out.
+
+On Linux, you can download it and `make` it with your favorite toolchain.
+By default it will cross compile using an [openrisc toolchain](https://openrisc.io/software).
+This can be overridden with the `CROSS_COMPILE` variable.
+For example, to build for your current host.
+
+```
+$ git clone git@github.com:stffrdhrn/tls-examples.git
+$ make CROSS_COMPILE=
+gcc -fpic -c -o tls-gd-dynamic.o tls-gd.c -Wall -O2 -g
+gcc -fpic -c -o nontls-dynamic.o nontls.c -Wall -O2 -g
+...
+objdump -dr x-static.o > x-static.S
+objdump -dr xy-static.o > xy-static.S
+```
+
+Now we can get started.
 
 ## Thread Local Storage
 
@@ -58,38 +79,22 @@ TLS variables are stored in dynamic TLS sections.
 
 ## TLS Sections
 
-In the previous article we saw how variables were stored in the `.data` and
-`.bss` sections.  These are initialized once per program or library. 
-
 When we get to binaries that use TLS we will also have `.tdata` and `.tbss`.  Each section
 is dynamically allocated into the process heap during runtime once per each thread.
 
  - `.tdata` - static and non static initialized thread local variables
  - `.tbss`  - static and non static non-initialized thread local variables
 
-These exist in a special `TLS` segment which is loaded per thread.  In the next
-article we will discuss more about how this loading works.
+These exist in a special `TLS` segment which is loaded per thread.
 
-## TLS Data Structures
+## TLS memory layout
 
-As we recall, with the relocations used to access data in `.data` and `.bss`
-sections simple code sequences are used.  The sequences set and add registers
-with PC relative or absolute address relocation entries to build pointers to
-our data.  For example:
-
-```
-Addr.   Machine Code    Assembly             Relocations
-0000000c <get_x_addr>:
-   c:   19 60 [00 00]   l.movhi r11,[0]      # c  R_OR1K_AHI16 .bss
-  10:   44 00  48 00    l.jr r9
-  14:   9d 6b [00 00]    l.addi r11,r11,[0]  # 14 R_OR1K_LO_16_IN_INSN        .bss
-```
-
-With TLS the code sequences to access our data will also build pointers to our
-data, but they need to traverse the TLS data structures.  Address offsets are
-the same for each thread but they are relative to something called the Thread
-Pointer (TP).  The Thread Pointer is different for each thread.  On OpenRISC
-this is register `r10` on x86_64 the `$fs` segment register is used.
+In order to reference data in the `.tdata` and `.tbss` sections code sequences
+with relocations are used.  With the non thread local `.data` and `.bss` sections
+the address offsets to to index into the data segments are program counter relative
+or absolute addresses.  For to access data in thread local data sections address
+offsets are relative to something called the Thread Pointer (TP).  On OpenRISC this
+is register `r10` on x86_64 the `$fs` segment register is used.
 
 The Thread Pointer points into a data structure that contains multiple bits of data.
 This includes the Dynamic Thread Vector (DTV) an array of pointers to thread
@@ -97,6 +102,10 @@ data sections.  The Thread Control Block a structure which points to the DTV, it
 by the first thread local data section and proceeded by the pthread structure.
 
 ```
+           INSTALL_DTV
+              |
+              |         INSTALL_NEW_DTV
+              V         V
   dtv[]   [ dtv[0], dtv[1], dtv[2], .... ]
             counter ^ |       \
                ----/  |        \_____
@@ -113,11 +122,11 @@ by the first thread local data section and proceeded by the pthread structure.
 
 The Thread Pointer is different for each thread.
 
- - The value stored in `r10` points to the Thread Control Block
+ - The value stored in `r10` points to the Initial Block
 
 ### Tread Control Block (TCB)
 
-The TCB is the head of the TLS data structure.  Each thread has a different
+Contains the data pointed to by the Thread Pointer.  Each thread has a different
 TCB and DTV.  The TCB consists of:
 
  - `pthread` - the `pthread` struct for the current thread, contains tid etc. Located by `TP - TCB size - Pthread size`
@@ -127,21 +136,19 @@ TCB for openrisc:
 
 ```
 typedef struct {
-  dtv_t \*dtv;
+  dtv_t *dtv;
 } tcbhead_t
 ```
-
  - `dtv` - is a pointer to the dtv array, points to entry `dtv[1]`
 
 ### Dynamic Thread Vector (DTV)
-
 The DTV array of pointers to each TLS (`.tbss`, `.tdata`) block of memory.  The
 first entry in the DTV array contains the generation counter.  The generation
 counter is usually indexed as DTV[-1] as is it the entry pointed to before where
 the TCB head pointer points.  The generation counter is really just the vector
 size.
 
-The `dtv_t` type is a union as defined below:
+The `dtv_t` union
 
 ```
 typedef struct {
@@ -154,21 +161,61 @@ typedef union {
 } dtv_t
 ```
 
-Each `dtv_t` entry can be either a counter of a pointer.  By convention the
-first entry, `dtv[0]` is a counter and the rest are pointers.
+Each `dtv_t` entry can be either a counter of a pointer.  By convention the first entry, `dtv[0]` is a counter and
+the rest are pointers.
 
-### Thread Local Storage (TLS)
-
-The 
-
-#### Local (or TLS[0])
+### Local (or TLS[1])
  - `tbss` - the `.tbss` section for the current thread from the current process
  - `tdata` - the `.tdata` section for the current thread from the current process
 
-#### TLS[1]
+### TLS[2]
  - `tbss` - the `.tbss` section for variables defined in the first shared library loaded by the current process
  - `tdata` - the `.tdata` section for the variables defined in the first shared library loaded by the current process
 
+## Setting up the TCB
+
+The below macros defined in `tls.h` for OpenRISC and provide the functionality to setup
+the TCB and DTV.
+
+### INSTALL_DTV
+
+```
+#define INSTALL_DTV(tcbp, dtvp) (((tcbhead_t *) (tcbp))->dtv = (dtvp) + 1)
+```
+
+During the initial thread structure allocation.
+
+  - dtvp+1 means we want the TCB to point to point to dtv[1]
+  - called to set dtv in the control block
+
+### TLS_INIT_TP
+
+```
+#define TLS_INIT_TP(tcbp)  __thread_self = ((tcbhead_t *)tcbp + 1);
+```
+
+After all allocation is done we set `__thread_self`, the Thread Pointer.
+
+  - (tcbp + 1) means we want to point just after tcb
+
+### THREAD_DTV
+
+```
+#define THREAD_DTV ((((tcbhead_t *)__thread_self)-1)->dtv)
+```
+
+Alias for the current threads DTV pointer.
+
+### INSTALL_NEW_DTV
+
+```
+#define INSTALL_NEW_DTV(dtv) (THREAD_DTV() = (dtv))
+```
+
+During runtime if resizing of the DTV array is needed this is called
+to update the TCB DTV pointer.
+
+ - when called the passed dtv is actually dtv[1], this is confusing as it is not consistent with `INSTALL_DTV`
 
 ### The function `__tls_get_addr()`
 
