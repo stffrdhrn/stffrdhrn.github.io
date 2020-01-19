@@ -286,7 +286,15 @@ Here several macros are used so it's a bit hard to follow but there are:
 
 ## TLS Access Models
 
+As one can imagine, traversing the TLS data structures when accessing each variable
+could be slow.  For this reason there are different TLS access models that the
+compiler can choose to minimize the variable access overhead.
+
 ### Global Dynamic
+
+The Global Dynamic access model is the slowest access model which will travese
+the entire TLS data structure for each variable access.  It is used for
+accessing variables in dynamic shared libraries.
 
 #### Before Linking
 
@@ -312,6 +320,8 @@ int* get_x_addr() {
 }
 ```
 
+#### Code Sequence (OpenRISC)
+
 ```
 tls-gd.o:     file format elf32-or1k
 
@@ -335,12 +345,7 @@ Disassembly of section .text:
   84:	9c 21 00 08 	 l.addi r1,r1,8
 ```
 
-Example on x86
-
-```
-gcc -O3 -fpic -g -c tls-gd.c
-objdump -dr tls-gd.o
-```
+#### Code Sequence (x86_64)
 
 ```
 tls-gd.o:     file format elf64-x86-64
@@ -357,7 +362,13 @@ Disassembly of section .text:
 
 ### Local Dynamic
 
-No supported on openrisc
+The Local Dynamic access model is an optimization for Global Dynamic where
+multiple variables may be accessed from the same TLS module.  Instead of
+traversing the TLS data structure for each variable, the TLS data section address
+is loaded once by calling `__tls_get_addr` with an offset of `0`.  Next, variables
+can be accessed with individual offsets.
+
+Local Dynamic is not supported on OpenRISC yet.
 
 #### Before Linking
 
@@ -367,7 +378,7 @@ No supported on openrisc
 
 ![Local Dynamic Program](/content/2019/tls-ld-exe.png)
 
-##### Example (x86_64)
+##### Example
 
 File: [tls-ld.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ld.c)
 
@@ -379,6 +390,8 @@ int sum() {
   return x + y;
 }
 ```
+
+#### Code Sequence (x86_64)
 
 ```
 tls-ld.o:     file format elf64-x86-64
@@ -413,7 +426,7 @@ the offset.
 Text contains the actual got offset, but the got value will be
 resolved at runtime.
 
-#### Example (OpenRISC)
+#### Example
 
 File: [tls-ie.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ie.c)
 
@@ -428,6 +441,7 @@ int* get_x_addr() {
 }
 ```
 
+#### Code Sequence (OpenRISC)
 
 ```
 00000038 <get_x_addr>:
@@ -450,6 +464,7 @@ int* get_x_addr() {
   68:	9c 21 00 04 	l.addi r1,r1,4
 ```
 
+#### Code Sequence (x86_64)
 
 ```
 0000000000000010 <get_x_addr>:
@@ -482,6 +497,8 @@ int* get_x_addr() {
 }
 ```
 
+#### Code Sequence (OpenRISC)
+
 ```
 00000010 <get_x_addr>:
   10:	19 60 00 00 	l.movhi r11,0x0
@@ -492,23 +509,16 @@ int* get_x_addr() {
 			1c: R_OR1K_TLS_LE_LO16	.LANCHOR0
 ```
 
+#### Code Sequence (x86_64)
+
 ```
 0000000000000010 <get_x_addr>:
-  10:	64 48 8b 04 25 00 00 	mov    %fs:0x0,%rax
+  10:	64 48 8b 04 25 00 00	mov    %fs:0x0,%rax
   17:	00 00 
   19:	48 05 00 00 00 00    	add    $0x0,%rax
 			1b: R_X86_64_TPOFF32	x
   1f:	c3                   	retq   
 ```
-
-### TLS Relocation Summary
-
-#### Handling Shared vs Static Linking
-
-  - Shared - got + rela, for runtime linking i.e.
-      - R_OR1K_TLS_DTPMOD - module index
-      - R_OR1K_TLS_DTPOFF - offset in module tbss
-  - Static - got only
 
 ## Relocation Relaxation
 
@@ -516,15 +526,20 @@ As some TLS access methods are more efficient than others we would like to choos
 the best method for each variable access.  However, we don't
 always know where a variable will come from until link time.
 
+On some architectures the linker will rewrite the TLS access code sequence to
+change to a more efficient access model, this is called relaxation.
+
 One time of relaxation performed by the linker is GD to IE relaxation.  During compile
 time GD relocation may be choosen for `extern` variables.  However, during link time
 the variable may be in the same module i.e. not a shared object which would require
 GD access.
 
-If relaxation can be done.
-Relaxation will rewrite the GD access code in the .text section of the binary and
-convert it to IE access.
+That's pretty cool.
 
+## Summary
+
+In the next article we will look more into how this is implemented in GCC, the
+linker and the GLIBC runtime dynamic linker.
 
 ## Further Reading
 - Fuschia - https://fuchsia.dev/fuchsia-src/development/threads/tls
