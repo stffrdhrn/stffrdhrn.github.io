@@ -97,12 +97,12 @@ These are illustrated as below:
 
 ```
   dtv[]   [ dtv[0], dtv[1], dtv[2], .... ]
-            counter ^ |       \
-               ----/  |        \________
-              /       V                 V
-/------TCB-------\   /----TLS[1]----\  /----TLS[2]----\
-| pthread tcbhead |  | tbss   tdata |  | tbss   tdata |
-\----------------/   \--------------/  \--------------/
+            counter ^ |      \
+               ----/ /        \________
+              /     V                  V
+/------TCB-------\/----TLS[1]----\   /----TLS[2]----\
+| pthread tcbhead | tbss   tdata |   | tbss   tdata |
+\----------------/\--------------/   \--------------/
           ^
           |
    TP-----/
@@ -210,9 +210,10 @@ first entry, `dtv[0]` is a counter and the rest are pointers.
 
 ### Thread Local Storage (TLS)
 
-The TLS data is allocated dynamically.  There will be one entry for each loaded
-module, the first module being the current program.  For dynamic libraries it is
-lazily initialized per thread.
+The initial set TLS data is allocated contiguous with the TCB.  Additional TLS
+data blocks will be allocated dynamically. There will be one entry for each
+loaded module, the first module being the current program.  For dynamic
+libraries it is lazily initialized per thread.
 
 #### Local (or TLS[1])
  - `tbss` - the `.tbss` section for the current thread from the current
@@ -222,7 +223,7 @@ lazily initialized per thread.
 
 #### TLS[2]
  - `tbss` - the `.tbss` section for variables defined in the first shared library loaded by the current process
- - `tdata` - the `.tdata` section for the variables defined in the first shared library loaded by the current process
+ - `tdata` - the `.tdata` section for variables defined in the first shared library loaded by the current process
 
 ### The __tls_get_addr() function
 
@@ -288,25 +289,30 @@ Here several macros are used so it's a bit hard to follow but there are:
 
 As one can imagine, traversing the TLS data structures when accessing each variable
 could be slow.  For this reason there are different TLS access models that the
-compiler can choose to minimize the variable access overhead.
+compiler can choose to minimize variable access overhead.
 
 ### Global Dynamic
 
-The Global Dynamic access model is the slowest access model which will travese
-the entire TLS data structure for each variable access.  It is used for
-accessing variables in dynamic shared libraries.
+The Global Dynamic (GD), sometimes called General Dynamic, access model is the
+slowest access model which will traverse the entire TLS data structure for each
+variable access.  It is used for accessing variables in dynamic shared
+libraries.
 
 #### Before Linking
 
 ![Global Dynamic Object](/content/2019/tls-gd-obj.png)
 
-Before linking the `.text` contains 1 placeholder for offset for placeholder
-info got which should contain 2 arguments to __tls_get_addr.
+Not counting relocations for the PLT and GOT entries; before linking the `.text`
+contains 1 placeholder for a GOT offset.  This GOT entry will contain the
+arguments to `__tls_get_addr`.
 
 #### After Linking
 
 ![Global Dynamic Program](/content/2019/tls-gd-exe.png)
 
+After linking there will be 2 relocation entries in the GOT to be resolved by
+the dynamic linker.  These are `R_TLS_DTPMOD`, the TLS module index, and
+`R_TLS_DTPOFF`, the offset of the variable into the TLS module.
 
 #### Example
 
@@ -328,16 +334,16 @@ tls-gd.o:     file format elf32-or1k
 Disassembly of section .text:
 
 0000004c <get_x_addr>:
-  4c:	18 60 00 00 	l.movhi r3,[0]          # 4c: R_OR1K_TLS_GD_HI16	x
+  4c:	18 60 [00 00] 	l.movhi r3,[0]          # 4c: R_OR1K_TLS_GD_HI16	x
   50:	9c 21 ff f8 	l.addi r1,r1,-8
-  54:	a8 63 00 00 	l.ori r3,r3,[0]         # 54: R_OR1K_TLS_GD_LO16	x
+  54:	a8 63 [00 00] 	l.ori r3,r3,[0]         # 54: R_OR1K_TLS_GD_LO16	x
   58:	d4 01 80 00 	l.sw 0(r1),r16
   5c:	d4 01 48 04 	l.sw 4(r1),r9
   60:	04 00 00 02 	l.jal 68 <get_x_addr+0x1c>
-  64:	1a 00 00 00 	 l.movhi r16,[0]        # 64: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
-  68:	aa 10 00 00 	l.ori r16,r16,[0]       # 68: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
+  64:	1a 00 [00 00] 	 l.movhi r16,[0]        # 64: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
+  68:	aa 10 [00 00] 	l.ori r16,r16,[0]       # 68: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
   6c:	e2 10 48 00 	l.add r16,r16,r9
-  70:	04 00 00 00 	l.jal [0]               # 70: R_OR1K_PLT26	__tls_get_addr
+  70:	04 00 [00 00] 	l.jal [0]               # 70: R_OR1K_PLT26	__tls_get_addr
   74:	e0 63 80 00 	 l.add r3,r3,r16
   78:	85 21 00 04 	l.lwz r9,4(r1)
   7c:	86 01 00 00 	l.lwz r16,0(r1)
@@ -353,11 +359,11 @@ tls-gd.o:     file format elf64-x86-64
 Disassembly of section .text:
 
 0000000000000020 <get_x_addr>:
-  20:	48 83 ec 08          	sub    $0x8,%rsp
-  24:	66 48 8d 3d 00 00 00 00 lea    [0](%rip),%rdi  # 28 R_X86_64_TLSGD	x-0x4
-  2c:	66 66 48 e8 00 00 00 00 callq  [0]             # 30 R_X86_64_PLT32	__tls_get_addr-0x4
-  34:	48 83 c4 08          	add    $0x8,%rsp
-  38:	c3                   	retq   
+  20:	48 83 ec 08          	  sub    $0x8,%rsp
+  24:	66 48 8d 3d [00 00 00 00] lea    [0](%rip),%rdi  # 28 R_X86_64_TLSGD	x-0x4
+  2c:	66 66 48 e8 [00 00 00 00] callq  [0]             # 30 R_X86_64_PLT32	__tls_get_addr-0x4
+  34:	48 83 c4 08          	  add    $0x8,%rsp
+  38:	c3                   	  retq   
 ```
 
 ### Local Dynamic
@@ -374,9 +380,18 @@ Local Dynamic is not supported on OpenRISC yet.
 
 ![Local Dynamic Object](/content/2019/tls-ld-obj.png)
 
+Not counting relocations for the PLT and GOT entries; before linking the `.text`
+contains 1 placeholder for a GOT offset and 2 placeholders for the TLS offsets. 
+This GOT entry will contain the arguments to `__tls_get_addr`.
+The TLD offsets will be the offsets to our variables in the TLD data section.
+
 #### After Linking
 
 ![Local Dynamic Program](/content/2019/tls-ld-exe.png)
+
+After linking there will be 1 relocation entry in the GOT to be resolved by
+the dynamic linker.  This is `R_TLS_DTPMOD`, the TLS module index, the offset
+will be `0x0`.
 
 ##### Example
 
@@ -400,10 +415,10 @@ Disassembly of section .text:
 
 0000000000000030 <sum>:
   30:	48 83 ec 08          	sub    $0x8,%rsp
-  34:	48 8d 3d 00 00 00 00 	lea    [0](%rip),%rdi   # 37 R_X86_64_TLSLD	x-0x4
-  3b:	e8 00 00 00 00       	callq  [0]              # 3c R_X86_64_PLT32	__tls_get_addr-0x4
-  40:	8b 90 00 00 00 00    	mov    [0](%rax),%edx   # 42 R_X86_64_DTPOFF32	x
-  46:	03 90 00 00 00 00    	add    [0](%rax),%edx   # 48 R_X86_64_DTPOFF32	y
+  34:	48 8d 3d [00 00 00 00] 	lea    [0](%rip),%rdi   # 37 R_X86_64_TLSLD	x-0x4
+  3b:	e8 [00 00 00 00]       	callq  [0]              # 3c R_X86_64_PLT32	__tls_get_addr-0x4
+  40:	8b 90 [00 00 00 00]    	mov    [0](%rax),%edx   # 42 R_X86_64_DTPOFF32	x
+  46:	03 90 [00 00 00 00]    	add    [0](%rax),%edx   # 48 R_X86_64_DTPOFF32	y
   4c:	48 83 c4 08          	add    $0x8,%rsp
   50:	89 d0                	mov    %edx,%eax
   52:	c3                   	retq   
@@ -411,27 +426,35 @@ Disassembly of section .text:
  
 ### Initial Exec
 
+The Initial Exec (IE) access model does not require traversing the TLS data
+structure.  It requires that the compiler knows that offset from the TP to the
+variable can be computed during link time.
+
+As Initial Exec does not require calling `__tls_get_addr` is is more efficient
+compared the GD and LD access.
+
 #### Before Linking
 
 ![Initial Exec Object](/content/2019/tls-ie-obj.png)
 
-Text contains a placeholder for the got address of
-the offset.
-
+Text contains a placeholder for the got address of the offset.  Not counting
+relocation entry for the GOT; before linking the `.text` contains 1 placeholder
+for a GOT offset.  This GOT entry will contain the TP offset to the variable.
 
 #### After Linking
 
 ![Initial Exec Program](/content/2019/tls-ie-exe.png)
 
-Text contains the actual got offset, but the got value will be
-resolved at runtime.
+After link there will be no remaining relocation entries. The `.text` section
+contains the actual GOT offset and the GOT entry will contain the TP offset
+to the variable.
 
 #### Example
 
 File: [tls-ie.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ie.c)
 
-Initial exec c code will be the same as global dynamic, howerver IE access will
-be chosed when static compiling or GD->IE relaxation is done during link time.
+Initial exec C code will be the same as global dynamic, however IE access will
+be chosen when static compiling.
 
 ```
 extern __thread int x;
@@ -446,53 +469,60 @@ int* get_x_addr() {
 ```
 00000038 <get_x_addr>:
   38:	9c 21 ff fc 	l.addi r1,r1,-4
-  3c:	1a 20 00 00 	l.movhi r17,0x0
-			3c: R_OR1K_TLS_IE_AHI16	x
+  3c:	1a 20 [00 00] 	l.movhi r17,[0x0]   # 3c: R_OR1K_TLS_IE_AHI16	x
   40:	d4 01 48 00 	l.sw 0(r1),r9
   44:	04 00 00 02 	l.jal 4c <get_x_addr+0x14>
-  48:	1a 60 00 00 	l.movhi r19,0x0
-			48: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
-  4c:	aa 73 00 00 	l.ori r19,r19,0x0
-			4c: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
+  48:	1a 60 [00 00] 	 l.movhi r19,[0x0]  # 48: R_OR1K_GOTPC_HI16	_GLOBAL_OFFSET_TABLE_-0x4
+  4c:	aa 73 [00 00] 	l.ori r19,r19,[0x0] # 4c: R_OR1K_GOTPC_LO16	_GLOBAL_OFFSET_TABLE_
   50:	e2 73 48 00 	l.add r19,r19,r9
   54:	e2 31 98 00 	l.add r17,r17,r19
-  58:	85 71 00 00 	l.lwz r11,0(r17)
-			58: R_OR1K_TLS_IE_LO16	x
+  58:	85 71 [00 00] 	l.lwz r11,[0](r17)  # 58: R_OR1K_TLS_IE_LO16	x
   5c:	85 21 00 00 	l.lwz r9,0(r1)
   60:	e1 6b 50 00 	l.add r11,r11,r10
   64:	44 00 48 00 	l.jr r9
-  68:	9c 21 00 04 	l.addi r1,r1,4
+  68:	9c 21 00 04 	 l.addi r1,r1,4
 ```
 
 #### Code Sequence (x86_64)
 
 ```
 0000000000000010 <get_x_addr>:
-  10:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 17 <get_x_addr+0x7>
-			13: R_X86_64_GOTTPOFF	x-0x4
-  17:	64 48 03 04 25 00 00 	add    %fs:0x0,%rax
-  1e:	00 00 
-  20:	c3                   	retq   
+  10:	48 8b 05 [00 00 00 00] 	   mov    0x0(%rip),%rax   # 13: R_X86_64_GOTTPOFF	x-0x4
+  17:	64 48 03 04 25 00 00 00 00 add    %fs:0x0,%rax
+  20:	c3                         retq   
 ```
 
 ### Local Exec
+
+The Local Exec (LD) access model does not require traversing the TLS data
+structure or a GOT entry.  It is chosen by the compiler when accessing file
+local variables in the current program.
+
+The Local Exec access model is the most efficient.
 
 #### Before Linking
 
 ![Local Exec Object](/content/2019/tls-le-obj.png)
 
+Before linking the `.text` section contains one relocation entry for a TP
+offset.
+
 #### After Linking
 
 ![Local Exec Program](/content/2019/tls-le-exe.png)
+
+After linking the `.text` section contains the value of the TP offset.
 
 #### Example
 
 File: [tls-le.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-le.c)
 
+In the Local Exec example the variable `x` is local, it is not `extern`.
+
 ```
 static __thread int x;
 
-int* get_x_addr() {
+int * get_x_addr() {
   return &x;
 }
 ```
@@ -501,36 +531,32 @@ int* get_x_addr() {
 
 ```
 00000010 <get_x_addr>:
-  10:	19 60 00 00 	l.movhi r11,0x0
-			10: R_OR1K_TLS_LE_AHI16	.LANCHOR0
+  10:	19 60 [00 00] 	l.movhi r11,[0x0]    # 10: R_OR1K_TLS_LE_AHI16	.LANCHOR0
   14:	e1 6b 50 00 	l.add r11,r11,r10
   18:	44 00 48 00 	l.jr r9
-  1c:	9d 6b 00 00 	l.addi r11,r11,0
-			1c: R_OR1K_TLS_LE_LO16	.LANCHOR0
+  1c:	9d 6b [00 00] 	 l.addi r11,r11,[0]  # 1c: R_OR1K_TLS_LE_LO16	.LANCHOR0
 ```
 
 #### Code Sequence (x86_64)
 
 ```
 0000000000000010 <get_x_addr>:
-  10:	64 48 8b 04 25 00 00	mov    %fs:0x0,%rax
-  17:	00 00 
-  19:	48 05 00 00 00 00    	add    $0x0,%rax
-			1b: R_X86_64_TPOFF32	x
-  1f:	c3                   	retq   
+  10:	64 48 8b 04 25 00 00 00 00  mov    %fs:0x0,%rax
+  19:	48 05 [00 00 00 00]    	    add    $0x0,%rax  # 1b: R_X86_64_TPOFF32	x
+  1f:	c3                   	    retq   
 ```
 
 ## Relocation Relaxation
 
-As some TLS access methods are more efficient than others we would like to choose
-the best method for each variable access.  However, we don't
-always know where a variable will come from until link time.
+As some TLS access methods are more efficient than others we would like to
+choose the best method for each variable access.  However, we don't always know
+where a variable will come from until link time.
 
 On some architectures the linker will rewrite the TLS access code sequence to
 change to a more efficient access model, this is called relaxation.
 
-One time of relaxation performed by the linker is GD to IE relaxation.  During compile
-time GD relocation may be choosen for `extern` variables.  However, during link time
+One type of relaxation performed by the linker is GD to IE relaxation.  During compile
+time GD relocation may be chosen for `extern` variables.  However, during link time
 the variable may be in the same module i.e. not a shared object which would require
 GD access.
 
@@ -538,13 +564,15 @@ That's pretty cool.
 
 ## Summary
 
+In this article we have covered how TLS variables are accessed per thread via
+the TLS data structure.  Also, we saw how different TLS access models provide
+varying levels of efficiency. 
+
 In the next article we will look more into how this is implemented in GCC, the
 linker and the GLIBC runtime dynamic linker.
 
 ## Further Reading
 - Fuschia - https://fuchsia.dev/fuchsia-src/development/threads/tls
-- Bottums Up - http://bottomupcs.sourceforge.net/csbu/x3735.htm
-- GOT and PLT - https://www.technovelty.org/linux/plt-and-got-the-key-to-code-sharing-and-dynamic-libraries.html
 - Android - https://android.googlesource.com/platform/bionic/+/HEAD/docs/elf-tls.md
 - Oracle - https://docs.oracle.com/cd/E19683-01/817-3677/chapter8-20/index.html
 - Drepper - https://www.akkadia.org/drepper/tls.pdf
