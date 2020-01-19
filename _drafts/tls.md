@@ -18,14 +18,14 @@ thread?  This is where thread local storage (TLS) comes in.
 
 In this article we will discuss how TLS works.  Our outline:
 
- - TLS Sections
- - TLS data structures
- - TLS access models
-   - Global Dynamic (or General Dynamic)
-   - Local Dynamic
-   - Initial Exec
-   - Local Exec
- - Relocation Relaxation
+ - [TLS Sections](#tls-sections)
+ - [TLS data structures](#tls-data-structures)
+ - [TLS access models](#tls-access-models)
+   - [Global Dynamic](#global-dynamic)
+   - [Local Dynamic](#local-dynamic)
+   - [Initial Exec](#initial-exec)
+   - [Local Exec](#local-exec)
+ - [Relocation Relaxation](#relocation-relaxation)
 
 As before, the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
 project.  Please check it out.
@@ -91,18 +91,18 @@ TLS sections.  The TLS data structure includes:
 
  - Thread Control Block (TCB)
  - Dynamic Thread Vector (DTV)
- - Data Sections
+ - TLS Data Sections
 
 These are illustrated as below:
 
 ```
   dtv[]   [ dtv[0], dtv[1], dtv[2], .... ]
             counter ^ |       \
-               ----/  |        \_____
-              /       V              V~.~.
-/------TCB-------\/----TLS[1]-----\/----TLS[2]-----\/--...
-| pthread tcbhead | tbss    tdata | tbss   tdata   |   ...
-\----------------/\---------------/\---------------/\--...
+               ----/  |        \________
+              /       V                 V
+/------TCB-------\   /----TLS[1]----\  /----TLS[2]----\
+| pthread tcbhead |  | tbss   tdata |  | tbss   tdata |
+\----------------/   \--------------/  \--------------/
           ^
           |
    TP-----/
@@ -110,7 +110,7 @@ These are illustrated as below:
 
 ### Thread Pointer (TP)
 
-The Thread Pointer is different for each thread.  It provides the starting point
+The Thread Pointer is unique to each thread.  It provides the starting point
 to the TLS data structure.
 
  - On OpenRISC the value stored in `r10` (for x86_64 it's `$fs`) points to the
@@ -184,9 +184,6 @@ the thread local area.  For OpenRISC a global stack guard is stored in `.bss`.
  - `pointer_guard` - The [pointer
    guard](http://hmarco.org/bugs/glibc_ptr_mangle_weakness.html) stored in the
 thread local area.  For OpenRISC a global pointer guard is stored in `.bss`.
-
-```
-
 
 ### Dynamic Thread Vector (DTV)
 
@@ -287,21 +284,23 @@ Here several macros are used so it's a bit hard to follow but there are:
  - `GET_ADDR_MODULE` - short for `ti->ti_module`
  - `GET_ADDR_OFFSET` - short for `ti->ti_offset`
 
-## Global Dynamic
+## TLS Access Models
 
-### Before Linking
+### Global Dynamic
+
+#### Before Linking
 
 ![Global Dynamic Object](/content/2019/tls-gd-obj.png)
 
 Before linking the `.text` contains 1 placeholder for offset for placeholder
 info got which should contain 2 arguments to __tls_get_addr.
 
-### After Linking
+#### After Linking
 
 ![Global Dynamic Program](/content/2019/tls-gd-exe.png)
 
 
-### Example
+#### Example
 
 File: [tls-gd.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-gd.c)
 
@@ -356,19 +355,19 @@ Disassembly of section .text:
   38:	c3                   	retq   
 ```
 
-## Local Dynamic
+### Local Dynamic
 
 No supported on openrisc
 
-### Before Linking
+#### Before Linking
 
 ![Local Dynamic Object](/content/2019/tls-ld-obj.png)
 
-### After Linking
+#### After Linking
 
 ![Local Dynamic Program](/content/2019/tls-ld-exe.png)
 
-### Example
+##### Example (x86_64)
 
 File: [tls-ld.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ld.c)
 
@@ -397,9 +396,9 @@ Disassembly of section .text:
   52:	c3                   	retq   
 ```
  
-## Initial Exec
+### Initial Exec
 
-### Before Linking
+#### Before Linking
 
 ![Initial Exec Object](/content/2019/tls-ie-obj.png)
 
@@ -407,14 +406,14 @@ Text contains a placeholder for the got address of
 the offset.
 
 
-### After Linking
+#### After Linking
 
 ![Initial Exec Program](/content/2019/tls-ie-exe.png)
 
 Text contains the actual got offset, but the got value will be
 resolved at runtime.
 
-### Example
+#### Example (OpenRISC)
 
 File: [tls-ie.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-ie.c)
 
@@ -451,6 +450,7 @@ int* get_x_addr() {
   68:	9c 21 00 04 	l.addi r1,r1,4
 ```
 
+
 ```
 0000000000000010 <get_x_addr>:
   10:	48 8b 05 00 00 00 00 	mov    0x0(%rip),%rax        # 17 <get_x_addr+0x7>
@@ -460,17 +460,17 @@ int* get_x_addr() {
   20:	c3                   	retq   
 ```
 
-## Local Exec
+### Local Exec
 
-### Before Linking
+#### Before Linking
 
 ![Local Exec Object](/content/2019/tls-le-obj.png)
 
-### After Linking
+#### After Linking
 
 ![Local Exec Program](/content/2019/tls-le-exe.png)
 
-### Example
+#### Example
 
 File: [tls-le.c](https://github.com/stffrdhrn/tls-examples/blob/master/tls-le.c)
 
@@ -501,16 +501,16 @@ int* get_x_addr() {
   1f:	c3                   	retq   
 ```
 
-## TLS Relocation Summary
+### TLS Relocation Summary
 
-### Handling Shared vs Static Linking
+#### Handling Shared vs Static Linking
 
   - Shared - got + rela, for runtime linking i.e.
       - R_OR1K_TLS_DTPMOD - module index
       - R_OR1K_TLS_DTPOFF - offset in module tbss
   - Static - got only
 
-## Relaxation
+## Relocation Relaxation
 
 As some TLS access methods are more efficient than others we would like to choose
 the best method for each variable access.  However, we don't
