@@ -8,3 +8,8 @@ url: "http://stffrdhrn.github.io"
 plugins:
  - jekyll-sitemap
  - jekyll-paginate
+ - jekyll-feed
+
+title: shorne in japan
+description: Stafford's blog about engineering and software
+author: Stafford Horne
