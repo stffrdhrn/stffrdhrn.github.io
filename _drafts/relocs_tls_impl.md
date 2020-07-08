@@ -278,29 +278,19 @@ GNU Simulator and the objdump tool.
 
 The usage of BFD in the GNU Linker can be thought of in phases.
 
-htab - stores arch specific details
-local_tls_type - store tls_type if no h
-h - store detail for each symbol, how many got entries required
+For each architecture these are defined in `bfd/elf{wordsize}-{arch}.c`.  For
+example for OpenRISC we have `bfd/elf32-or1k.c`.
+
+ - `htab` - From `or1k_elf_hash_table (info)` or `elf_hash_table (info)`, hash table which stores
+   state and arch specific details
+ - `sym_hashes` - From `elf_sym_hashes (abfd)` hash table for global
+   symbols.
+ - `h` - hash table entry used to store detail for each symbol, how many got entries required
+ - `local_tls_type` - a local entry to store `tls_type` if not a global symbol
+   in `sym_hashes`.
+ - `local_got_offsets` - From `elf_local_got_offsets (input_bfd)` the got
+   offsets for symbols setup in ??
    got.offset where in the got the value is
-```
-#define elf_backend_relocate_sectio nor1k_elf_relocate_section
-  - For symbol, write got section, write rela if dynamic
-     - Write entry to GOT only once per symbol
-  - run or1k_final_link_relocate
-     - Write actual value to text
-
-#define elf_backend_create_dynamic_sections
-#define elf_backend_finish_dynamic_sections
-#define elf_backend_size_dynamic_sections
-
-or1k_elf_check_relocs - loop through relocations and do book keeping
-  -
-```
-
-These are notes on the bfd API, see more:
-
-- [bfdint](http://cahirwpz.users.sourceforge.net/binutils-2.26/bfd-internal.html/index.html#SEC_Contents)
-- [ldint](http://home.elka.pw.edu.pl/~macewicz/dokumentacja/gnu/ld/ldint_2.html)
 
 ### Phase 1 - Book Keeping (check_relocs)
 
@@ -308,10 +298,10 @@ The `or1k_elf_check_relocs` function is called during the first phase to
 validate relocations, returns FALSE if there are issues.  It also does
 some book keeping.
 
-  - abfd   - The current elf object file we are working on
-  - sec    - The current elf section we are working on
-  - info   - the bfd API
-  - relocs - The relocations from the current section
+  - `abfd`   - The current elf object file we are working on
+  - `sec`    - The current elf section we are working on
+  - `info`   - the bfd API
+  - `relocs` - The relocations from the current section
 
 ```
 static bfd_boolean
@@ -373,6 +363,13 @@ or1k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 
 ### Phase 3 - linking (relocate_section)
 
+Notes from above
+  - For symbol, write got section, write rela if dynamic
+     - Write entry to GOT only once per symbol
+  - run or1k_final_link_relocate
+     - Write actual value to text
+
+
 For each input section in an input bfd (`.o` file) figure out where they will exist in the output bfd.
 
 Fill in relocation placeholders in `.text` sections.  Fill out data in `.got` and `.rela` sections.
@@ -422,27 +419,54 @@ or anyone writing a new port.
 
 ## Glibc Runtime Linker
 
-## Relaxation
+The runtime linker can process a very limited set of relocations the
+implementation for the OpenRISC architecture in GLIBC is in `sysdeps/or1k/dl-machine.h`.
 
-As some TLS access methods are more efficient than others we would like to choose
-the best method for each variable access.  However, we don't
-always know where a variable will come from until link time.
+It supports relocations for:
+ - `R_OR1K_NONE` - do nothing
+ - `R_OR1K_COPY`
+ - `R_OR1K_32`
+ - `R_OR1K_GLOB_DAT` - for `GOT` entries
+ - `R_OR1K_JMP_SLOT` - for `PLT` entries
+ - `R_OR1K_TLS_DTPMOD`
+ - `R_OR1K_TLS_DTPOFF`
+ - `R_OR1K_TLS_TPOFF` - wha?
 
-One type of relaxation performed by the linker is GD to IE relaxation.  During compile
-time GD relocation may be choosen for `extern` variables.  However, during link time
-the variable may be in the same module i.e. not a shared object which would require
-GD access.
+```
+/* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+   MAP is the object containing the reloc.  */
 
-If relaxation can be done.
-Relaxation will rewrite the GD access code in the .text section of the binary and
-convert it to more efficient IE access.
+auto inline void
+__attribute ((always_inline))
+elf_machine_rela (struct link_map *map, const Elf32_Rela *reloc,
+                  const Elf32_Sym *sym, const struct r_found_version *version,
+                  void *const reloc_addr_arg, int skip_ifunc)
+{
 
+      struct link_map *sym_map = RESOLVE_MAP (&sym, version, r_type);
+      Elf32_Addr value = SYMBOL_ADDRESS (sym_map, sym, true);
+
+     ...
+      switch (r_type)
+        {
+          ...
+          case R_OR1K_32:
+            /* Support relocations on mis-aligned offsets.  */
+            value += reloc->r_addend;
+            memcpy (reloc_addr_arg, &value, 4);
+            break;
+          case R_OR1K_GLOB_DAT:
+          case R_OR1K_JMP_SLOT:
+            *reloc_addr = value + reloc->r_addend;
+            break;
+          ...
+        }
+}
+
+```
 
 ## Further Reading
 - [GCC Passes](% post_url 2018-06-03-gcc_passes %}) - My blog entry on GCC passes
-- Bottums Up - http://bottomupcs.sourceforge.net/csbu/x3735.htm
-- GOT and PLT - https://www.technovelty.org/linux/plt-and-got-the-key-to-code-sharing-and-dynamic-libraries.html
-- Android - https://android.googlesource.com/platform/bionic/+/HEAD/docs/elf-tls.md
-- Oracle - https://docs.oracle.com/cd/E19683-01/817-3677/chapter8-20/index.html
-- Drepper - https://www.akkadia.org/drepper/tls.pdf
-- Deep Dive - https://chao-tic.github.io/blog/2018/12/25/tls
+- [bfdint](http://cahirwpz.users.sourceforge.net/binutils-2.26/bfd-internal.html/index.html#SEC_Contents) - The BFD developer's manual
+- [ldint](http://home.elka.pw.edu.pl/~macewicz/dokumentacja/gnu/ld/ldint_2.html) - The LD developer's manual
+- [LD and BFD Gist](https://gist.github.com/stffrdhrn/d59e1d082430a48643b301c13f6f4d24) - Dump of notes I collected while working on this article.
