@@ -318,7 +318,7 @@ or1k_elf_check_relocs (bfd *abfd,
 The `or1k_elf_size_dynamic_sections` function iterates over all object
 files to calculate the size of stuff, it uses:
 
- - info - the API to bfd provides access to everything, this function uses:
+ - info - the API to BFD provides access to everything, this function uses:
       - `or1k_elf_hash_table (info)` - called `htab` a reference to `elf_link_hash_table` which has sections.
       - `htab->root.splt` - the plt section
       - `htab->root.sgot` -  the got section
@@ -328,10 +328,14 @@ files to calculate the size of stuff, it uses:
       - `root.dynamic_sections_created` - true if sections like `.interp` have been created by the linker
       - `info->input_bfds` - loop over all bfds (elf objects)
 
-Settig up the sizes of the `.got` section (global offset table) and `.plt` section (procedure link table) is done by iterating through all symbols with the `allocate_dynrelocs` interator.
+Setting up the sizes of the `.got` section (global offset table) and `.plt`
+section (procedure link table) is done by iterating through all symbols with the
+`allocate_dynrelocs` iterator.
 
-Sub function of `or1k_elf_size_dynamic_sections` `allocate_dynrelocs` is used to additionaly set size of `.gotplt` which sometime later gets combinted with the `.got` somehow.  The `allocate_dynrelocs` is a visitor function that is used when
-iterating over each `elf_link_hash_entry` which represents a symbol.
+Sub function of `or1k_elf_size_dynamic_sections` `allocate_dynrelocs` is used to
+additionally set size of `.gotplt` which sometime later gets combined with the
+`.got` somehow.  The `allocate_dynrelocs` is a visitor function that is used
+when iterating over each `elf_link_hash_entry` which represents a symbol.
 
 *pseudocode*
 ```
@@ -350,7 +354,8 @@ iterating over each `elf_link_hash_entry` which represents a symbol.
   }
 ```
 
-The sub function of `allocate_dynrelocs` `or1k_set_got_and_rela_sizes` is used to increment `.got` and `.rela` section sizes per tls symbols.
+The sub function of `allocate_dynrelocs` `or1k_set_got_and_rela_sizes` is used
+to increment `.got` and `.rela` section sizes per TLS symbols.
 
 ```
 static bfd_boolean
@@ -390,7 +395,17 @@ or1k_elf_relocate_section (bfd *output_bfd,
 
 ### Phase 4 - finishing up (finish_dynamic_symbol + finish_dynamic_sections)
 
-Write to `.plt`
+During phase 3 above we wrote the `.text` section out to files.  During the
+final finishing up phase we need to write the remaining sections.  This
+includes the `.plt` and `.got` sections.
+
+This also includes the `.plt.rela` and `.got.rela` sections which contain
+dynamic relocation entries.
+
+Writing of the data sections is handled by
+[or1k_elf_finish_dynamic_sections()](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/elf32-or1k.c#L2178)
+and writing of the relocation sections is handled by
+[or1k_elf_finish_dynamic_symbol()](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/elf32-or1k.c#L2299).  These are defined as below.
 
 ```
 static bfd_boolean
@@ -407,30 +422,116 @@ or1k_elf_finish_dynamic_symbol (bfd *output_bfd,
 #define elf_backend_finish_dynamic_symbol       or1k_elf_finish_dynamic_symbol
 ```
 
-### Insane things inbetween
-
-These are important but I cant see why they need to be specific to openrisc
-or anyone writing a new port.
+A snippet for the `or1k_elf_finish_dynamic_sections()` shows how when writing to
+the `.plt` section assembly code needs to be injected.  This is where the first
+entry in the `.plt` section is written.
 
 ```
-#define elf_backend_copy_indirect_symbol        or1k_elf_copy_indirect_symbol
-#define elf_backend_adjust_dynamic_symbol       or1k_elf_adjust_dynamic_symbol
+          else if (bfd_link_pic (info))
+            {
+              plt0 = OR1K_LWZ(15, 16) | 8;      /* .got+8 */
+              plt1 = OR1K_LWZ(12, 16) | 4;      /* .got+4 */
+              plt2 = OR1K_NOP;
+            }
+          else
+            {
+              unsigned ha = ((got_addr + 0x8000) >> 16) & 0xffff;
+              unsigned lo = got_addr & 0xffff;
+              plt0 = OR1K_MOVHI(12) | ha;
+              plt1 = OR1K_LWZ(15,12) | (lo + 8);
+              plt2 = OR1K_LWZ(12,12) | (lo + 4);
+            }
+
+          or1k_write_plt_entry (output_bfd, splt->contents,
+                                plt0, plt1, plt2, OR1K_JR(15));
+
+          elf_section_data (splt->output_section)->this_hdr.sh_entsize = 4;
 ```
+
+Here we see a write to `output_bfd`, this represents the output object file
+which we are writing to.  The argument `splt->contents` represents the object
+file offset to write to for the `.plt` section. Next we see the line
+`elf_section_data (splt->output_section)->this_hdr.sh_entsize = 4`
+this allows the linker to calculate the size of the section.
+
+A snippet from the `or1k_elf_finish_dynamic_symbol()` function shows where
+we write out the code and dynamic relocation entries for each symbol to
+the `.plt` section.
+
+```
+      splt = htab->root.splt;
+      sgot = htab->root.sgotplt;
+      srela = htab->root.srelplt;
+      ...
+
+      else
+        {
+          unsigned ha = ((got_addr + 0x8000) >> 16) & 0xffff;
+          unsigned lo = got_addr & 0xffff;
+          plt0 = OR1K_MOVHI(12) | ha;
+          plt1 = OR1K_LWZ(12,12) | lo;
+          plt2 = OR1K_ORI0(11) | plt_reloc;
+        }
+
+      or1k_write_plt_entry (output_bfd, splt->contents + h->plt.offset,
+                            plt0, plt1, plt2, OR1K_JR(12));
+
+      /* Fill in the entry in the global offset table.  We initialize it to
+         point to the top of the plt.  This is done to lazy lookup the actual
+         symbol as the first plt entry will be setup by libc to call the
+         runtime dynamic linker.  */
+      bfd_put_32 (output_bfd, plt_base_addr, sgot->contents + got_offset);
+
+      /* Fill in the entry in the .rela.plt section.  */
+      rela.r_offset = got_addr;
+      rela.r_info = ELF32_R_INFO (h->dynindx, R_OR1K_JMP_SLOT);
+      rela.r_addend = 0;
+      loc = srela->contents;
+      loc += plt_index * sizeof (Elf32_External_Rela);
+      bfd_elf32_swap_reloca_out (output_bfd, &rela, loc);
+```
+
+Here we can see we write 3 things to `output_bfd` for the single `.plt` entry.
+We write:
+  - The assembly code to the `.plt` section.
+  - The `plt_base_addr` (the first entry in the `.plt` for runtime lookup) to the `.got` section.
+  - And finally a dynamic relocation for our symbol to the `.plt.rela`.
 
 ## Glibc Runtime Linker
 
-The runtime linker can process a very limited set of relocations the
-implementation for the OpenRISC architecture in GLIBC is in `sysdeps/or1k/dl-machine.h`.
+The runtime linker, also referred to as the dynamic linker, will do the final
+linking as we load our program and shared libraries into memory.  It can process
+a limited set of relocation entries that were setup above during Phase 4 of
+linking.
+
+The runtime linker implementation in the GLIBC sources in the
+`elf/dl-*` file.  Dynamic relocation processing is handled in [elf/dl-reloc.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-reloc.c).
+The back end macro used for relocation
+[ELF_DYNAMIC_RELOCATE](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dynamic-link.h#L194)
+is defined across several files including `elf/dynamic-link.h`
+and [elf/do-rel.h](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/do-rel.h)
+Architecture specific relocations are handled by the function `elf_machine_rela()`, the implementation
+for OpenRISC being in [sysdeps/or1k/dl-machine.h](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/sysdeps/or1k/dl-machine.h#L210)
+
+In summary from top down:
+ - [elf/rtld.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/rtld.c) - implements `dl_main()` the top level entry for the dynamic linker.
+ - [elf/dl-open.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-open.c) - function `dl_open_worker()` calls `_dl_relocate_object()`, you may also recognize this from [dlopen(3)](https://man7.org/linux/man-pages/man3/dlopen.3.html).
+ - `elf/dl-reloc.c` - function `_dl_relocate_object` calls `ELF_DYNAMIC_RELOCATE`
+ - `elf/dynamic-link.h` - defined macro `ELF_DYNAMIC_RELOCATE` calls `elf_dynamic_do_Rel()` via several macros
+ - `elf/do-rel.h` - function `elf_dynamic_do_Rel()` calls `elf_machine_rela()`
+ - `sysdeps/or1k/dl-machine.h` - architecture specific function `elf_machine_rela()` implements dynamic relocation handling
 
 It supports relocations for:
  - `R_OR1K_NONE` - do nothing
- - `R_OR1K_COPY`
- - `R_OR1K_32`
+ - `R_OR1K_COPY` - used to copy initial values from shared objects to process memory.
+ - `R_OR1K_32` - a `32-bit` value
  - `R_OR1K_GLOB_DAT` - for `GOT` entries
  - `R_OR1K_JMP_SLOT` - for `PLT` entries
- - `R_OR1K_TLS_DTPMOD`
- - `R_OR1K_TLS_DTPOFF`
- - `R_OR1K_TLS_TPOFF` - wha?
+ - `R_OR1K_TLS_DTPMOD/R_OR1K_TLS_DTPOFF` - for shared TLS GD `GOT` entries
+ - `R_OR1K_TLS_TPOFF` - for shared TLS IE `GOT` entries
+
+A snippet of the OpenRISC implementation of `elf_machine_rela()` can be seen
+below.  It is pretty straight forward.
 
 ```
 /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
@@ -464,6 +565,11 @@ elf_machine_rela (struct link_map *map, const Elf32_Rela *reloc,
 }
 
 ```
+
+## Summary
+
+We have looked at how symbols move from the Compiler, to Assembler, to Linker to
+Runtime linker.
 
 ## Further Reading
 - [GCC Passes](% post_url 2018-06-03-gcc_passes %}) - My blog entry on GCC passes
