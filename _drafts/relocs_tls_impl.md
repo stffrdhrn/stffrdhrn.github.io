@@ -281,15 +281,25 @@ The usage of BFD in the GNU Linker can be thought of in phases.
 For each architecture these are defined in `bfd/elf{wordsize}-{arch}.c`.  For
 example for OpenRISC we have `bfd/elf32-or1k.c`.
 
- - `htab` - From `or1k_elf_hash_table (info)` or `elf_hash_table (info)`, hash table which stores
-   state and arch specific details
+Throughout the linker code we see access to the BFD and ELF apis.  Some key
+symbols include.
+
+ - `htab` - May refer to `or1k_elf_hash_table (info)` or `elf_hash_table (info)`, hash table which stores
+   generic link state and arch specific state, contains:
+    - `htab->root.splt` - the `.plt` section
+    - `htab->root.sgot` -  the `.got` section
+    - `htab->root.srelgot` - the `.relgot` section (relocations against the got)
+    - `htab->root.sgotplt` - the `.gotplt` section
+    - `htab->root.dynobj` - a special bfd to which sections are created (created in `or1k_elf_check_relocs`)
  - `sym_hashes` - From `elf_sym_hashes (abfd)` hash table for global
    symbols.
- - `h` - hash table entry used to store detail for each symbol, how many got entries required
- - `local_tls_type` - a local entry to store `tls_type` if not a global symbol
+ - `h` - an instance of `struct elf_link_hash_entry *` used when iterating, represents a global symbol
+ - `local_tls_type` - Retrieved by `elf_or1k_local_tls_type(abfd)` entry to store `tls_type` if not a global symbol,
+   when `h` is `NULL`.
+
+
    in `sym_hashes`.
- - `local_got_offsets` - From `elf_local_got_offsets (input_bfd)` the got
-   offsets for symbols setup in ??
+how many got entries required
    got.offset where in the got the value is
 
 ### Phase 1 - Book Keeping (check_relocs)
@@ -297,11 +307,6 @@ example for OpenRISC we have `bfd/elf32-or1k.c`.
 The `or1k_elf_check_relocs` function is called during the first phase to
 validate relocations, returns FALSE if there are issues.  It also does
 some book keeping.
-
-  - `abfd`   - The current elf object file we are working on
-  - `sec`    - The current elf section we are working on
-  - `info`   - the bfd API
-  - `relocs` - The relocations from the current section
 
 ```
 static bfd_boolean
@@ -313,49 +318,104 @@ or1k_elf_check_relocs (bfd *abfd,
 #define elf_backend_check_relocs        or1k_elf_check_relocs
 ```
 
+The arguments being:
+
+  - `abfd`   - The current elf object file we are working on
+  - `sec`    - The current elf section we are working on
+  - `info`   - The bfd API
+  - `relocs` - The relocations from the current section
+
+For local symbols:
+
+```
+      ...
+      else
+	{
+	  unsigned char *local_tls_type;
+
+	  /* This is a TLS type record for a local symbol.  */
+	  local_tls_type = (unsigned char *) elf_or1k_local_tls_type (abfd);
+	  if (local_tls_type == NULL)
+	    {
+	      bfd_size_type size;
+
+	      size = symtab_hdr->sh_info;
+	      local_tls_type = bfd_zalloc (abfd, size);
+	      if (local_tls_type == NULL)
+		return FALSE;
+	      elf_or1k_local_tls_type (abfd) = local_tls_type;
+	    }
+	  local_tls_type[r_symndx] |= tls_type;
+	}
+
+	      ...
+	      else
+		{
+		  bfd_signed_vma *local_got_refcounts;
+
+		  /* This is a global offset table entry for a local symbol.  */
+		  local_got_refcounts = elf_local_got_refcounts (abfd);
+		  if (local_got_refcounts == NULL)
+		    {
+		      bfd_size_type size;
+
+		      size = symtab_hdr->sh_info;
+		      size *= sizeof (bfd_signed_vma);
+		      local_got_refcounts = bfd_zalloc (abfd, size);
+		      if (local_got_refcounts == NULL)
+			return FALSE;
+		      elf_local_got_refcounts (abfd) = local_got_refcounts;
+		    }
+		  local_got_refcounts[r_symndx] += 1;
+		}
+```
+
+The above is pretty straight forward and we can read as:
+
+ - First part is for storing `TLS` type intformation:
+    - If the `local_tls_type` array is not initialized:
+       - Allocate 1 entry for each local variable
+    - Record the tls type in `local_tls_type` for the current symbol
+
+ - Second part is for recording `.got` section references:
+    - If the `local_got_refcounts` array is not initialized:
+       - Allocate it, 1 entry per each local variable
+    - Record a reference by incrementing `local_got_refcounts` for the current symbol
+
+For global symbols, its much more easy we see:
+
+```
+      ...
+      if (h != NULL)
+	  ((struct elf_or1k_link_hash_entry *) h)->tls_type |= tls_type;
+      else
+      ...
+
+	      if (h != NULL)
+		h->got.refcount += 1;
+	      else
+		...
+```
+
+As the `tls_type` and `refcount` fields are available directly on each
+`hash_entry` handling global symbols is much easier.
+
+ - First part is for storing `TLS` type intformation:
+    - Record the tls type in `tls_type` for the current `hash_entry`
+ - Second part is for recording `.got` section references:
+    - Record a reference by incrementing `got.refcounts` for the `hash_entry`
+
 ### Phase 2 - creating space (size_dynamic_sections + _bfd_elf_create_dynamic_sections)
 
-The `or1k_elf_size_dynamic_sections` function iterates over all object
-files to calculate the size of stuff, it uses:
-
- - info - the API to BFD provides access to everything, this function uses:
-      - `or1k_elf_hash_table (info)` - called `htab` a reference to `elf_link_hash_table` which has sections.
-      - `htab->root.splt` - the plt section
-      - `htab->root.sgot` -  the got section
-      - `htab->root.srelgot` - the relgot section (relocations against the got)
-      - `htab->root.sgotplt` - the gotplt section
-      - `htab->root.dynobj` - a special bfd to which sections are created (created in `or1k_elf_check_relocs`)
-      - `root.dynamic_sections_created` - true if sections like `.interp` have been created by the linker
-      - `info->input_bfds` - loop over all bfds (elf objects)
+The `or1k_elf_size_dynamic_sections()` function iterates over all object
+files to calculate the size of stuff.  The `_bfd_elf_create_dynamic_sections()`
+function does the actual section allocation, we use the generic version.
 
 Setting up the sizes of the `.got` section (global offset table) and `.plt`
-section (procedure link table) is done by iterating through all symbols with the
-`allocate_dynrelocs` iterator.
+section (procedure link table)
 
-Sub function of `or1k_elf_size_dynamic_sections` `allocate_dynrelocs` is used to
-additionally set size of `.gotplt` which sometime later gets combined with the
-`.got` somehow.  The `allocate_dynrelocs` is a visitor function that is used
-when iterating over each `elf_link_hash_entry` which represents a symbol.
 
-*pseudocode*
-```
-  allocate_dynrelocs(h) {
-     if (h->plt.refcount > 0) {
-        .gotplt->size ++;
-        .relocations->size ++;
-     }
-     if (h->got.refcount > 0) {
-        .got->size ++;
-        .relocations->size ++;
-     }
-
-     do something with h->dyn_relocs which I don't understand
-     but in the end it doe sreloc->size ++
-  }
-```
-
-The sub function of `allocate_dynrelocs` `or1k_set_got_and_rela_sizes` is used
-to increment `.got` and `.rela` section sizes per TLS symbols.
+The definition is as below:
 
 ```
 static bfd_boolean
@@ -366,6 +426,124 @@ or1k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 #define elf_backend_create_dynamic_sections     _bfd_elf_create_dynamic_sections
 ```
 
+The arguments to `or1k_elf_size_dynamic_sections` being:
+
+ - `output_bfd` - **Unused**, the output elf object
+ - `info` - the API to BFD provides access to everything
+
+Internally the function uses:
+
+ - `htab` - from `or1k_elf_hash_table (info)`
+    - `htab->root.dynamic_sections_created` - `true` if sections like `.interp` have been created by the linker
+ - `ibfd` - a `bfd *` reference from `info->input_bfds`, used to iterate over all input elf objects
+
+During the first part we setup got sizes for relocation entry size for local
+symbols with this code:
+
+```
+  /* Set up .got offsets for local syms, and space for local dynamic
+     relocs.  */
+  for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
+    {
+      ...
+      local_got = elf_local_got_refcounts (ibfd);
+      if (!local_got)
+	continue;
+
+      symtab_hdr = &elf_tdata (ibfd)->symtab_hdr;
+      locsymcount = symtab_hdr->sh_info;
+      end_local_got = local_got + locsymcount;
+      s = htab->root.sgot;
+      srel = htab->root.srelgot;
+      local_tls_type = (unsigned char *) elf_or1k_local_tls_type (ibfd);
+      for (; local_got < end_local_got; ++local_got)
+	{
+	  if (*local_got > 0)
+	    {
+	      unsigned char tls_type = (local_tls_type == NULL)
+					? TLS_UNKNOWN
+					: *local_tls_type;
+
+	      *local_got = s->size;
+	      or1k_set_got_and_rela_sizes (tls_type, bfd_link_pic (info),
+					   &s->size, &srel->size);
+	    }
+	  else
+	    *local_got = (bfd_vma) -1;
+
+	  if (local_tls_type)
+	    ++local_tls_type;
+	}
+    }
+
+```
+
+Here, for example, we can see we iterate over each input elf object `ibfd`
+and each `local_got` try  and update `s->size` `srel->size` to account for
+the size.  Allocating space for local symbols.
+
+The above can be read as:
+
+  - For each `local_got` entry:
+    - If the local symbol is used in the `.got` section:
+      - Get the `tls_type`
+      - Set the offset `local_got` to the section offset `s->size`
+      - Update `s->size` and `srel->size` using `or1k_set_got_and_rela_sizes()`
+   - If the local symbol is not used in the `.got` section:
+      - Set the offset `local_got` to the `-1`, to indicate not used
+
+In the next part we allocate space for all dynamic symbols by iterating
+through symbols with the `allocate_dynrelocs` iterator.  Here we call:
+
+```
+  elf_link_hash_traverse (&htab->root, allocate_dynrelocs, info);
+```
+
+Inside `allocate_dynrelocs()` record the space used for relocations and
+the `.got` and `.plt` sections.  Example:
+
+```
+  if (h->got.refcount > 0)
+    {
+      asection *sgot;
+      bfd_boolean dyn;
+      unsigned char tls_type;
+
+      ...
+      sgot = htab->root.sgot;
+
+      h->got.offset = sgot->size;
+
+      tls_type = ((struct elf_or1k_link_hash_entry *) h)->tls_type;
+
+      dyn = htab->root.dynamic_sections_created;
+      dyn = WILL_CALL_FINISH_DYNAMIC_SYMBOL (dyn, bfd_link_pic (info), h);
+      or1k_set_got_and_rela_sizes (tls_type, dyn,
+				   &sgot->size, &htab->root.srelgot->size);
+    }
+  else
+    h->got.offset = (bfd_vma) -1;
+```
+
+The above, with `h` being our symbol a reference to `struct elf_link_hash_entry
+*`,  can be read as:
+
+  - If the symbol will be in the `.got` section:
+    - Get the global reference to the `.got` section and put it in `sgot`
+    - Set the got lococation `h->got.offset` for the symbol to the current got
+      section size `htab->root.sgot`.
+    - Set `dyn` to `true` if we will be doing a dynamic link.
+    - Call `or1k_set_got_and_rela_sizes()` to update the sizes for the `.got`
+      and `.got.rela` sections.
+  - If the symbol is going to be in the `.got` section:
+    - Set the got location `h->got.offset` to `-1`
+
+The function `or1k_set_got_and_rela_sizes()` used above is used to increment
+`.got` and `.rela` section sizes accounting for if these are TLS symbols, which
+need additional entries and relocations.
+
+
+
 ### Phase 3 - linking (relocate_section)
 
 Notes from above
@@ -374,6 +552,8 @@ Notes from above
   - run or1k_final_link_relocate
      - Write actual value to text
 
+ - `local_got_offsets` - From `elf_local_got_offsets (input_bfd)` the got
+   offsets for symbols setup in Phase 4.
 
 For each input section in an input bfd (`.o` file) figure out where they will exist in the output bfd.
 
@@ -497,26 +677,27 @@ We write:
   - The `plt_base_addr` (the first entry in the `.plt` for runtime lookup) to the `.got` section.
   - And finally a dynamic relocation for our symbol to the `.plt.rela`.
 
-## Glibc Runtime Linker
+## GLIBC Runtime Linker
 
 The runtime linker, also referred to as the dynamic linker, will do the final
 linking as we load our program and shared libraries into memory.  It can process
 a limited set of relocation entries that were setup above during Phase 4 of
 linking.
 
-The runtime linker implementation in the GLIBC sources in the
-`elf/dl-*` file.  Dynamic relocation processing is handled in [elf/dl-reloc.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-reloc.c).
-The back end macro used for relocation
+The runtime linker implementation is found mostly in the
+`elf/dl-*` GLIBC source files.  Dynamic relocation processing is handled in by
+the [_dl_relocate_object()](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-reloc.c#L146)
+function in the `elf/dl-reloc.c` file.  The back end macro used for relocation
 [ELF_DYNAMIC_RELOCATE](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dynamic-link.h#L194)
 is defined across several files including `elf/dynamic-link.h`
 and [elf/do-rel.h](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/do-rel.h)
 Architecture specific relocations are handled by the function `elf_machine_rela()`, the implementation
-for OpenRISC being in [sysdeps/or1k/dl-machine.h](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/sysdeps/or1k/dl-machine.h#L210)
+for OpenRISC being in [sysdeps/or1k/dl-machine.h](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/sysdeps/or1k/dl-machine.h#L210).
 
 In summary from top down:
  - [elf/rtld.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/rtld.c) - implements `dl_main()` the top level entry for the dynamic linker.
  - [elf/dl-open.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-open.c) - function `dl_open_worker()` calls `_dl_relocate_object()`, you may also recognize this from [dlopen(3)](https://man7.org/linux/man-pages/man3/dlopen.3.html).
- - `elf/dl-reloc.c` - function `_dl_relocate_object` calls `ELF_DYNAMIC_RELOCATE`
+ - [elf/dl-reloc.c](https://github.com/stffrdhrn/or1k-glibc/blob/or1k-port-1/elf/dl-reloc.c) - function `_dl_relocate_object` calls `ELF_DYNAMIC_RELOCATE`
  - `elf/dynamic-link.h` - defined macro `ELF_DYNAMIC_RELOCATE` calls `elf_dynamic_do_Rel()` via several macros
  - `elf/do-rel.h` - function `elf_dynamic_do_Rel()` calls `elf_machine_rela()`
  - `sysdeps/or1k/dl-machine.h` - architecture specific function `elf_machine_rela()` implements dynamic relocation handling
@@ -525,8 +706,8 @@ It supports relocations for:
  - `R_OR1K_NONE` - do nothing
  - `R_OR1K_COPY` - used to copy initial values from shared objects to process memory.
  - `R_OR1K_32` - a `32-bit` value
- - `R_OR1K_GLOB_DAT` - for `GOT` entries
- - `R_OR1K_JMP_SLOT` - for `PLT` entries
+ - `R_OR1K_GLOB_DAT` - aligned `32-bit` values for `GOT` entries
+ - `R_OR1K_JMP_SLOT` - aligned `32-bit` values for `PLT` entries
  - `R_OR1K_TLS_DTPMOD/R_OR1K_TLS_DTPOFF` - for shared TLS GD `GOT` entries
  - `R_OR1K_TLS_TPOFF` - for shared TLS IE `GOT` entries
 
