@@ -269,22 +269,48 @@ The assembler will encode that into the ELF binary.
 
 ## The Linker
 
-In the GNU Toolchain our assember is the GNU linker LD, also part of the *binutils* project.
+In the GNU Toolchain our object linker is the GNU linker LD, also part of the
+*binutils* project.
 
-The GNU linker uses the framework [BFD](https://sourceware.org/binutils/docs/bfd/)
-or [Binary File Descriptor](https://en.wikipedia.org/wiki/Binary_File_Descriptor_library)
-which is a beast.  It is not only used in the linker but also used in GDB, the
-GNU Simulator and the objdump tool.
+The GNU linker uses the framework
+[BFD](https://sourceware.org/binutils/docs/bfd/) or [Binary File
+Descriptor](https://en.wikipedia.org/wiki/Binary_File_Descriptor_library) which
+is a beast.  It is not only used in the linker but also used in GDB, the GNU
+Simulator and the objdump tool.
 
-The usage of BFD in the GNU Linker can be thought of in phases.
+What makes this possible is a rather complex API.
 
-For each architecture these are defined in `bfd/elf{wordsize}-{arch}.c`.  For
-example for OpenRISC we have `bfd/elf32-or1k.c`.
+### BFD Linker API
 
-Throughout the linker code we see access to the BFD and ELF apis.  Some key
+The BFD api is a generic binary file access API.  It has been designed to support multiple
+file formats and architectures via an object oriented, polymorphic API.  It supports file formats
+including [a.out](https://en.wikipedia.org/wiki/A.out),
+[COFF](https://en.wikipedia.org/wiki/COFF) and
+[ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) as well as
+unexpected file formats like
+[verilog hex memory dumps](https://binutils.sourceware.narkive.com/aoJ9J4Xk/patch-verilog-hex-memory-dump-backend-for-bfd).
+
+Here we will concentrate on the BFD ELF APIs.
+
+The API is split into multiple files which include:
+
+ - [bfd/bfd-in.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-in.h) - top level generic APIs including `bfd_hash_table`
+ - [bfd/bfd-in2.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-in2.h) - top level binary file APIs including `bfd` and `asection`
+ - [include/bfdlink.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/include/bfdlink.h) - generic bfd linker APIs including `bfd_link_info` and `bfd_link_hash_table`
+ - [bfd/elf-bfd.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-elf.h) - extentions to the APIs for ELF binaries including `elf_link_hash_table` 
+ - `bfd/elf{wordsize}-{architecture}.c` - architecture specific implementations
+
+For each architecture implementations are defined in `bfd/elf{wordsize}-{arch}.c`.  For
+example for OpenRISC we have
+[bfd/elf32-or1k.c](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/elf32-or1k.c).
+
+Throughout the linker code we see access to the BFD Linker and ELF apis.
+
+Some key
 symbols include.
 
- - `htab` - May refer to `or1k_elf_hash_table (info)` or `elf_hash_table (info)`, hash table which stores
+ - `info` - A reference to `bfd_link_info`
+ - `htab` - Refers to to `or1k_elf_hash_table (info)`, hash table which stores
    generic link state and arch specific state, contains:
     - `htab->root.splt` - the `.plt` section
     - `htab->root.sgot` -  the `.got` section
@@ -293,7 +319,7 @@ symbols include.
     - `htab->root.dynobj` - a special bfd to which sections are created (created in `or1k_elf_check_relocs`)
  - `sym_hashes` - From `elf_sym_hashes (abfd)` hash table for global
    symbols.
- - `h` - an instance of `struct elf_link_hash_entry *` used when iterating, represents a global symbol
+ - `h` - A pointer to a `struct elf_link_hash_entry`, represents a global symbol
  - `local_tls_type` - Retrieved by `elf_or1k_local_tls_type(abfd)` entry to store `tls_type` if not a global symbol,
    when `h` is `NULL`.
 
@@ -301,6 +327,11 @@ symbols include.
    in `sym_hashes`.
 how many got entries required
    got.offset where in the got the value is
+
+Now that we have a bit of understanding of the [data structures](https://lwn.net/Articles/193245/)
+we can look to the link alforithm.
+
+The link process in the GNU Linker can be thought of in phases.
 
 ### Phase 1 - Book Keeping (check_relocs)
 
