@@ -282,7 +282,7 @@ What makes this possible is a rather complex API.
 
 ### BFD Linker API
 
-The BFD api is a generic binary file access API.  It has been designed to support multiple
+The BFD API is a generic binary file access API.  It has been designed to support multiple
 file formats and architectures via an object oriented, polymorphic API.  It supports file formats
 including [a.out](https://en.wikipedia.org/wiki/A.out),
 [COFF](https://en.wikipedia.org/wiki/COFF) and
@@ -297,39 +297,49 @@ The API is split into multiple files which include:
  - [bfd/bfd-in.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-in.h) - top level generic APIs including `bfd_hash_table`
  - [bfd/bfd-in2.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-in2.h) - top level binary file APIs including `bfd` and `asection`
  - [include/bfdlink.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/include/bfdlink.h) - generic bfd linker APIs including `bfd_link_info` and `bfd_link_hash_table`
- - [bfd/elf-bfd.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-elf.h) - extentions to the APIs for ELF binaries including `elf_link_hash_table` 
+ - [bfd/elf-bfd.h](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/bfd-elf.h) - extentions to the APIs for ELF binaries including `elf_link_hash_table`
  - `bfd/elf{wordsize}-{architecture}.c` - architecture specific implementations
 
 For each architecture implementations are defined in `bfd/elf{wordsize}-{arch}.c`.  For
 example for OpenRISC we have
 [bfd/elf32-or1k.c](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/elf32-or1k.c).
 
-Throughout the linker code we see access to the BFD Linker and ELF apis.
+Throughout the linker code we see access to the BFD Linker and ELF APIs.
 
-Some key
-symbols include.
+Some key symbols to watch out for include:
 
- - `info` - A reference to `bfd_link_info`
- - `htab` - Refers to to `or1k_elf_hash_table (info)`, hash table which stores
-   generic link state and arch specific state, contains:
-    - `htab->root.splt` - the `.plt` section
-    - `htab->root.sgot` -  the `.got` section
-    - `htab->root.srelgot` - the `.relgot` section (relocations against the got)
-    - `htab->root.sgotplt` - the `.gotplt` section
-    - `htab->root.dynobj` - a special bfd to which sections are created (created in `or1k_elf_check_relocs`)
- - `sym_hashes` - From `elf_sym_hashes (abfd)` hash table for global
-   symbols.
- - `h` - A pointer to a `struct elf_link_hash_entry`, represents a global symbol
- - `local_tls_type` - Retrieved by `elf_or1k_local_tls_type(abfd)` entry to store `tls_type` if not a global symbol,
-   when `h` is `NULL`.
+ - `info` - A reference to `bfd_link_info` top level reference to all linker
+   state.
+ - `htab` - A porinter to `elf_or1k_link_hash_table` from `or1k_elf_hash_table (info)`, a hash
+   table on steroids which stores generic link state and arch specific state, it's also a hash
+   table of all global symbols by name, contains:
+    - `htab->root.splt` - the output `.plt` section
+    - `htab->root.sgot` -  the output `.got` section
+    - `htab->root.srelgot` - the output `.relgot` section (relocations against the got)
+    - `htab->root.sgotplt` - the output `.gotplt` section
+    - `htab->root.dynobj` - a special `bfd` to which sections are added (created in `or1k_elf_check_relocs`)
+ - `sym_hashes` - From `elf_sym_hashes (abfd)` a list of for global symbols
+   in a `bfd` indexed by the relocation index `ELF32_R_SYM (rel->r_info)`.
+ - `h` - A pointer to a `struct elf_link_hash_entry`, represents link state
+   of a global symbol, contains:
+   - `h->got` - A union of different attributes with different roles based on link phase.
+   - `h->got.refcount` - used during Phase 1 to count the symbol `.got` section references
+   - `h->got.offset` - used during Phase 2 to record the symbol `.got` section offset
+   - `h->plt` - A union with the same function as `h->got` but used for the `.plt` section.
+ - `local_got`- an array of `unsigned long` from `elf_local_got_refcounts (ibfd)` with the same
+   function to `h->got` but for local symbols, the function of the `unsigned long` is changed base
+   on the link pahse.  Ideally this should also be a union.
+ - `tls_type` - Retrieved by `((struct elf_or1k_link_hash_entry *) h)->tls_type` used to store the
+   `tls_type` of a global symbol.
+ - `local_tls_type` - Retrieved by `elf_or1k_local_tls_type(abfd)` entry to store `tls_type` for local
+   symbols, when `h` is `NULL`.
 
+Putting it all together we have a diagram like the following:
 
-   in `sym_hashes`.
-how many got entries required
-   got.offset where in the got the value is
+![The BFD API](/content/2020/tls-bfddatastructs.png)
 
 Now that we have a bit of understanding of the [data structures](https://lwn.net/Articles/193245/)
-we can look to the link alforithm.
+we can look to the link algorithm.
 
 The link process in the GNU Linker can be thought of in phases.
 
