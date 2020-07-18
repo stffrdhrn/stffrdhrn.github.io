@@ -11,7 +11,13 @@ TODO
 *This is an ongoing series of posts on ELF Binary Relocations and Thread
 Local Storage.  This article covers only Thread Local Storage and assumes
 the reader has had a primer in ELF Relocations, if not please start with
-my previous article [ELF Binaries and Relocation Entries]({% post_url 2019-11-29-relocs %})*
+my previous article *ELF Binaries and Relocation Entries*.
+
+This is a the second part illustrated 3 part series covering:
+ - [ELF Binaries and Relocation Entries]({% post_url 2019-11-29-relocs %})
+ - [Thread Local Storage]({% post_url 2020-01-19-tls %})
+ - How Relocations and Thread Local Store are implemented
+
 
 In the last article we covered how Thread Local Storage (TLS) works at runtime,
 but how do we get there?  How does the compiler and linker create the memory
@@ -37,28 +43,36 @@ project.  Please check it out.
 # The GNU toolchain
 
 I will assume here that most people understand what a compiler and assembler
-basically do.  A compiler will compile routines
+basically do.  In the sense that compiler will compile routines
 written C code or something similar to assembly language.  It is then up to the
 assembler to turn that assmebly code into machine code to run on a CPU.
 
 That is a big part of what a toolchain does, and it's pretty much that simple if
 we have a single file of source code.  But usually we don't have a single file,
-and that is where the complexities of the linker comes in.
+we have the multiple files, the [c runtime](https://en.wikipedia.org/wiki/Runtime_library),
+[crt0](https://en.wikipedia.org/wiki/Crt0) and other libraries like
+[libc](https://en.wikipedia.org/wiki/C_standard_library).  These all need to be
+put together into our final program, that is where the complexities of the
+linker comes in.
 
-In this article I will cover how variables in our programs ([symbols](https://en.wikipedia.org/wiki/Symbol_table)) traverse
-the toolchain from front to the back.
+In this article I will cover how variables in our source code ([symbols](https://en.wikipedia.org/wiki/Symbol_table)) traverse
+the toolchain from code to the memory in our final running program.  A picture that looks
+something like this:
 
-![GCC and Linker](/content/2019/gcc-obj-ld.png)
+![GCC and Linker](/content/2020/relocs-gccf2b.png)
 
 ## The Compiler
 
 First we start off with how relocations are created and emitted in the compiler.
 
-As I work on the GCC compiler we will look at that, let's get started.
+As I work primarily on the GNU [toolchain](https://elinux.org/Toolchains) with
+it's GCC compiler we will look at that, let's get started.
 
 ### GCC Legitimize Address
 
-To start a variable or function reference refers to an address in memory.
+To start we define a **symbol** as named address in memory.  This address can be
+a program variable where data is stored or function reference to where a
+subroutine starts.
 
 In GCC we have have `TARGET_LEGITIMIZE_ADDRESS`, the OpenRISC implementation
 being [or1k_legitimize_address](https://github.com/gcc-mirror/gcc/blob/releases/gcc-10.1.0/gcc/config/or1k/or1k.c#L841).
@@ -70,7 +84,7 @@ A snippet from this function is below.  The symbol `x` represents our input symb
 need to make usable by our CPU.  This code uses GCC internal API's to generate RTX code
 sequences.
 
-```
+```c
 static rtx
 or1k_legitimize_address (rtx x, rtx /* unused */, machine_mode /* unused */)
 
@@ -116,7 +130,7 @@ GOT to reference symbols.
 
 An example:
 
-```
+```c
 static int x;
 
 int *get_x_addr() {
@@ -154,14 +168,14 @@ and
 
 Let us have a look at `or1k_print_operand_address()`.
 
-```
+```c
 /* Worker for TARGET_PRINT_OPERAND_ADDRESS.
    Prints the argument ADDR, an address RTX, to the file FILE.  The output is
    formed as expected by the OpenRISC assembler.  Examples:
      RTX							      OUTPUT
      (reg:SI 3)							       0(r3)
      (plus:SI (reg:SI 3) (const_int 4))				     0x4(r3)
-     (lo_sum:SI (reg:SI 3) (symbol_ref:SI ("x"))))		   lo(x)(r3)  */
+     (lo_sum:SI (reg:SI 3) (symbol_ref:SI ("x")))		   lo(x)(r3)  */
 
 static void
 or1k_print_operand_address (FILE *file, machine_mode, rtx addr)
@@ -199,7 +213,7 @@ With that, and if we use the `or1k_print_operand_address()` comments as an examp
 of some RTX `addr` input we will have:
 
 ```
-RTX             (reg:SI 3)          (lo_sum:SI (reg:SI 3) (symbol_ref:SI("x"))))
+RTX             (reg:SI 3)          (lo_sum:SI (reg:SI 3) (symbol_ref:SI("x")))
 
 TREE
    (code)     (code:REG regno:3)     (code:LO_SUM)
@@ -232,7 +246,7 @@ is wired into our assemler generator CGEN used for parsing operands.
 If we are parsing a relocation like the one from above `lo(x)` then we can
 isolate the code that processes that relocation.
 
-```
+```c
 static const bfd_reloc_code_real_type or1k_imm16_relocs[][6] = {
   { BFD_RELOC_LO16,
     BFD_RELOC_OR1K_SLO16,
@@ -326,6 +340,7 @@ Some key symbols to watch out for include:
    - `h->got.refcount` - used during Phase 1 to count the symbol `.got` section references
    - `h->got.offset` - used during Phase 2 to record the symbol `.got` section offset
    - `h->plt` - A union with the same function as `h->got` but used for the `.plt` section.
+   - `h->root.root.string` - The symbol name
  - `local_got`- an array of `unsigned long` from `elf_local_got_refcounts (ibfd)` with the same
    function to `h->got` but for local symbols, the function of the `unsigned long` is changed base
    on the link pahse.  Ideally this should also be a union.
@@ -336,7 +351,7 @@ Some key symbols to watch out for include:
 
 Putting it all together we have a diagram like the following:
 
-![The BFD API](/content/2020/tls-bfddatastructs.png)
+![The BFD API](/content/2020/relocs-bfddatastructs.png)
 
 Now that we have a bit of understanding of the [data structures](https://lwn.net/Articles/193245/)
 we can look to the link algorithm.
@@ -345,11 +360,10 @@ The link process in the GNU Linker can be thought of in phases.
 
 ### Phase 1 - Book Keeping (check_relocs)
 
-The `or1k_elf_check_relocs` function is called during the first phase to
-validate relocations, returns FALSE if there are issues.  It also does
-some book keeping.
+The `or1k_elf_check_relocs()` function is called during the first phase to
+do book keeping on relocations.  The function signature looks like:
 
-```
+```c
 static bfd_boolean
 or1k_elf_check_relocs (bfd *abfd,
                        struct bfd_link_info *info,
@@ -362,13 +376,16 @@ or1k_elf_check_relocs (bfd *abfd,
 The arguments being:
 
   - `abfd`   - The current elf object file we are working on
+  - `info`   - The BFD API
   - `sec`    - The current elf section we are working on
-  - `info`   - The bfd API
   - `relocs` - The relocations from the current section
+
+It does the book keping by looping over relocations for the provided section
+and updating the local and global symbol properties.
 
 For local symbols:
 
-```
+```c
       ...
       else
 	{
@@ -413,19 +430,19 @@ For local symbols:
 
 The above is pretty straight forward and we can read as:
 
- - First part is for storing `TLS` type intformation:
+ - First part is for storing local symbol `TLS` type intformation:
     - If the `local_tls_type` array is not initialized:
-       - Allocate 1 entry for each local variable
+       - Allocate it, 1 entry for each local variable
     - Record the tls type in `local_tls_type` for the current symbol
 
  - Second part is for recording `.got` section references:
     - If the `local_got_refcounts` array is not initialized:
-       - Allocate it, 1 entry per each local variable
+       - Allocate it, 1 entry for each local variable
     - Record a reference by incrementing `local_got_refcounts` for the current symbol
 
 For global symbols, its much more easy we see:
 
-```
+```c
       ...
       if (h != NULL)
 	  ((struct elf_or1k_link_hash_entry *) h)->tls_type |= tls_type;
@@ -446,19 +463,22 @@ As the `tls_type` and `refcount` fields are available directly on each
  - Second part is for recording `.got` section references:
     - Record a reference by incrementing `got.refcounts` for the `hash_entry`
 
+The above is repeated for all relocations and all input sections.  A few other
+things are also done including accounting for `.plt` entries.
+
 ### Phase 2 - creating space (size_dynamic_sections + _bfd_elf_create_dynamic_sections)
 
-The `or1k_elf_size_dynamic_sections()` function iterates over all object
-files to calculate the size of stuff.  The `_bfd_elf_create_dynamic_sections()`
-function does the actual section allocation, we use the generic version.
+The `or1k_elf_size_dynamic_sections()` function iterates over all object files
+to calculate the size required for output sections.  The
+`_bfd_elf_create_dynamic_sections()` function does the actual section
+allocation, we use the generic version.
 
 Setting up the sizes of the `.got` section (global offset table) and `.plt`
-section (procedure link table)
-
+section (procedure link table) ... TODO
 
 The definition is as below:
 
-```
+```c
 static bfd_boolean
 or1k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
                                 struct bfd_link_info *info)
@@ -470,18 +490,22 @@ or1k_elf_size_dynamic_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
 The arguments to `or1k_elf_size_dynamic_sections` being:
 
  - `output_bfd` - **Unused**, the output elf object
- - `info` - the API to BFD provides access to everything
+ - `info` - the BFD API which provides access to everything we need
 
 Internally the function uses:
 
  - `htab` - from `or1k_elf_hash_table (info)`
     - `htab->root.dynamic_sections_created` - `true` if sections like `.interp` have been created by the linker
  - `ibfd` - a `bfd *` reference from `info->input_bfds`, used to iterate over all input elf objects
+ - `s->size` - represents the output `.got` section size, which we will be
+   incrementng.
+ - `srel->size` - represents the output `.got.rela` section size, which will
+   contain relocations against the `.got` section
 
-During the first part we setup got sizes for relocation entry size for local
-symbols with this code:
+During the first part of phase 2 we setup `.got` sizes for relocation entry size
+for local symbols with this code:
 
-```
+```c
   /* Set up .got offsets for local syms, and space for local dynamic
      relocs.  */
   for (ibfd = info->input_bfds; ibfd != NULL; ibfd = ibfd->link.next)
@@ -519,31 +543,32 @@ symbols with this code:
 
 ```
 
-Here, for example, we can see we iterate over each input elf object `ibfd`
-and each `local_got` try  and update `s->size` `srel->size` to account for
-the size.  Allocating space for local symbols.
+Here, for example, we can see we iterate over each input elf object `ibfd` and
+each local symbol (`local_got`) we try  and update `s->size` and `srel->size` to
+account for the required size.
 
 The above can be read as:
 
   - For each `local_got` entry:
     - If the local symbol is used in the `.got` section:
-      - Get the `tls_type`
+      - Get the `tls_type` sored in the `local_tls_type` array
       - Set the offset `local_got` to the section offset `s->size`
       - Update `s->size` and `srel->size` using `or1k_set_got_and_rela_sizes()`
    - If the local symbol is not used in the `.got` section:
       - Set the offset `local_got` to the `-1`, to indicate not used
 
-In the next part we allocate space for all dynamic symbols by iterating
-through symbols with the `allocate_dynrelocs` iterator.  Here we call:
+In the next part of phase 2 we allocate space for all global symbols by
+iterating through symbols with the `allocate_dynrelocs` iterator.  To do that we
+call:
 
-```
+```c
   elf_link_hash_traverse (&htab->root, allocate_dynrelocs, info);
 ```
 
-Inside `allocate_dynrelocs()` record the space used for relocations and
+Inside `allocate_dynrelocs()` we record the space used for relocations and
 the `.got` and `.plt` sections.  Example:
 
-```
+```c
   if (h->got.refcount > 0)
     {
       asection *sgot;
@@ -583,8 +608,6 @@ The function `or1k_set_got_and_rela_sizes()` used above is used to increment
 `.got` and `.rela` section sizes accounting for if these are TLS symbols, which
 need additional entries and relocations.
 
-
-
 ### Phase 3 - linking (relocate_section)
 
 Notes from above
@@ -600,7 +623,7 @@ For each input section in an input bfd (`.o` file) figure out where they will ex
 
 Fill in relocation placeholders in `.text` sections.  Fill out data in `.got` and `.rela` sections.
 
-```
+```c
 static bfd_boolean
 or1k_elf_relocate_section (bfd *output_bfd,
                            struct bfd_link_info *info,
@@ -613,6 +636,19 @@ or1k_elf_relocate_section (bfd *output_bfd,
 
 #define elf_backend_relocate_section    or1k_elf_relocate_section
 ```
+
+The arguments to `or1k_elf_relocate_section` being:
+
+ - `output_bfd` - the output elf object we will be writing to
+ - `info` - the BFD API which provides access to everything we need
+ - `input_bfd` - the current input elf object being iterated over
+ - `input_section` the current section in the input elf object being iterated
+   over
+ - `contents`
+ - `relocs` - relocations from the current input section
+ - `local_syms`
+ - `local_sections`
+
 
 ### Phase 4 - finishing up (finish_dynamic_symbol + finish_dynamic_sections)
 
@@ -628,7 +664,7 @@ Writing of the data sections is handled by
 and writing of the relocation sections is handled by
 [or1k_elf_finish_dynamic_symbol()](https://github.com/bminor/binutils-gdb/blob/binutils-2_34/bfd/elf32-or1k.c#L2299).  These are defined as below.
 
-```
+```c
 static bfd_boolean
 or1k_elf_finish_dynamic_sections (bfd *output_bfd,
                                   struct bfd_link_info *info)
@@ -647,7 +683,7 @@ A snippet for the `or1k_elf_finish_dynamic_sections()` shows how when writing to
 the `.plt` section assembly code needs to be injected.  This is where the first
 entry in the `.plt` section is written.
 
-```
+```c
           else if (bfd_link_pic (info))
             {
               plt0 = OR1K_LWZ(15, 16) | 8;      /* .got+8 */
@@ -679,7 +715,7 @@ A snippet from the `or1k_elf_finish_dynamic_symbol()` function shows where
 we write out the code and dynamic relocation entries for each symbol to
 the `.plt` section.
 
-```
+```c
       splt = htab->root.splt;
       sgot = htab->root.sgotplt;
       srela = htab->root.srelplt;
@@ -755,7 +791,7 @@ It supports relocations for:
 A snippet of the OpenRISC implementation of `elf_machine_rela()` can be seen
 below.  It is pretty straight forward.
 
-```
+```c
 /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
    MAP is the object containing the reloc.  */
 
