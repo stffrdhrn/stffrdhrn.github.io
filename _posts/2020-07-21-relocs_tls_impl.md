@@ -1,8 +1,8 @@
 ---
-title: Relocation Implementation Details
+title: How Relocations and Thread Local Store are Implemented
 layout: post
-date: 2020-07-05 06:47
-categories: [ hardware, embedded, openrisc ]
+date: 2020-07-21 06:47
+categories: [ software, toolchain, openrisc ]
 ---
 
 This is an ongoing series of posts on ELF Binary Relocations and Thread
