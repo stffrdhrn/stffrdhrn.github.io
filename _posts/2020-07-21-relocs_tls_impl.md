@@ -32,6 +32,7 @@ outline:
    - [Phase 3 - Linking](#phase-3---linking-relocate_section)
    - [Phase 4 - Finishing Up](#phase-4---finishing-up-finish_dynamic_symbol--finish_dynamic_sections)
  - [GLIBC Runtime Linker](#glibc-runtime-linker)
+   - [Handling TLS](#handling-tls)
 
 As before, the examples in this article can be found in my [tls-examples](https://github.com/stffrdhrn/tls-examples)
 project.  Please check it out.
@@ -1035,7 +1036,7 @@ elf_machine_rela (struct link_map *map, const Elf32_Rela *reloc,
 
 ```
 
-### Runtime Linker handling TLS
+### Handling TLS
 
 The complicated part of the runtime linker is how it handles TLS variables.
 
