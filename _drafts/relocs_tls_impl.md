@@ -279,7 +279,7 @@ We can now read the above snippet as:
    - **Second** print out the register name now in `addr` i.e. "r3".
 
 The code of `or1k_print_operand()` is similar and the reader may be inclined to
-read more details.  With that we can move on the the assembler.
+read more details.  With that we can move on to the assembler.
 
 TLS cases are also handled inside of the `print_reloc()` function.
 
