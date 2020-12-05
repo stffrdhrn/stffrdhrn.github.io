@@ -9,7 +9,7 @@ has taken me quite a bit longer than I anticipated as with GLIBC upstreaming
 you need to get every single test to pass.  This was different compared with
 GDB and GCC which were a bit more lenient.
 
-After my first upstreaming attempt which was completey tested on simulators.
+After my first upstreaming attempt which was completely tested on simulators.
 I have moved over to an FPGA environment running Linux on OpenRISC mor1kx
 debugging over an SSH session.  To get to where I am now this required:
 
@@ -24,14 +24,29 @@ to have a good debug environment.
 
 ## A Bug
 
-The bug I am trying to trace is a case where C++ exceptions thrown in signal
-handlers are not calling the C++ catch blocks and simply exiting.
+The bug I am trying to fix is a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
+test case.  The test case involves C++ exceptions and POSIX threads.
+The issue is that the `catch` block of an exception handler is not
+being called.
 
-This is the glibc test case `nptl/tst-cancel24`. Basically the test will create
-a child thread that waits on a semaphore and cancel it.  It is expected
-that the child thread when cancelled in the semaphore will call its catch blocks.
+My plan for approaching any failed test case is the same:
+ - Understand what the test case is trying to test and where its failing
+ - Create a hypothesis about where the problem is
+ - Understand how the tested API's works internally around where we think it's
+   broken
+ - Debug until we find the issue or create a new hypothesis
 
-In this case `except_caught` should get set to `true`, if not the test fails.
+### Understanding the Test case
+
+The GLIBC test case is [nptl/tst-cancel24.cc](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/tst-cancel24.cc;h=1af709a8cab1d422ef4401e2b2d178df86f863c5;hb=HEAD)`.
+The test starts in the `do_test` function and it will create a child thread with `pthread_create`.
+The child thread executes function `tf` which waits on a semaphore until the parent thread cancels it.  It
+is expected that the child thread, when cancelled , will call it's catch blocks.
+
+The failure is that the `catch` block is not getting run as evidenced by the `except_caught` variable
+not being set to `true`.
+
+Below is an excerpt from the test showing the `tf` function.
 
 ```c
 static void *
@@ -53,52 +68,167 @@ tf (void *arg) {
 }
 ```
 
-With GDB we can trace right to the start of the exception handling logic.  This
-is right before we start unwinding stacks.
+### Creating a Hypothesis
 
-Stack unwinding is started with one of 2 functions:
- - `_Unwind_ForcedUnwind` - called when our thread gets a stopping signal
- - `_Unwind_RaiseException` - called when we want to raise an exception
+This one is a bit tricky as it seems C++ try catch blocks are broken. Here, I am
+working on GLIBC testing, what does that have to do with C++?
 
-In our case we can start at `_Unwind_ForcedUnwind`, so I set a gdb
-breakpoint there.
+To get a good idea of where the problem is, I tried a few other tests to test
+some simple ideas. First, maybe there is a problem with catching exceptions
+throws from thread child functions.
 
-This is the stack trace I have now:
+```c
+static void do_throw() { throw 99; }
 
-```
-#0  _Unwind_ForcedUnwind_Phase2 (exc=0x30caf658, context=0x30caeb6c, frames_p=0x30caea90) at ../../../libgcc/unwind.inc:192
-#1  0x30303858 in _Unwind_ForcedUnwind (exc=0x30caf658, stop=0x30321dcc <unwind_stop>, stop_argument=0x30caeea4) at ../../../libgcc/unwind.inc:217
-#2  0x30321fc0 in __GI___pthread_unwind (buf=<optimized out>) at unwind.c:121
-#3  0x30312388 in __do_cancel () at pthreadP.h:313
-#4  sigcancel_handler (sig=32, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:162
-#5  sigcancel_handler (sig=<optimized out>, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:127
-#6  <signal handler called>
-#7  0x303266d0 in __futex_abstimed_wait_cancelable64 (futex_word=0x7ffffd78, expected=1, clockid=<optimized out>, abstime=0x0, private=<optimized out>)
-    at ../sysdeps/nptl/futex-internal.c:66
-#8  0x303210f8 in __new_sem_wait_slow64 (sem=0x7ffffd78, abstime=0x0, clockid=0) at sem_waitcommon.c:285
-#9  0x00002884 in tf (arg=0x7ffffd78) at throw-pthread-sem.cc:35
-#10 0x30314548 in start_thread (arg=<optimized out>) at pthread_create.c:463
-#11 0x3043638c in __or1k_clone () from /lib/libc.so.6
-Backtrace stopped: frame did not save the PC
-(gdb)
+static void * tf () {
+  try {
+      monitor m;
+      while (1) do_throw();
+  } catch (...) {
+      except_caught = true;
+  }
+  return NULL;
+}
 ```
 
-# So what is `_Unwind_ForcedUnwind`?
+No, this works correctly.
 
-For this case we need to understand how unwinding works when a thread is
-cancelled in a multithreaded
+**Hypothesis**: There is a problem handling exceptions while in a syscall.
+There may be something broken with OpenRISC related to how we setup stack
+frames for syscalls that makes the unwinder fail.
+
+How does that work?
+
+### Understanding the Internals
+
+For this case we need to understand how C++ exceptions work.  Also, we need to know
+what happens when a thread is cancelled in a multithreaded
 ([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.  I
 will cover this path as this is where the bug was occuring and it's a bit more
 interesting.  Unwinding with regular c++ *throw* and *catch* uses a very similar
 mechanism.
 
-There are 3 contributors to unwinding are:
+**C++ Exceptions**
 
- - GLIBC - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
- - GCC - `libgcc_s.so` - handles reading dwarf and doing the frame decoding
+C++ Exceptions work using GCC stack frame unwinding intrastructure.  There are a
+few contributors to C++ exceptions and unwinding which are:
+
  - Our Program and Libraries - provide the `.eh_frame` **DWARF** metadata
+ - GLIBC - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
+ - GCC - `libgcc_s.so` - handles unwinding by reading program **DWARF** metadata and doing the frame decoding
+ - GCC - `libstdc++.so.6` - provides the C++ personality routine which
+   identifies and prepares `catch` blocks for execution
 
- GLIBC
+**DWARF**
+Each binary file that support unwinding contains the `.eh_frame` section to
+provide debug information.  This can be seen with the `readelf` program.
+
+```
+$ readelf -S sysroot/lib/libc.so.6
+There are 70 section headers, starting at offset 0xaa00b8:
+
+Section Headers:
+  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al
+  [ 0]                   NULL            00000000 000000 000000 00      0   0  0
+  [ 1] .note.ABI-tag     NOTE            00000174 000174 000020 00   A  0   0  4
+  [ 2] .gnu.hash         GNU_HASH        00000194 000194 00380c 04   A  3   0  4
+  [ 3] .dynsym           DYNSYM          000039a0 0039a0 008280 10   A  4  15  4
+  [ 4] .dynstr           STRTAB          0000bc20 00bc20 0054d4 00   A  0   0  1
+  [ 5] .gnu.version      VERSYM          000110f4 0110f4 001050 02   A  3   0  2
+  [ 6] .gnu.version_d    VERDEF          00012144 012144 000080 00   A  4   4  4
+  [ 7] .gnu.version_r    VERNEED         000121c4 0121c4 000030 00   A  4   1  4
+  [ 8] .rela.dyn         RELA            000121f4 0121f4 00378c 0c   A  3   0  4
+  [ 9] .rela.plt         RELA            00015980 015980 000090 0c  AI  3  28  4
+  [10] .plt              PROGBITS        00015a10 015a10 0000d0 04  AX  0   0  4
+  [11] .text             PROGBITS        00015ae0 015ae0 155b78 00  AX  0   0  4
+  [12] __libc_freeres_fn PROGBITS        0016b658 16b658 001980 00  AX  0   0  4
+  [13] .rodata           PROGBITS        0016cfd8 16cfd8 0192b4 00   A  0   0  4
+  [14] .interp           PROGBITS        0018628c 18628c 000018 00   A  0   0  1
+  [15] .eh_frame_hdr     PROGBITS        001862a4 1862a4 001a44 00   A  0   0  4
+  [16] .eh_frame         PROGBITS        00187ce8 187ce8 007cf4 00   A  0   0  4
+  [17] .gcc_except_table PROGBITS        0018f9dc 18f9dc 000341 00   A  0   0  1
+...
+```
+
+We can decode the metadata using `readelf` as well using the
+`--debug-dump=frames-interp` and `--debug-dump=frames` arguments.
+
+The `frames` dump provides a raw output of the DWARF metadata for each frame.
+This is not usually very useful, but it shows how DWARF metadate is actaully
+a bytecode which the interpreter needs to execute to understand how to derive
+the values of registers based current PC.
+
+There is an interesting talk about [Exploiting the hard-working
+DWARF](https://www.cs.dartmouth.edu/~sergey/battleaxe/hackito_2011_oakley_bratus.pdf).
+
+```
+$ readelf --debug-dump=frames sysroot/lib/libc.so.6
+
+...
+00016788 0000000c ffffffff CIE
+  Version:               1
+  Augmentation:          ""
+  Code alignment factor: 4
+  Data alignment factor: -4
+  Return address column: 9
+
+  DW_CFA_def_cfa_register: r1
+  DW_CFA_nop
+
+00016798 00000028 00016788 FDE cie=00016788 pc=0016b584..0016b658
+  DW_CFA_advance_loc: 4 to 0016b588
+  DW_CFA_def_cfa_offset: 4
+  DW_CFA_advance_loc: 8 to 0016b590
+  DW_CFA_offset: r9 at cfa-4
+  DW_CFA_advance_loc: 68 to 0016b5d4
+  DW_CFA_remember_state
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_restore: r9
+  DW_CFA_restore_state
+  DW_CFA_advance_loc: 56 to 0016b60c
+  DW_CFA_remember_state
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_restore: r9
+  DW_CFA_restore_state
+  DW_CFA_advance_loc: 36 to 0016b630
+  DW_CFA_remember_state
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_restore: r9
+  DW_CFA_restore_state
+  DW_CFA_advance_loc: 40 to 0016b658
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_restore: r9
+```
+
+The `frames-interp` argument is a bit more clear.  We can see
+two things:
+  - `CIE` - Common Information Entry
+  - `FDE` - Frame Description Entry
+
+The `CIE` provides starting point information for each child `FDE` entry.  Some
+things to point out we see, `ra=9` indicates the return address is stored in
+register `r9` and CFA `r1+0` indicates the frame pointer is stored in register
+`r1`.
+
+```
+$ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
+
+00016788 0000000c ffffffff CIE "" cf=4 df=-4 ra=9
+   LOC   CFA
+00000000 r1+0
+
+00016798 00000028 00016788 FDE cie=00016788 pc=0016b584..0016b658
+   LOC   CFA      ra
+0016b584 r1+0     u
+0016b588 r1+4     u
+0016b590 r1+4     c-4
+0016b5d4 r1+4     c-4
+0016b60c r1+4     c-4
+0016b630 r1+4     c-4
+0016b658 r1+0     u
+```
+
+**GLIBC**
   - [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
     Setup during the pthread runtime initialization, it handles cancellation,
     which calls `__do_cancel()`, which calls `__pthread_unwind()`.
@@ -329,6 +459,42 @@ After the sighandler action code returns we return and run `r9`, which calls sig
   - restore altstack
     - return r11
 
+
+
+### Debugging the Issue
+
+With GDB we can trace right to the start of the exception handling logic.  This
+is right before we start unwinding stacks.
+
+Stack unwinding is started with one of 2 functions:
+ - `_Unwind_ForcedUnwind` - called when our thread gets a stopping signal
+ - `_Unwind_RaiseException` - called when we want to raise an exception
+
+In our case we can start at `_Unwind_ForcedUnwind`, so I set a gdb
+breakpoint there.
+
+This is the stack trace I have now:
+
+```
+#0  _Unwind_ForcedUnwind_Phase2 (exc=0x30caf658, context=0x30caeb6c, frames_p=0x30caea90) at ../../../libgcc/unwind.inc:192
+#1  0x30303858 in _Unwind_ForcedUnwind (exc=0x30caf658, stop=0x30321dcc <unwind_stop>, stop_argument=0x30caeea4) at ../../../libgcc/unwind.inc:217
+#2  0x30321fc0 in __GI___pthread_unwind (buf=<optimized out>) at unwind.c:121
+#3  0x30312388 in __do_cancel () at pthreadP.h:313
+#4  sigcancel_handler (sig=32, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:162
+#5  sigcancel_handler (sig=<optimized out>, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:127
+#6  <signal handler called>
+#7  0x303266d0 in __futex_abstimed_wait_cancelable64 (futex_word=0x7ffffd78, expected=1, clockid=<optimized out>, abstime=0x0, private=<optimized out>)
+    at ../sysdeps/nptl/futex-internal.c:66
+#8  0x303210f8 in __new_sem_wait_slow64 (sem=0x7ffffd78, abstime=0x0, clockid=0) at sem_waitcommon.c:285
+#9  0x00002884 in tf (arg=0x7ffffd78) at throw-pthread-sem.cc:35
+#10 0x30314548 in start_thread (arg=<optimized out>) at pthread_create.c:463
+#11 0x3043638c in __or1k_clone () from /lib/libc.so.6
+Backtrace stopped: frame did not save the PC
+(gdb)
+```
+
+
+
 So,
 In the end it looks like the eh_frame for libpthread was missing a lot of eh_frame
 date.
@@ -450,6 +616,8 @@ libpthread rebuild fixes the issue!
 
 ## Additional Reading
  - The IA64 Undwinder ABI - https://itanium-cxx-abi.github.io/cxx-abi/
+ - [Reliable DWARF Unwinding](https://fzn.fr/projects/frdwarf/dwarf-oopsla19-slides.pdf)
+ - [Exception Frames](https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html)
 
 OR1K
 
