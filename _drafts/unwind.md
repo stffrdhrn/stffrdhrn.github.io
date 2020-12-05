@@ -27,8 +27,41 @@ to have a good debug environment.
 The bug I am trying to trace is a case where C++ exceptions thrown in signal
 handlers are not calling the C++ catch blocks and simply exiting.
 
+This is the glibc test case `nptl/tst-cancel24`. Basically the test will create
+a child thread that waits on a semaphore and cancel it.  It is expected
+that the child thread when cancelled in the semaphore will call its catch blocks.
+
+In this case `except_caught` should get set to `true`, if not the test fails.
+
+```c
+static void *
+tf (void *arg) {
+  sem_t *s = static_cast<sem_t *> (arg);
+
+  try {
+      monitor m;
+
+      pthread_barrier_wait (&b);
+
+      while (1)
+        sem_wait (s);
+  } catch (...) {
+      except_caught = true;
+      throw;
+  }
+  return NULL;
+}
+```
+
 With GDB we can trace right to the start of the exception handling logic.  This
 is right before we start unwinding stacks.
+
+Stack unwinding is started with one of 2 functions:
+ - `_Unwind_ForcedUnwind` - called when our thread gets a stopping signal
+ - `_Unwind_RaiseException` - called when we want to raise an exception
+
+In our case we can start at `_Unwind_ForcedUnwind`, so I set a gdb
+breakpoint there.
 
 This is the stack trace I have now:
 
@@ -52,33 +85,104 @@ Backtrace stopped: frame did not save the PC
 
 # So what is `_Unwind_ForcedUnwind`?
 
-There are 3 contributors to how undwinding works.
+For this case we need to understand how unwinding works when a thread is
+cancelled in a multithreaded
+([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.  I
+will cover this path as this is where the bug was occuring and it's a bit more
+interesting.  Unwinding with regular c++ *throw* and *catch* uses a very similar
+mechanism.
 
- - GLIBC - provides callbacks for the GCC unwinder code
+There are 3 contributors to unwinding are:
+
+ - GLIBC - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
  - GCC - `libgcc_s.so` - handles reading dwarf and doing the frame decoding
- - Our Program and Libraries - provide the `.eh_frame` dwarf metadata
+ - Our Program and Libraries - provide the `.eh_frame` **DWARF** metadata
 
  GLIBC
-  - `__pthread_unwind` - starts the unwind, for example when a CANCEL signal is being handled
-  - `_Unwind_ForcedUnwind` - loads `libgcc_s.so` version of `_Unwind_ForcedUnwind`
+  - [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
+    Setup during the pthread runtime initialization, it handles cancellation,
+    which calls `__do_cancel()`, which calls `__pthread_unwind()`.
+  - [`__pthread_unwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l121) -
+    Is called with `pd->cleanup_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
+  - [`_Unwind_ForcedUnwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/nptl/unwind-forcedunwind.c;h=50a089282bc236aa644f40feafd0dacdafe3a4e7;hb=HEAD#l122) - 
+    Loads GCC's `libgcc_s.so` version of `_Unwind_ForcedUnwind`
     and calls it with parameters:
-    - exc - the exception context
-    - unwind_stop - the stop function, called for each frame of the unwind, with
+    - `exc` - the exception context
+    - `unwind_stop` - the stop function, called for each frame of the unwind, with
       the stop argument `ibuf`
-    - ibuf - the jmp_buf, created by `setjmp` (self->cleanup_jmp_buf) in `pthread_create`
+    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cleanup_jmp_buf`) in `pthread_create`
       the unwinder can call this to return back to pthread_create to do
       the cleanup
-  - `unwind_stop` - check the current state of unwind and call the `cancel_jmp_buf` if
-    we are at the end of stcack.
-    Also runs any cleanup routines required by the current thread.
+  - [unwind_stop](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l39) -
+    Checks the current state of unwind and call the `cancel_jmp_buf` if
+    we are at the end of stack.  When the `cancel_jmp_buf` is called the thread
+    exits.
+
+About the `pd->cancel_jmp_buf`.  This is setup during
+[pthread_create](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/pthread_create.c;h=bad4e57a845bd3148ad634acaaccbea08b04dbbd;hb=HEAD#l406)
+using the [setjmp](https://www.man7.org/linux/man-pages/man3/setjmp.3.html) and
+[longjump](https://man7.org/linux/man-pages/man3/longjmp.3.html) non local goto mechanism.
+
+A highly redacted version of our `pthread_create` and `unwind_stop` functions is
+shown below, to illustrate the interaction of `setjmp`/`longjmp`:
+
+```c
+start_thread()
+{
+  struct pthread *pd = START_THREAD_SELF;
+  ...
+  struct pthread_unwind_buf unwind_buf;
+
+  int not_first_call;
+  not_first_call = setjmp ((struct __jmp_buf_tag *) unwind_buf.cancel_jmp_buf);
+  ...
+  if (__glibc_likely (! not_first_call))
+    {
+      /* Store the new cleanup handler info.  */
+      THREAD_SETMEM (pd, cleanup_jmp_buf, &unwind_buf);
+      ...
+      ret = pd->start_routine (pd->arg);
+      THREAD_SETMEM (pd, result, ret);
+    }
+  ... free resources ...
+  __exit_thread ();
+}
+```
+
+```c
+unwind_stop (_Unwind_Action actions,
+	     struct _Unwind_Context *context, void *stop_parameter)
+{
+  struct pthread_unwind_buf *buf = stop_parameter;
+  struct pthread *self = THREAD_SELF;
+  int do_longjump = 0;
+  ...
+
+  if ((actions & _UA_END_OF_STACK)
+      || ... )
+    do_longjump = 1;
+
+  ...
+  if (do_longjump)
+    __libc_unwind_longjmp ((struct __jmp_buf_tag *) buf->cancel_jmp_buf, 1);
+
+  return _URC_NO_REASON;
+}
+
+
+
 
   GCC
-   - _Unwind_ForcedUnwind - calls:
+   - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
+     - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
+     - **FDE** lookup code [libgcc.unwind-dw2-fce.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2-fde.c;hb=HEAD)
+
+   - `_Unwind_ForcedUnwind` - calls:
      - uw_init_context()           - load details of the current frame.
      - _Unwind_ForcedUnwind_Phase2 - do the frame iterations
      - uw_install_context()        - actually context switch to the final frame.
 
-   - _Unwind_ForcedUnwind_Phase2 - loops forever doing:
+   - `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
      - uw_frame_state_for() - setup FS for the current context (one frame up)
      - stop(1, action, exc, context, stop_argument)
      - fs.personality (1, exc, context)
@@ -86,23 +190,35 @@ There are 3 contributors to how undwinding works.
      - _Unwind_Frames_Increment () - just does frames++,
 
    - DWARF, the followig methods are implemented using the dwarf (there are other implementations
-     in GCC, we and most architectures now use DWARF).
-    - uw_init_context
-    - uw_install_context
-    - uw_frame_state_for
-    - uw_advance_context
+     in GCC, we and most architectures now use DWRF).
+     - uw_init_context FDE frame description entry
+     - uw_install_context
+     - uw_frame_state_for
+     - uw_advance_context
 
-  - Personality
+Personality
+  - The personality routing is the interface between the unwind routines and the
+    c++ (or other language) runtime, which handles the exception handling
+    logic for that language.
 
-Where are the catch blocks run?
+  - C++
+    [__gxx_personality_v0](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_personality.cc;h=fd7cd6fc79886bf17aea6bc713d2a3840aa31326;hb=HEAD#l336)
+
+    In C++ the personality routine is executed for each stack frame.  The
+    function checks if there is a catch block that matches the exception being
+    thrown.  If there is, it will update the context to prepare it to jump
+    into the catch routine returning `_URC_INSTALL_CONTEXT`.
+    If there is no catch block matching it returns `_URC_CONTINUE_UNWIND`.
+
+    In the case of `_URC_INSTALL_CONTEXT` then the `_Unwind_ForcedUnwind_Phase2`
+    loop breaks and calls `uw_install_context`.
 
 glibc/nptl/unwind.c
-
 
 glibc/sysdeps/nptl/unwind-forcedunwind.c
 
 
-```
+```c
 _Unwind_Reason_Code
 _Unwind_ForcedUnwind (struct _Unwind_Exception *exc, _Unwind_Stop_Fn stop,
                       void *stop_argument)
@@ -277,7 +393,7 @@ CFLAGS-sem_clockwait.c = -fexceptions -fasynchronous-unwind-tables
 ```
 
 If is missing such a line for `futex-internal.c`.  The following patch and a
-libpthread rebuild fixes the issue!@@(*#**!
+libpthread rebuild fixes the issue!
 
 
 ```
