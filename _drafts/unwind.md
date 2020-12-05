@@ -168,26 +168,51 @@ unwind_stop (_Unwind_Action actions,
 
   return _URC_NO_REASON;
 }
+```
 
+![Pthread Signalled](/content/2020/pthread-signalled-seq.png)
 
+![Pthread Normal](/content/2020/pthread-normal-seq.png)
 
+GCC
 
-  GCC
    - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
      - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
      - **FDE** lookup code [libgcc.unwind-dw2-fce.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2-fde.c;hb=HEAD)
 
+The IA-64 C++ Abis
+
+Forced Unwinds
+
    - `_Unwind_ForcedUnwind` - calls:
-     - uw_init_context()           - load details of the current frame.
+     - uw_init_context()           - load details of the current frame, from cpu/stack.
      - _Unwind_ForcedUnwind_Phase2 - do the frame iterations
      - uw_install_context()        - actually context switch to the final frame.
-
    - `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
      - uw_frame_state_for() - setup FS for the current context (one frame up)
      - stop(1, action, exc, context, stop_argument)
-     - fs.personality (1, exc, context)
+     - fs.personality (1, exc, context) - called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
      - uw_advance_context () - move current context one frame up
-     - _Unwind_Frames_Increment () - just does frames++,
+
+Raising Exceptions
+
+Exceptions raise programatically run very similar to the forced exception, but
+there is no `stop` function and exception unwinding is 2 phase.
+
+   - `_Unwind_RaiseException` - similar to `_Unwind_ForcedUnwind`, but no `stop`, calls:
+     - `uw_init_context()`         - loaded details of the current frame, from cpu/stack.
+     - Do phase 1 loop:
+       - `uw_frame_state_for()`    - populate FS from current context + DWARF
+       - fs.personality            - called with `_UA_SEARCH_PHASE`
+       - `uw_update_context()`     - pupulated CONTEXT from FS
+     - `_Unwind_RaiseException_Phase2` - do the frame iterations
+     - `uw_install_context()`      - Exit unwinder jumping to selected frame
+   - `_Unwind_RaiseException_Phase2` - Do phase 2 - loops forever doing:
+     - `uw_frame_state_for()`  - Populate FS from CONTEXT + DWARF
+     - fs.personality          - called with `_UA_CLEANUP_PHASE`
+     - uw_update_context()      - pupulated CONTEXT from FS
+
+Implementations inside of GCC
 
    - DWARF, the followig methods are implemented using the dwarf (there are other implementations
      in GCC, we and most architectures now use DWRF).
@@ -213,10 +238,6 @@ Personality
     In the case of `_URC_INSTALL_CONTEXT` then the `_Unwind_ForcedUnwind_Phase2`
     loop breaks and calls `uw_install_context`.
 
-glibc/nptl/unwind.c
-
-glibc/sysdeps/nptl/unwind-forcedunwind.c
-
 
 ```c
 _Unwind_Reason_Code
@@ -236,7 +257,25 @@ _Unwind_ForcedUnwind (struct _Unwind_Exception *exc, _Unwind_Stop_Fn stop,
 }
 ```
 
-## Unwinding through sig hanlder
+## Unwinding through sig handler
+
+A process must be context switched to kernel space in order to receive a signal.
+
+The signal handler is executed in user space in a stack frame setup by the kernel.
+The signal frame.
+
+This means the unwinder needs to know about the signal frames.
+
+For OpenRISC linux this is handled in libgcc in [linux-unwind.h](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/or1k/linux-unwind.h;h=c7ed043d3a89f2db205fd78fcb5db21f6fb561b2;hb=HEAD)
+
+```c
+static _Unwind_Reason_Code
+or1k_fallback_frame_state (struct _Unwind_Context *context,
+			   _Unwind_FrameState *fs)
+```
+
+This is used in `uw_frame_state_for` when DWARF information cannot be found for the
+stack frame.
 
 sigcancel_handler - libc
 (setup_rt_frame ) - kernel
