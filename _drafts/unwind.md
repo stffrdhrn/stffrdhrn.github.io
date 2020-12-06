@@ -427,9 +427,9 @@ sigcancel_handler - libc
        - r4  - arg - info
        - r5  - arg - uc
 
-![The Stack Frame after an Interrupt](content/2020/stack-frame-int.png)
+![The Stack Frame after an Interrupt](/content/2020/stack-frame-int.png)
 
-![The Stack Frame in a Sig Handler](content/2020/stack-frame-in-handler.png)
+![The Stack Frame in a Sig Handler](/content/2020/stack-frame-in-handler.png)
 
 **Trampoline Code**
 
