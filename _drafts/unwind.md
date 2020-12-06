@@ -427,6 +427,22 @@ sigcancel_handler - libc
        - r4  - arg - info
        - r5  - arg - uc
 
+![The Stack Frame after an Interrupt](content/2020/stack-frame-int.png)
+
+![The Stack Frame in a Sig Handler](content/2020/stack-frame-in-handler.png)
+
+**Trampoline Code**
+
+The unwinder detects that the stack frame is a *Signal Frame* by checking the
+code pointed to by the return address register `r9`.  If we find the trampoline
+code (which is always the same), the unwinder code will unwind the context
+back to the previos user frame by inwpecting the saved mcontext registers.
+
+```
+	l.ori r11,r0,__NR_sigreturn
+	l.sys 1
+	l.nop
+```
 
 Stack - in sig handler
 ```
