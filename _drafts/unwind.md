@@ -9,33 +9,41 @@ taken longer than I expected as with GLIBC upstreaming you we must get every
 single test to pass.  This was different compared with GDB and GCC which were a
 bit more lenient.
 
-After my first upstreaming attempt which was completely tested on simulators.
-I have moved over to an FPGA environment running Linux on OpenRISC mor1kx
-debugging over an SSH session.  To get to where I am now this required:
+My [first upstreaming attempt](https://lists.librecores.org/pipermail/openrisc/2020-May/002602.html)
+was completely tested on the [QEMU](https://www.qemu.org) simulator.  I have
+since added an FPGA [LiteX SoC](https://github.com/enjoy-digital/litex/blob/master/README.md)
+to my test platform options.  LiteX runs Linux on the OpenRISC mor1kx softcore
+and tests are loaded over an SSH session.  The SoC eliminates an issue I was
+seeing on the simulator where under heavy load it appears the [MMU starves the kernel](https://github.com/openrisc/linux/issues/12)
+from getting any work done.
 
- - Fixing buggy [LiteETH network driver](https://github.com/litex-hub/linux/commit/78969c54328e35b360d9452c7602f21107a13d22) in Litex
- - Updating the OpenRISC GDB port to [support gdbserver](https://github.com/stffrdhrn/binutils-gdb/commit/9d0d2e9bef5c84caa7f05cc7ddba1e092e2b5120)
-   and [native debugging](https://github.com/stffrdhrn/binutils-gdb/commit/82e99d5df56be3b18c63e613d00e2367fb5a78b7)
- - Fixing bugs in the [Linux Kernel](https://github.com/stffrdhrn/linux/commit/28b852b1dc351efc6525234c5adfd5bc2ad6d6e1) and
-   [GLIBC](https://github.com/stffrdhrn/or1k-glibc/commit/75ddf155968299042e4d2b492e3b547c86d4672e) to get gdbserver and native suport working
+To get to where I am now this required:
 
-Why do I need such a good debugging environment?  Because some tests were failing,
-nasty C++ unwinder tests.  In order to catch the bugs in their tracks I need a full
-native GDB environment.
+- Fixing buggy [LiteETH network driver](https://github.com/litex-hub/linux/commit/78969c54328e35b360d9452c7602f21107a13d22)
+  in LiteX.
+- Updating the OpenRISC GDB port to [support gdbserver](https://github.com/stffrdhrn/binutils-gdb/commit/9d0d2e9bef5c84caa7f05cc7ddba1e092e2b5120)
+  and [native debugging](https://github.com/stffrdhrn/binutils-gdb/commit/82e99d5df56be3b18c63e613d00e2367fb5a78b7)
+- Fixing bugs in the [Linux Kernel](https://github.com/stffrdhrn/linux/commit/28b852b1dc351efc6525234c5adfd5bc2ad6d6e1) and
+  [GLIBC](https://github.com/stffrdhrn/or1k-glibc/commit/75ddf155968299042e4d2b492e3b547c86d4672e) to get gdbserver and native suport working
+
+Adding GDB Linux debugging support is great because it allows debugging of
+multithreaded processes and signal handling; which we are going to need.
 
 ## A Bug
 
-The bug I am trying to fix is a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
+Our story starts when I was trying to fix is a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
 test case.  The test case involves C++ exceptions and POSIX threads.
 The issue is that the `catch` block of a `try/catch` block is not
 being called.  Where do we even start?
 
-My plan for approaching any failed test case is the same:
- - Understand what the test case is trying to test and where its failing
- - Create a hypothesis about where the problem is
- - Understand how the tested API's works internally around where we think it's
-   broken
- - Debug until we find the issue or create a new hypothesis
+My plan for approaching test case failures is:
+1. Understand what the test case is trying to test and where its failing
+2. Create a hypothesis about where the problem is
+3. Understand how the failing API's works internally
+4. Debug until we find the issue
+5. If we get stuck go back to `2.`
+
+Let's have a try.
 
 ### Understanding the Test case
 
@@ -69,12 +77,15 @@ tf (void *arg) {
 }
 ```
 
+So the `catch` block is not being run.  Simple, but where do we start to
+debug that?  Let's move onto the next step.
+
 ### Creating a Hypothesis
 
-This one is a bit tricky as it seems C++ try catch blocks are broken. Here, I am
+This one is a bit tricky as it seems C++ `try/catch` blocks are broken. Here, I am
 working on GLIBC testing, what does that have to do with C++?
 
-To get a good idea of where the problem is, I tried a few other tests to test
+To get a good idea of where the problem is, I tried to modify the test to test
 some simple ideas. First, maybe there is a problem with catching exceptions
 throws from thread child functions.
 
@@ -92,37 +103,43 @@ static void * tf () {
 }
 ```
 
-No, this works correctly.
+No, this works correctly.  So `try/catch` is working.
 
 **Hypothesis**: There is a problem handling exceptions while in a syscall.
 There may be something broken with OpenRISC related to how we setup stack
 frames for syscalls that makes the unwinder fail.
 
-How does that work?
+How does that work?  Let's move onto the next step.
 
 ### Understanding the Internals
 
 For this case we need to understand how C++ exceptions work.  Also, we need to know
 what happens when a thread is cancelled in a multithreaded
-([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.  I
-will cover this path as this is where the bug was occuring and it's a bit more
-interesting.  Unwinding with regular c++ *throw* and *catch* uses a very similar
-mechanism.
+([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.
 
-#### C++ Exceptions
-
-C++ Exceptions work using GCC stack frame unwinding intrastructure.  There are a
+C++ Exceptions work using GCC stack frame unwinding infrastructure.  There are a
 few contributors to C++ exceptions and unwinding which are:
 
- - Our Program and Libraries - provide the `.eh_frame` **DWARF** metadata
- - GLIBC - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
- - GCC - `libgcc_s.so` - handles unwinding by reading program **DWARF** metadata and doing the frame decoding
- - GCC - `libstdc++.so.6` - provides the C++ personality routine which
+- **DWARF** - provided by our program and libraries in the `.eh_frame` ELF
+  section
+- **GLIBC** - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
+- **GCC** - provides libraries for dealing with exceptions
+-- `libgcc_s.so` - handles unwinding by reading program **DWARF** metadata and doing the frame decoding
+-- `libstdc++.so.6` - provides the C++ personality routine which
    identifies and prepares `catch` blocks for execution
 
 #### DWARF
+ELF binaries provide debugging information in a data format called
+[DWARF](https://en.wikipedia.org/wiki/DWARF).  The name was chosen to maintain a
+fantasy theme.  Lately the Linux community has a new debug format called
+[ORC](https://lwn.net/Articles/728339/).
+
+Though this is a debugging format and usually stored in `.debug_frame`,
+`.debug_info`, etc sections, a stripped down version it is used for exception
+handling.
+
 Each binary file that support unwinding contains the `.eh_frame` section to
-provide debug information.  This can be seen with the `readelf` program.
+provide unwinding information.  This can be seen with the `readelf` program.
 
 ```
 $ readelf -S sysroot/lib/libc.so.6
@@ -155,7 +172,7 @@ We can decode the metadata using `readelf` as well using the
 `--debug-dump=frames-interp` and `--debug-dump=frames` arguments.
 
 The `frames` dump provides a raw output of the DWARF metadata for each frame.
-This is not usually very useful, but it shows how DWARF metadate is actaully
+This is not usually very useful, but it shows how DWARF metadata is actually
 a bytecode which the interpreter needs to execute to understand how to derive
 the values of registers based current PC.
 
@@ -208,8 +225,8 @@ two things:
 
 The `CIE` provides starting point information for each child `FDE` entry.  Some
 things to point out we see, `ra=9` indicates the return address is stored in
-register `r9` and CFA `r1+0` indicates the frame pointer is stored in register
-`r1`.
+register `r9`.  Also we see CFA `r1+0` indicates the frame pointer is stored in
+register `r1`.  We can also see the stack frame size is `4` bytes.
 
 ```
 $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
