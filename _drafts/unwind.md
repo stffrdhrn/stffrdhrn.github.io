@@ -4,30 +4,31 @@ layout: post
 date: 2020-11-01
 ---
 
-I have been working on porting GLIBC to the OpenRISC architecture.  This
-has taken me quite a bit longer than I anticipated as with GLIBC upstreaming
-you need to get every single test to pass.  This was different compared with
-GDB and GCC which were a bit more lenient.
+I have been working on porting GLIBC to the OpenRISC architecture.  This has
+taken longer than I expected as with GLIBC upstreaming you we must get every
+single test to pass.  This was different compared with GDB and GCC which were a
+bit more lenient.
 
 After my first upstreaming attempt which was completely tested on simulators.
 I have moved over to an FPGA environment running Linux on OpenRISC mor1kx
 debugging over an SSH session.  To get to where I am now this required:
 
- - Fixing buggy network drivers in Litex
- - Updating the OpenRISC GDB port to support gdbserver, and also native debugging
- - Fixing bugs in the Kernel and GCC to get gdbserver and native suport working
+ - Fixing buggy [LiteETH network driver](https://github.com/litex-hub/linux/commit/78969c54328e35b360d9452c7602f21107a13d22) in Litex
+ - Updating the OpenRISC GDB port to [support gdbserver](https://github.com/stffrdhrn/binutils-gdb/commit/9d0d2e9bef5c84caa7f05cc7ddba1e092e2b5120)
+   and [native debugging](https://github.com/stffrdhrn/binutils-gdb/commit/82e99d5df56be3b18c63e613d00e2367fb5a78b7)
+ - Fixing bugs in the [Linux Kernel](https://github.com/stffrdhrn/linux/commit/28b852b1dc351efc6525234c5adfd5bc2ad6d6e1) and
+   [GLIBC](https://github.com/stffrdhrn/or1k-glibc/commit/75ddf155968299042e4d2b492e3b547c86d4672e) to get gdbserver and native suport working
 
 Why do I need such a good debugging environment?  Because some tests were failing,
-nasty C++ unwinder tests.  In order to catch the bugs in their tracks I wanted
-to have a good debug environment.
-
+nasty C++ unwinder tests.  In order to catch the bugs in their tracks I need a full
+native GDB environment.
 
 ## A Bug
 
 The bug I am trying to fix is a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
 test case.  The test case involves C++ exceptions and POSIX threads.
-The issue is that the `catch` block of an exception handler is not
-being called.
+The issue is that the `catch` block of a `try/catch` block is not
+being called.  Where do we even start?
 
 My plan for approaching any failed test case is the same:
  - Understand what the test case is trying to test and where its failing
@@ -108,7 +109,7 @@ will cover this path as this is where the bug was occuring and it's a bit more
 interesting.  Unwinding with regular c++ *throw* and *catch* uses a very similar
 mechanism.
 
-**C++ Exceptions**
+#### C++ Exceptions
 
 C++ Exceptions work using GCC stack frame unwinding intrastructure.  There are a
 few contributors to C++ exceptions and unwinding which are:
@@ -119,7 +120,7 @@ few contributors to C++ exceptions and unwinding which are:
  - GCC - `libstdc++.so.6` - provides the C++ personality routine which
    identifies and prepares `catch` blocks for execution
 
-**DWARF**
+#### DWARF
 Each binary file that support unwinding contains the `.eh_frame` section to
 provide debug information.  This can be seen with the `readelf` program.
 
@@ -228,7 +229,15 @@ $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
 0016b658 r1+0     u
 ```
 
-**GLIBC**
+#### GLIBC
+
+GLIBC provides `pthreads` which when used with C++ needs to support exception
+handling.  The main place exceptions are used with `pthreads` is when cancelling
+a thread.  A cancel signal is sent to the thread which causes an exception, remember
+[cancel exceptions must be rethrown.](https://udrepper.livejournal.com/21541.html)
+
+This is implemented with the below APIs.
+
   - [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
     Setup during the pthread runtime initialization, it handles cancellation,
     which calls `__do_cancel()`, which calls `__pthread_unwind()`.
@@ -304,7 +313,10 @@ unwind_stop (_Unwind_Action actions,
 
 ![Pthread Normal](/content/2020/pthread-normal-seq.png)
 
-GCC
+#### GCC
+
+GCC provides the exception handling and unwinding cababilities
+to the c++ runtime.  They are implemented by:
 
    - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
      - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
@@ -312,7 +324,7 @@ GCC
 
 The IA-64 C++ Abis
 
-Forced Unwinds
+*Forced Unwinds*
 
    - `_Unwind_ForcedUnwind` - calls:
      - uw_init_context()           - load details of the current frame, from cpu/stack.
@@ -324,7 +336,7 @@ Forced Unwinds
      - fs.personality (1, exc, context) - called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
      - uw_advance_context () - move current context one frame up
 
-Raising Exceptions
+*Raising Exceptions*
 
 Exceptions raise programatically run very similar to the forced exception, but
 there is no `stop` function and exception unwinding is 2 phase.
@@ -342,7 +354,7 @@ there is no `stop` function and exception unwinding is 2 phase.
      - fs.personality          - called with `_UA_CLEANUP_PHASE`
      - uw_update_context()      - pupulated CONTEXT from FS
 
-Implementations inside of GCC
+*Implementations inside of GCC*
 
    - DWARF, the followig methods are implemented using the dwarf (there are other implementations
      in GCC, we and most architectures now use DWRF).
@@ -351,8 +363,9 @@ Implementations inside of GCC
      - uw_frame_state_for
      - uw_advance_context
 
-Personality
-  - The personality routing is the interface between the unwind routines and the
+*Personality*
+
+  - The personality routine is the interface between the unwind routines and the
     c++ (or other language) runtime, which handles the exception handling
     logic for that language.
 
@@ -361,40 +374,22 @@ Personality
 
     In C++ the personality routine is executed for each stack frame.  The
     function checks if there is a catch block that matches the exception being
-    thrown.  If there is, it will update the context to prepare it to jump
-    into the catch routine returning `_URC_INSTALL_CONTEXT`.
+    thrown.  If there is a match, it will update the context to prepare it to jump
+    into the catch routine and return `_URC_INSTALL_CONTEXT`.
     If there is no catch block matching it returns `_URC_CONTINUE_UNWIND`.
 
     In the case of `_URC_INSTALL_CONTEXT` then the `_Unwind_ForcedUnwind_Phase2`
     loop breaks and calls `uw_install_context`.
 
-
-```c
-_Unwind_Reason_Code
-_Unwind_ForcedUnwind (struct _Unwind_Exception *exc, _Unwind_Stop_Fn stop,
-                      void *stop_argument)
-{
-  if (__glibc_unlikely (libgcc_s_handle == NULL))
-    pthread_cancel_init ();
-  else
-    atomic_read_barrier ();
-
-  _Unwind_Reason_Code (*forcedunwind)
-    (struct _Unwind_Exception *, _Unwind_Stop_Fn, void *)
-    = libgcc_s_forcedunwind;
-  PTR_DEMANGLE (forcedunwind);
-  return forcedunwind (exc, stop, stop_argument);
-}
-```
-
-## Unwinding through sig handler
+#### Unwinding through a Signal Frame
 
 A process must be context switched to kernel space in order to receive a signal.
 
 The signal handler is executed in user space in a stack frame setup by the kernel.
 The signal frame.
 
-This means the unwinder needs to know about the signal frames.
+Signal handlers may throw exceptions too, this means the unwinder needs to know
+about the signal frames.
 
 For OpenRISC linux this is handled in libgcc in [linux-unwind.h](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/or1k/linux-unwind.h;h=c7ed043d3a89f2db205fd78fcb5db21f6fb561b2;hb=HEAD)
 
@@ -404,32 +399,21 @@ or1k_fallback_frame_state (struct _Unwind_Context *context,
 			   _Unwind_FrameState *fs)
 ```
 
-This is used in `uw_frame_state_for` when DWARF information cannot be found for the
-stack frame.
-
-sigcancel_handler - libc
-(setup_rt_frame ) - kernel
-
- frame
- - info - copied from ksig
- - uc - link  - 0
-     - flags - 0
-     - stack - sp  (of before sig sent, i.e. caller of syscall)
-     - mc->regs  - regs
-     - mask
-     - retcode - trampoline
-        l.ori r11,r0,__NR_sigreturn
-        l.sys 1
-
- - regs - pc  - sig-handler
-       - r9  - trampoline - to be called after sig-handler
-       - r3  - arg - ksig->sig
-       - r4  - arg - info
-       - r5  - arg - uc
+The `or1k_fallback_frame_state` checks if the current frame is a signal frame
+by confirming the return address is a **Trampoline**.  If it is a trampoline
+it looks into the kernel saved `pt_regs` to find the previous user frame.
 
 ![The Stack Frame after an Interrupt](/content/2020/stack-frame-int.png)
 
 ![The Stack Frame in a Sig Handler](/content/2020/stack-frame-in-handler.png)
+
+After the sighandler action code returns we return and run `r9`, which calls sigreturn.
+
+  - restore blocked flags (from before syscall)
+  - restore mcontext
+  - restore altstack
+    - return r11
+
 
 **Trampoline Code**
 
@@ -444,50 +428,14 @@ back to the previos user frame by inwpecting the saved mcontext registers.
 	l.nop
 ```
 
-Stack - in sig handler
-```
-s0 < func calls syscall >
-   / (sig frame)
-s1 | info
-   | uc
-   |  - stack sp
-   \
-   / sighandler
-s2 |  sp -  frame
-   |  r9 -  trampoline
-   \
-```
-
-Stack - in trampoline
-```
-s0 < func calls syscall >
-   /
-s1 |/ trampoline
-   |\  sp - sp
-   \
-  { rt_sigreturn       }
-```
-
-After the sighandler action code returns we return and run `r9`, which calls sigreturn.
-
-  - restore blocked flags (from before syscall)
-  - restore mcontext
-  - restore altstack
-    - return r11
-
-
-
 ### Debugging the Issue
 
-With GDB we can trace right to the start of the exception handling logic.  This
-is right before we start unwinding stacks.
+With GDB we can trace right to the start of the exception handling logic by setting
+our breakout at `_Unwind_ForcedUnwind`.  This is right before we start unwinding stacks.
 
 Stack unwinding is started with one of 2 functions:
  - `_Unwind_ForcedUnwind` - called when our thread gets a stopping signal
  - `_Unwind_RaiseException` - called when we want to raise an exception
-
-In our case we can start at `_Unwind_ForcedUnwind`, so I set a gdb
-breakpoint there.
 
 This is the stack trace I have now:
 
@@ -509,13 +457,65 @@ Backtrace stopped: frame did not save the PC
 (gdb)
 ```
 
+Debugging when we unwind a signal frame can be seen when we place
+a breakpoint on `or1k_fallback_frame_state`.
 
+As we can see the stack trace goes through the signal frame and to
+the original thread. It works correctly.
 
-So,
-In the end it looks like the eh_frame for libpthread was missing a lot of eh_frame
-date.
-Who create the eh_frame anyway?  GCC or Binutils (Assembler). If we run GCC
-with the `-S` argument we can see GCC will output `.cfi` directives.
+```
+#0  or1k_fallback_frame_state (context=<optimized out>, context=<optimized out>, fs=<optimized out>) at ../../../libgcc/unwind-dw2.c:1271
+#1  uw_frame_state_for (context=0x30caeb6c, fs=0x30cae914) at ../../../libgcc/unwind-dw2.c:1271
+#2  0x30303200 in _Unwind_ForcedUnwind_Phase2 (exc=0x30caf658, context=0x30caeb6c, frames_p=0x30caea90) at ../../../libgcc/unwind.inc:162
+#3  0x30303858 in _Unwind_ForcedUnwind (exc=0x30caf658, stop=0x30321dcc <unwind_stop>, stop_argument=0x30caeea4) at ../../../libgcc/unwind.inc:217
+#4  0x30321fc0 in __GI___pthread_unwind (buf=<optimized out>) at unwind.c:121
+#5  0x30312388 in __do_cancel () at pthreadP.h:313
+#6  sigcancel_handler (sig=32, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:162
+#7  sigcancel_handler (sig=<optimized out>, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:127
+#8  <signal handler called>
+#9  0x303266d0 in __futex_abstimed_wait_cancelable64 (futex_word=0x7ffffd78,  expected=1, clockid=<optimized out>, abstime=0x0, private=<optimized out>) at ../sysdeps/nptl/futex-internal.c:66
+#10 0x303210f8 in __new_sem_wait_slow64 (sem=0x7ffffd78, abstime=0x0, clockid=0) at sem_waitcommon.c:285
+#11 0x00002884 in tf (arg=0x7ffffd78) at throw-pthread-sem.cc:35
+```
+
+Debugging when the unwinding stops can be done by setting a breakpoint
+on the `unwind_stop` function.
+
+When debugging I was able to see that the unwinder failed when looking for
+the `__futex_abstimed_wait_cancelable64` frame.
+
+```
+Thread 2 "throw-pthread-s" hit Breakpoint 1, 0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
+#1  0x00007ffff7c57d29 in _Unwind_ForcedUnwind_Phase2 () from /lib64/libgcc_s.so.1
+#2  0x00007ffff7c58442 in _Unwind_ForcedUnwind () from /lib64/libgcc_s.so.1
+#3  0x00007ffff7c38546 in __pthread_unwind () from /lib64/libpthread.so.0
+#4  0x00007ffff7c2cc99 in sigcancel_handler () from /lib64/libpthread.so.0
+#5  <signal handler called>
+#6  0x00007ffff7c37a24 in do_futex_wait.constprop () from /lib64/libpthread.so.0
+#7  0x00007ffff7c37b28 in __new_sem_wait_slow.constprop.0 () from /lib64/libpthread.so.0
+#8  0x000000000040120c in tf (arg=0x7fffffffc900) at throw-pthread-sem.cc:35
+#9  0x00007ffff7c2e432 in start_thread () from /lib64/libpthread.so.0
+#10 0x00007ffff7b5c9d3 in clone () from /lib64/libc.so.6
+```
+
+### A second Hypothosis
+
+Debugging showed that the uwinder is working correctly, and it can properly unwind through
+our signal frames.  However, the unwinder is bailing out early before it gets to the `tf`
+frame which has the catch block we need to execute.
+
+We need another idea.
+
+I noticed that the unwinder failed to find the **DWARF** info for `__futex_abstimed_wait_cancelable64`.
+
+Looking at `libpthread.so` this function was missing completely from the `.eh_frame`
+metadata.
+
+Who create the `.eh_frame` anyway?  GCC or Binutils (Assembler). If we run GCC
+with the `-S` argument we can see GCC will output `.cfi` directives.  These
+`.cfi` annotations are what gets compiled to the to `.eh_frame`, an example:
 
 
 ```c
@@ -552,9 +552,10 @@ unwind_stop:
         l.sfnei r16, 0
 ```
 
-The eh_frame is missing for futex-internal. The one were unwinding is failing
-we find it was completely mising `.cfi` directives.  This means something is
-wrong with GCC.
+When looking at the glibc build I noticed the `.eh_frame` data for
+`__futex_abstimed_wait_cancelable64` is missing from futex-internal.o. The one
+where unwinding is failing we find it was completely mising `.cfi` directives.
+This means something is wrong with GCC
 
 
 ```c
@@ -635,43 +636,4 @@ libpthread rebuild fixes the issue!
  - [Reliable DWARF Unwinding](https://fzn.fr/projects/frdwarf/dwarf-oopsla19-slides.pdf)
  - [Exception Frames](https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html)
 
-OR1K
-
-```
-#0  or1k_fallback_frame_state (context=<optimized out>, context=<optimized out>, fs=<optimized out>) at ../../../libgcc/unwind-dw2.c:1271
-#1  uw_frame_state_for (context=0x30caeb6c, fs=0x30cae914) at ../../../libgcc/unwind-dw2.c:1271
-#2  0x30303200 in _Unwind_ForcedUnwind_Phase2 (exc=0x30caf658, context=0x30caeb6c, frames_p=0x30caea90) at ../../../libgcc/unwind.inc:162
-#3  0x30303858 in _Unwind_ForcedUnwind (exc=0x30caf658, stop=0x30321dcc <unwind_stop>, stop_argument=0x30caeea4) at ../../../libgcc/unwind.inc:217
-
-#4  0x30321fc0 in __GI___pthread_unwind (buf=<optimized out>) at unwind.c:121
-#5  0x30312388 in __do_cancel () at pthreadP.h:313
-#6  sigcancel_handler (sig=32, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:162
-#7  sigcancel_handler (sig=<optimized out>, si=0x30caec98, ctx=<optimized out>) at nptl-init.c:127
-
-#8  <signal handler called>
-#9  0x303266d0 in __futex_abstimed_wait_cancelable64 (futex_word=0x7ffffd78,  expected=1, clockid=<optimized out>, abstime=0x0, private=<optimized out>) at ../sysdeps/nptl/futex-internal.c:66
-#10 0x303210f8 in __new_sem_wait_slow64 (sem=0x7ffffd78, abstime=0x0, clockid=0) at sem_waitcommon.c:285
-#11 0x00002884 in tf (arg=0x7ffffd78) at throw-pthread-sem.cc:35
-```
-
-
-
-
-```
-Thread 2 "throw-pthread-s" hit Breakpoint 1, 0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
-(gdb) bt
-#0  0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
-#1  0x00007ffff7c57d29 in _Unwind_ForcedUnwind_Phase2 () from /lib64/libgcc_s.so.1
-#2  0x00007ffff7c58442 in _Unwind_ForcedUnwind () from /lib64/libgcc_s.so.1
-
-#3  0x00007ffff7c38546 in __pthread_unwind () from /lib64/libpthread.so.0
-#4  0x00007ffff7c2cc99 in sigcancel_handler () from /lib64/libpthread.so.0
-
-#5  <signal handler called>
-#6  0x00007ffff7c37a24 in do_futex_wait.constprop () from /lib64/libpthread.so.0
-#7  0x00007ffff7c37b28 in __new_sem_wait_slow.constprop.0 () from /lib64/libpthread.so.0
-#8  0x000000000040120c in tf (arg=0x7fffffffc900) at throw-pthread-sem.cc:35
-#9  0x00007ffff7c2e432 in start_thread () from /lib64/libpthread.so.0
-#10 0x00007ffff7b5c9d3 in clone () from /lib64/libc.so.6
-```
 
