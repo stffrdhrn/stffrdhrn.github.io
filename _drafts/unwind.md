@@ -124,9 +124,9 @@ few contributors to C++ exceptions and unwinding which are:
   section
 - **GLIBC** - provides the pthread runtime and cleanup callbacks to the GCC unwinder code
 - **GCC** - provides libraries for dealing with exceptions
--- `libgcc_s.so` - handles unwinding by reading program **DWARF** metadata and doing the frame decoding
--- `libstdc++.so.6` - provides the C++ personality routine which
-   identifies and prepares `catch` blocks for execution
+  - `libgcc_s.so` - handles unwinding by reading program **DWARF** metadata and doing the frame decoding
+  - `libstdc++.so.6` - provides the C++ personality routine which
+    identifies and prepares `catch` blocks for execution
 
 #### DWARF
 ELF binaries provide debugging information in a data format called
@@ -172,12 +172,14 @@ We can decode the metadata using `readelf` as well using the
 `--debug-dump=frames-interp` and `--debug-dump=frames` arguments.
 
 The `frames` dump provides a raw output of the DWARF metadata for each frame.
-This is not usually very useful, but it shows how DWARF metadata is actually
-a bytecode which the interpreter needs to execute to understand how to derive
-the values of registers based current PC.
+This is not usually as useful as `frames-interp`, but it shows how the DWARF
+format is actually a bytecode.  The DWARF interpreter needs to execute these
+operations to understand how to derive the values of registers based current PC.
 
 There is an interesting talk about [Exploiting the hard-working
 DWARF](https://www.cs.dartmouth.edu/~sergey/battleaxe/hackito_2011_oakley_bratus.pdf).
+
+An example of the `frames` dump:
 
 ```
 $ readelf --debug-dump=frames sysroot/lib/libc.so.6
@@ -228,6 +230,8 @@ things to point out we see, `ra=9` indicates the return address is stored in
 register `r9`.  Also we see CFA `r1+0` indicates the frame pointer is stored in
 register `r1`.  We can also see the stack frame size is `4` bytes.
 
+An example of the `frames-interp` dump:
+
 ```
 $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
 
@@ -250,8 +254,8 @@ $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
 
 GLIBC provides `pthreads` which when used with C++ needs to support exception
 handling.  The main place exceptions are used with `pthreads` is when cancelling
-a thread.  A cancel signal is sent to the thread which causes an exception, remember
-[cancel exceptions must be rethrown.](https://udrepper.livejournal.com/21541.html)
+threads.  A cancel signal is sent to the thread using [tgkill](https://man7.org/linux/man-pages/man2/tgkill.2.html)
+which causes an exception.
 
 This is implemented with the below APIs.
 
@@ -259,14 +263,14 @@ This is implemented with the below APIs.
     Setup during the pthread runtime initialization, it handles cancellation,
     which calls `__do_cancel()`, which calls `__pthread_unwind()`.
   - [`__pthread_unwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l121) -
-    Is called with `pd->cleanup_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
+    Is called with `pd->cancel_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
   - [`_Unwind_ForcedUnwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/nptl/unwind-forcedunwind.c;h=50a089282bc236aa644f40feafd0dacdafe3a4e7;hb=HEAD#l122) - 
     Loads GCC's `libgcc_s.so` version of `_Unwind_ForcedUnwind`
     and calls it with parameters:
     - `exc` - the exception context
-    - `unwind_stop` - the stop function, called for each frame of the unwind, with
+    - `unwind_stop` - the stop callback to GLIBC, called for each frame of the unwind, with
       the stop argument `ibuf`
-    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cleanup_jmp_buf`) in `pthread_create`
+    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cancel_jmp_buf`) in `pthread_create`
       the unwinder can call this to return back to pthread_create to do
       the cleanup
   - [unwind_stop](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l39) -
@@ -279,8 +283,25 @@ About the `pd->cancel_jmp_buf`.  This is setup during
 using the [setjmp](https://www.man7.org/linux/man-pages/man3/setjmp.3.html) and
 [longjump](https://man7.org/linux/man-pages/man3/longjmp.3.html) non local goto mechanism.
 
-A highly redacted version of our `pthread_create` and `unwind_stop` functions is
-shown below, to illustrate the interaction of `setjmp`/`longjmp`:
+Let's look at some diagrams.
+
+![Pthread Normal](/content/2020/pthread-normal-seq.png)
+
+The above diagram shows a pthread that exits normally.  When the
+thread is created `setjmp` will create the `cancel_jmp_buf`. After the thread
+routine exits it returns to the `start_thread` routine to do cleanup.
+The `cancel_jmp_buf` is not used.
+
+![Pthread Signalled](/content/2020/pthread-signalled-seq.png)
+
+The above diagram shows a pthread that exits normally.  When the
+thread is created `setjmp` will create the `cancel_jmp_buf`. In this case
+while the thread routine is running it is cancelled, the unwinder runs
+and at the end it calls `unwind_stop` which calls `longjmp`.  After the
+`longjmp` the thread is returned to `start_thread` to do cleanup.
+
+A highly redacted version of our `start_thread` and `unwind_stop` functions is
+shown below.
 
 ```c
 start_thread()
@@ -326,59 +347,64 @@ unwind_stop (_Unwind_Action actions,
 }
 ```
 
-![Pthread Signalled](/content/2020/pthread-signalled-seq.png)
-
-![Pthread Normal](/content/2020/pthread-normal-seq.png)
-
 #### GCC
 
 GCC provides the exception handling and unwinding cababilities
-to the c++ runtime.  They are implemented by:
+to the C++ runtime.  They are provided in the `libgcc_s.so` library and
+implemented by:
 
    - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
      - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
      - **FDE** lookup code [libgcc.unwind-dw2-fce.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2-fde.c;hb=HEAD)
 
-The IA-64 C++ Abis
+The `libgcc_s.so` library implements the [IA-64 Itanium Exception Handling ABI](https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html).
+It't interesting that the now defunct [Itanium](https://en.wikipedia.org/wiki/Itanium#Itanium_9700_(Kittson):_2017)
+architecture itroduced this ABI which is now the standard for all processor exception
+handling.
 
 *Forced Unwinds*
 
-   - `_Unwind_ForcedUnwind` - calls:
-     - uw_init_context()           - load details of the current frame, from cpu/stack.
-     - _Unwind_ForcedUnwind_Phase2 - do the frame iterations
-     - uw_install_context()        - actually context switch to the final frame.
-   - `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
-     - uw_frame_state_for() - setup FS for the current context (one frame up)
-     - stop(1, action, exc, context, stop_argument)
-     - fs.personality (1, exc, context) - called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
-     - uw_advance_context () - move current context one frame up
+Exceptions that are raised for thread cancellatin use a single phase forced unwind.
+Code execution will not resume, but catch blocks will be run.  This is why
+[cancel exceptions must be rethrown](https://udrepper.livejournal.com/21541.html).
+
+Forced unwinds use the `unwind_stop` handler which GLIBC provides as explaine above.
+
+- `_Unwind_ForcedUnwind` - calls:
+  - `uw_init_context`           - load details of the current frame, from cpu/stack.
+  - `_Unwind_ForcedUnwind_Phase2` - do the frame iterations
+  - `uw_install_context`        - actually context switch to the final frame.
+- `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
+  - `uw_frame_state_for` - setup FS for the current context (one frame up)
+  - `stop`               - callback to GLIBC to stop the unwind if needed
+  - `fs.personality` (1, exc, context) - called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
+  - `uw_advance_context` - move current context one frame up
 
 *Raising Exceptions*
 
-Exceptions raise programatically run very similar to the forced exception, but
+Exceptions raise programatically run very similar to the forced unwind, but
 there is no `stop` function and exception unwinding is 2 phase.
 
-   - `_Unwind_RaiseException` - similar to `_Unwind_ForcedUnwind`, but no `stop`, calls:
-     - `uw_init_context()`         - loaded details of the current frame, from cpu/stack.
-     - Do phase 1 loop:
-       - `uw_frame_state_for()`    - populate FS from current context + DWARF
-       - fs.personality            - called with `_UA_SEARCH_PHASE`
-       - `uw_update_context()`     - pupulated CONTEXT from FS
-     - `_Unwind_RaiseException_Phase2` - do the frame iterations
-     - `uw_install_context()`      - Exit unwinder jumping to selected frame
-   - `_Unwind_RaiseException_Phase2` - Do phase 2 - loops forever doing:
-     - `uw_frame_state_for()`  - Populate FS from CONTEXT + DWARF
-     - fs.personality          - called with `_UA_CLEANUP_PHASE`
-     - uw_update_context()      - pupulated CONTEXT from FS
+- `_Unwind_RaiseException` - similar to `_Unwind_ForcedUnwind`, but no `stop`, calls:
+  - `uw_init_context`         - loaded details of the current frame, from cpu/stack.
+  - Do phase 1 loop:
+    - `uw_frame_state_for`    - populate FS from current context + DWARF
+    - fs.personality            - called with `_UA_SEARCH_PHASE`
+    - `uw_update_context`     - pupulated CONTEXT from FS
+  - `_Unwind_RaiseException_Phase2` - do the frame iterations
+  - `uw_install_context`      - Exit unwinder jumping to selected frame
+- `_Unwind_RaiseException_Phase2` - Do phase 2 - loops forever doing:
+  - `uw_frame_state_for`  - Populate FS from CONTEXT + DWARF
+  - fs.personality          - called with `_UA_CLEANUP_PHASE`
+  - uw_update_context      - pupulated CONTEXT from FS
 
 *Implementations inside of GCC*
 
-   - DWARF, the followig methods are implemented using the dwarf (there are other implementations
-     in GCC, we and most architectures now use DWRF).
-     - uw_init_context FDE frame description entry
-     - uw_install_context
-     - uw_frame_state_for
-     - uw_advance_context
+   - The following methods are implemented using the DWARF
+     - `uw_init_context` FDE frame description entry
+     - `uw_install_context`
+     - `uw_frame_state_for`
+     - `uw_advance_context`
 
 *Personality*
 
@@ -400,10 +426,26 @@ there is no `stop` function and exception unwinding is 2 phase.
 
 #### Unwinding through a Signal Frame
 
-A process must be context switched to kernel space in order to receive a signal.
+A process must be context switched to kernel by either a system call, timer or other
+interrupt in order to receive a signal.
 
-The signal handler is executed in user space in a stack frame setup by the kernel.
-The signal frame.
+![The Stack Frame after an Interrupt](/content/2020/stack-frame-int.png)
+
+The diagram above shows what a process stack looks like after the kernel takes over.
+An interrupt frame is push to the top of the stack and the `pt_regs` structure
+is filled out containing the processor state before the interrupt.
+
+![The Stack Frame in a Sig Handler](/content/2020/stack-frame-in-handler.png)
+
+This second diagram shows what happens when a signal handler is invoked.  A new
+special signal frame is pushed onto the stack and when the process is resumed
+it resumes in the signal handler.  The signal frame is setup by the [setup_rt_frame](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/openrisc/kernel/signal.c?h=v5.10-rc7#n144)
+function which is called inside of `do_signal` which calls `handle_signal`
+which calls `setup_rt_frame`.
+
+After the signal handler routine runs we return to a special bit of code
+called the **Trampoline**.  The trampoline is a bit of code that lives
+on the stack and runs [sigretrun](https://man7.org/linux/man-pages/man2/sigreturn.2.html).
 
 Signal handlers may throw exceptions too, this means the unwinder needs to know
 about the signal frames.
@@ -420,24 +462,10 @@ The `or1k_fallback_frame_state` checks if the current frame is a signal frame
 by confirming the return address is a **Trampoline**.  If it is a trampoline
 it looks into the kernel saved `pt_regs` to find the previous user frame.
 
-![The Stack Frame after an Interrupt](/content/2020/stack-frame-int.png)
-
-![The Stack Frame in a Sig Handler](/content/2020/stack-frame-in-handler.png)
-
-After the sighandler action code returns we return and run `r9`, which calls sigreturn.
-
-  - restore blocked flags (from before syscall)
-  - restore mcontext
-  - restore altstack
-    - return r11
-
-
-**Trampoline Code**
-
 The unwinder detects that the stack frame is a *Signal Frame* by checking the
 code pointed to by the return address register `r9`.  If we find the trampoline
 code (which is always the same), the unwinder code will unwind the context
-back to the previos user frame by inwpecting the saved mcontext registers.
+back to the previous user frame by inwpecting the saved mcontext registers.
 
 ```
 	l.ori r11,r0,__NR_sigreturn
