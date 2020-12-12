@@ -105,9 +105,9 @@ static void * tf () {
 
 No, this works correctly.  So `try/catch` is working.
 
-**Hypothesis**: There is a problem handling exceptions while in a syscall.
-There may be something broken with OpenRISC related to how we setup stack
-frames for syscalls that makes the unwinder fail.
+> **Hypothesis**: There is a problem handling exceptions while in a syscall.
+> There may be something broken with OpenRISC related to how we setup stack
+> frames for syscalls that makes the unwinder fail.
 
 How does that work?  Let's move onto the next step.
 
@@ -354,10 +354,6 @@ unwind_stop (_Unwind_Action actions,
 GCC provides the exception handling and unwinding capabilities
 to the C++ runtime.  They are provided in the `libgcc_s.so` and `libstdc++.so.6` libraries.
 
-   - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
-     - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
-     - **FDE** lookup code [libgcc.unwind-dw2-fce.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2-fde.c;hb=HEAD)
-
 The `libgcc_s.so` library implements the [IA-64 Itanium Exception Handling ABI](https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html).
 It's interesting that the now defunct [Itanium](https://en.wikipedia.org/wiki/Itanium#Itanium_9700_(Kittson):_2017)
 architecture introduced this ABI which is now the standard for all processor exception
@@ -376,52 +372,57 @@ Forced unwinds use the `unwind_stop` handler which GLIBC provides as explained i
 the **GLIBC** section above.
 
 - [_Unwind_ForcedUnwind](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l201) - calls:
-  - [uw_init_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558) - load details of the current frame from cpu/stack into context.
-  - `_Unwind_ForcedUnwind_Phase2` - do the frame iterations
-  - [uw_install_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1641) - actually context switch to the final frame.
-- [_Unwind_ForcedUnwind_Phase2](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l144) - loops forever doing:
-  - [uw_frame_state_for](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1244) - populate frame state for the current context (one frame up)
+  - [uw_init_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558) - load details of the current frame from cpu/stack into CONTEXT
+  - [_Unwind_ForcedUnwind_Phase2](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l144) - do the frame iterations
+  - [uw_install_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1641) - exit unwinder jumping into the selected frame
+- `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
+  - [uw_frame_state_for](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1244) - populate FS for the frame one frame above CONTEXT, searching DWARF using CONTEXT->ra
   - `stop`- callback to GLIBC to stop the unwind if needed
-  - `fs.personality` - The C++ personality routine, see below, called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
-  - [uw_advance_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1552) - move current context one frame up
+  - `FS.personality` - the C++ personality routine, see below, called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
+  - [uw_advance_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1552) - advance CONTEXT by populating it from FS
 
 *Raising Exceptions*
 
-Exceptions raise programmatically run very similar to the forced unwind, but
+Exceptions raised programmatically unwind routine is very similar to the forced unwind, but
 there is no `stop` function and exception unwinding is 2 phase.
 
-- `_Unwind_RaiseException` - similar to `_Unwind_ForcedUnwind`, but no `stop`, calls:
-  - `uw_init_context`         - loaded details of the current frame, from cpu/stack.
+- [_Unwind_RaiseException](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l83) - calls:
+  - `uw_init_context` - load details of the current frame from cpu/stack into CONTEXT
   - Do phase 1 loop:
-    - `uw_frame_state_for`    - populate FS from current context + DWARF
-    - `fs.personality`            - called with `_UA_SEARCH_PHASE`
-    - `uw_update_context`     - pupulated CONTEXT from FS
-  - `_Unwind_RaiseException_Phase2` - do the frame iterations
-  - `uw_install_context`      - Exit unwinder jumping to selected frame
-- `_Unwind_RaiseException_Phase2` - Do phase 2 - loops forever doing:
-  - `uw_frame_state_for`  - Populate FS from CONTEXT + DWARF
-  - `fs.personality`          - called with `_UA_CLEANUP_PHASE`
-  - `uw_update_context`      - pupulated CONTEXT from FS
+    - `uw_frame_state_for` - populate FS for the frame one frame above CONTEXT, searching DWARF using CONTEXT->ra
+    - `FS.personality` - the C++ personality routine, see below, called with `_UA_SEARCH_PHASE`
+    - [uw_update_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1516) - advance CONTEXT by populating it from FS (same as `uw_advance_context`)
+  - [_Unwind_RaiseException_Phase2](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l30) - do the frame iterations
+  - `uw_install_context` - exit unwinder jumping to selected frame
+- `_Unwind_RaiseException_Phase2` - do phase 2, loops forever doing:
+  - `uw_frame_state_for` - populate FS for the frame one frame above CONTEXT, searching DWARF using CONTEXT->ra
+  - `FS.personality` - the C++ personality routine, called with `_UA_CLEANUP_PHASE`
+  - `uw_update_context` - advance CONTEXT by populating it from FS
 
-*Personality*
+The `libstdc++.so.6` library provides the [C++ standard library](https://gcc.gnu.org/onlinedocs/gcc-10.2.0/libstdc++/manual/)
+which includes the C++ personality routine [__gxx_personality_v0](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_personality.cc;h=fd7cd6fc79886bf17aea6bc713d2a3840aa31326;hb=HEAD#l336).
+The personality routine is the interface between the unwind routines and the c++
+(or other language) runtime, which handles the exception handling logic for that
+language.
 
-  - The personality routine is the interface between the unwind routines and the
-    c++ (or other language) runtime, which handles the exception handling
-    logic for that language.
+The presonality routin is
+As we saw above the personality routine is executed for each stack frame.  The
+function checks if there is a `catch` block that matches the exception being
+thrown.  If there is a match, it will update the context to prepare it to jump
+into the catch routine and return `_URC_INSTALL_CONTEXT`.  If there is no catch
+block matching it returns `_URC_CONTINUE_UNWIND`.
 
-  - C++
-    [__gxx_personality_v0](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_personality.cc;h=fd7cd6fc79886bf17aea6bc713d2a3840aa31326;hb=HEAD#l336)
-
-    In C++ the personality routine is executed for each stack frame.  The
-    function checks if there is a catch block that matches the exception being
-    thrown.  If there is a match, it will update the context to prepare it to jump
-    into the catch routine and return `_URC_INSTALL_CONTEXT`.
-    If there is no catch block matching it returns `_URC_CONTINUE_UNWIND`.
-
-    In the case of `_URC_INSTALL_CONTEXT` then the `_Unwind_ForcedUnwind_Phase2`
-    loop breaks and calls `uw_install_context`.
+In the case of `_URC_INSTALL_CONTEXT` then the `_Unwind_ForcedUnwind_Phase2`
+loop breaks and calls `uw_install_context`.
 
 #### Unwinding through a Signal Frame
+
+When the GCC unwinder is looping through frames the `uw_frame_state_for`
+function will search DWARF information.  The DWARF lookup will fail for signal
+frames and a fallback mechanism is provided for each architecture to handle
+this.  For OpenRISC linux this is handled by
+[or1k_fallback_frame_state](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/or1k/linux-unwind.h;h=c7ed043d3a89f2db205fd78fcb5db21f6fb561b2;hb=HEAD).
+To understand how this works let's look into the Linux kernel a bit.
 
 A process must be context switched to kernel by either a system call, timer or other
 interrupt in order to receive a signal.
@@ -429,14 +430,14 @@ interrupt in order to receive a signal.
 ![The Stack Frame after an Interrupt](/content/2020/stack-frame-int.png)
 
 The diagram above shows what a process stack looks like after the kernel takes over.
-An interrupt frame is push to the top of the stack and the `pt_regs` structure
+An *interrupt frame* is push to the top of the stack and the `pt_regs` structure
 is filled out containing the processor state before the interrupt.
 
 ![The Stack Frame in a Sig Handler](/content/2020/stack-frame-in-handler.png)
 
 This second diagram shows what happens when a signal handler is invoked.  A new
-special signal frame is pushed onto the stack and when the process is resumed
-it resumes in the signal handler.  The signal frame is setup by the [setup_rt_frame](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/openrisc/kernel/signal.c?h=v5.10-rc7#n144)
+special *signal frame* is pushed onto the stack and when the process is resumed
+it resumes in the signal handler.  In OpenRISC the signal frame is setup by the [setup_rt_frame](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/openrisc/kernel/signal.c?h=v5.10-rc7#n144)
 function which is called inside of `do_signal` which calls `handle_signal`
 which calls `setup_rt_frame`.
 
@@ -444,42 +445,27 @@ After the signal handler routine runs we return to a special bit of code
 called the **Trampoline**.  The trampoline is a bit of code that lives
 on the stack and runs [sigretrun](https://man7.org/linux/man-pages/man2/sigreturn.2.html).
 
-Signal handlers may throw exceptions too, this means the unwinder needs to know
-about the signal frames.
+Now back to `or1k_fallback_frame_state`.
 
-For OpenRISC linux this is handled in libgcc in [linux-unwind.h](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/or1k/linux-unwind.h;h=c7ed043d3a89f2db205fd78fcb5db21f6fb561b2;hb=HEAD)
-
-```c
-static _Unwind_Reason_Code
-or1k_fallback_frame_state (struct _Unwind_Context *context,
-			   _Unwind_FrameState *fs)
-```
-
-The `or1k_fallback_frame_state` checks if the current frame is a signal frame
+The `or1k_fallback_frame_state` function checks if the current frame is a *signal frame*
 by confirming the return address is a **Trampoline**.  If it is a trampoline
-it looks into the kernel saved `pt_regs` to find the previous user frame.
-
-The unwinder detects that the stack frame is a *Signal Frame* by checking the
-code pointed to by the return address register `r9`.  If we find the trampoline
-code (which is always the same), the unwinder code will unwind the context
-back to the previous user frame by inwpecting the saved mcontext registers.
-
-```
-	l.ori r11,r0,__NR_sigreturn
-	l.sys 1
-	l.nop
-```
+it looks into the kernel saved `pt_regs` to find the previous user frame.  Unwinding,
+can then continue as normal.
 
 ### Debugging the Issue
 
-With GDB we can trace right to the start of the exception handling logic by setting
-our breakout at `_Unwind_ForcedUnwind`.  This is right before we start unwinding stacks.
+Now with a good background in how unwinding works we can start to debug our test
+case.  We can recall our hypothesis:
 
-Stack unwinding is started with one of 2 functions:
- - `_Unwind_ForcedUnwind` - called when our thread gets a stopping signal
- - `_Unwind_RaiseException` - called when we want to raise an exception
+> **Hypothesis**: There is a problem handling exceptions while in a syscall.
+> There may be something broken with OpenRISC related to how we setup stack
+> frames for syscalls that makes the unwinder fail.
 
-This is the stack trace I have now:
+With GDB we can start to debug exception handling, we can trace right to the
+start of the exception handling logic by setting our breakpoint at
+`_Unwind_ForcedUnwind`.
+
+This is the stack trace we see:
 
 ```
 #0  _Unwind_ForcedUnwind_Phase2 (exc=0x30caf658, context=0x30caeb6c, frames_p=0x30caea90) at ../../../libgcc/unwind.inc:192
@@ -499,11 +485,11 @@ Backtrace stopped: frame did not save the PC
 (gdb)
 ```
 
-Debugging when we unwind a signal frame can be seen when we place
+Debugging when we unwind a signal frame can be done by placing
 a breakpoint on `or1k_fallback_frame_state`.
 
 As we can see the stack trace goes through the signal frame and to
-the original thread. It works correctly.
+the original thread.  Debugging this code as well shows it works correctly.
 
 ```
 #0  or1k_fallback_frame_state (context=<optimized out>, context=<optimized out>, fs=<optimized out>) at ../../../libgcc/unwind-dw2.c:1271
@@ -524,23 +510,8 @@ Debugging when the unwinding stops can be done by setting a breakpoint
 on the `unwind_stop` function.
 
 When debugging I was able to see that the unwinder failed when looking for
-the `__futex_abstimed_wait_cancelable64` frame.
-
-```
-Thread 2 "throw-pthread-s" hit Breakpoint 1, 0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
-(gdb) bt
-#0  0x00007ffff7c383b0 in unwind_stop () from /lib64/libpthread.so.0
-#1  0x00007ffff7c57d29 in _Unwind_ForcedUnwind_Phase2 () from /lib64/libgcc_s.so.1
-#2  0x00007ffff7c58442 in _Unwind_ForcedUnwind () from /lib64/libgcc_s.so.1
-#3  0x00007ffff7c38546 in __pthread_unwind () from /lib64/libpthread.so.0
-#4  0x00007ffff7c2cc99 in sigcancel_handler () from /lib64/libpthread.so.0
-#5  <signal handler called>
-#6  0x00007ffff7c37a24 in do_futex_wait.constprop () from /lib64/libpthread.so.0
-#7  0x00007ffff7c37b28 in __new_sem_wait_slow.constprop.0 () from /lib64/libpthread.so.0
-#8  0x000000000040120c in tf (arg=0x7fffffffc900) at throw-pthread-sem.cc:35
-#9  0x00007ffff7c2e432 in start_thread () from /lib64/libpthread.so.0
-#10 0x00007ffff7b5c9d3 in clone () from /lib64/libc.so.6
-```
+the `__futex_abstimed_wait_cancelable64` frame.  So, this is not an issue
+with unwinding signal frames.
 
 ### A second Hypothosis
 
@@ -548,12 +519,10 @@ Debugging showed that the uwinder is working correctly, and it can properly unwi
 our signal frames.  However, the unwinder is bailing out early before it gets to the `tf`
 frame which has the catch block we need to execute.
 
-We need another idea.
+> **Hypothesis 2**: There is something wrong finding DWARF info for `__futex_abstimed_wait_cancelable64`.
 
-I noticed that the unwinder failed to find the **DWARF** info for `__futex_abstimed_wait_cancelable64`.
-
-Looking at `libpthread.so` this function was missing completely from the `.eh_frame`
-metadata.
+Looking at `libpthread.so` with `readelf` this function was missing completely from the `.eh_frame`
+metadata.  Now we found something.
 
 Who create the `.eh_frame` anyway?  GCC or Binutils (Assembler). If we run GCC
 with the `-S` argument we can see GCC will output `.cfi` directives.  These
@@ -597,7 +566,7 @@ unwind_stop:
 When looking at the glibc build I noticed the `.eh_frame` data for
 `__futex_abstimed_wait_cancelable64` is missing from futex-internal.o. The one
 where unwinding is failing we find it was completely mising `.cfi` directives.
-This means something is wrong with GCC
+Why is GCC not generating `.cfi` directives for this file?
 
 
 ```c
@@ -631,9 +600,9 @@ __futex_abstimed_wait_cancelable64:
 Looking closer at the build line of these 2 files I see the build of `futex-internal.c`
 is missing `-fexceptions`.
 
-This flag is needed to enabled the `eh_frames` section, which is what powers c++
-exceptions, it is needed even when we are building C in our case as we C++ exceptions
-may need to unwind through C function stack frames.
+This flag is needed to enabled the `eh_frames` section, which is what powers C++
+exceptions, it is needed even when we are building C code which needs to support
+C++ exceptions.
 
 So why is it not enabled?  Is this a problem with the GLIBC build?
 
@@ -656,7 +625,7 @@ CFLAGS-sem_timedwait.c += -fexceptions -fasynchronous-unwind-tables
 CFLAGS-sem_clockwait.c = -fexceptions -fasynchronous-unwind-tables
 ```
 
-If is missing such a line for `futex-internal.c`.  The following patch and a
+It is missing such a line for `futex-internal.c`.  The following patch and a
 libpthread rebuild fixes the issue!
 
 
@@ -673,9 +642,19 @@ libpthread rebuild fixes the issue!
  CFLAGS-fcntl.c += -fexceptions -fasynchronous-unwind-tables
 ```
 
+I [submitted this patch](http://sourceware-org.1504.n7.nabble.com/PATCH-nptl-Fix-issue-unwinding-through-sem-wait-futex-tt653730.html#a653833)
+to GLIBC but it turns out it was already [fixed upstream](https://sourceware.org/git/?p=glibc.git;a=commit;h=a04689ee7a2600a1466354096123c57ccd1e1dc7) a few weeks before.
+
+## Summary
+
+I hope the investigation into debugging this C++ exception test case proved interesting.
+We can learn a lot when we are forced to understand the deep internals of our tools.
+Like most illusive bugs in the end this was a trivial fix, but required some
+key background knowledge.
+
 ## Additional Reading
- - The IA64 Undwinder ABI - https://itanium-cxx-abi.github.io/cxx-abi/
- - [Reliable DWARF Unwinding](https://fzn.fr/projects/frdwarf/dwarf-oopsla19-slides.pdf)
- - [Exception Frames](https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html)
+ - [The IA64 Undwinder ABI](https://itanium-cxx-abi.github.io/cxx-abi/) - The core unwinder API's
+ - [Reliable DWARF Unwinding](https://fzn.fr/projects/frdwarf/dwarf-oopsla19-slides.pdf) - a Good presentation
+ - [Exception Frames](https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html) - DWARF documentation
 
 
