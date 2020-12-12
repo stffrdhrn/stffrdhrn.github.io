@@ -5,8 +5,8 @@ date: 2020-11-01
 ---
 
 I have been working on porting GLIBC to the OpenRISC architecture.  This has
-taken longer than I expected as with GLIBC upstreaming you we must get every
-single test to pass.  This was different compared with GDB and GCC which were a
+taken longer than I expected as with GLIBC upstreaming we must get every
+test to pass.  This was different compared to GDB and GCC which were a
 bit more lenient.
 
 My [first upstreaming attempt](https://lists.librecores.org/pipermail/openrisc/2020-May/002602.html)
@@ -24,7 +24,7 @@ To get to where I am now this required:
 - Updating the OpenRISC GDB port to [support gdbserver](https://github.com/stffrdhrn/binutils-gdb/commit/9d0d2e9bef5c84caa7f05cc7ddba1e092e2b5120)
   and [native debugging](https://github.com/stffrdhrn/binutils-gdb/commit/82e99d5df56be3b18c63e613d00e2367fb5a78b7)
 - Fixing bugs in the [Linux Kernel](https://github.com/stffrdhrn/linux/commit/28b852b1dc351efc6525234c5adfd5bc2ad6d6e1) and
-  [GLIBC](https://github.com/stffrdhrn/or1k-glibc/commit/75ddf155968299042e4d2b492e3b547c86d4672e) to get gdbserver and native suport working
+  [GLIBC](https://github.com/stffrdhrn/or1k-glibc/commit/75ddf155968299042e4d2b492e3b547c86d4672e) to get gdbserver and native support working
 
 Adding GDB Linux debugging support is great because it allows debugging of
 multithreaded processes and signal handling; which we are going to need.
@@ -47,10 +47,10 @@ Let's have a try.
 
 ### Understanding the Test case
 
-The GLIBC test case is [nptl/tst-cancel24.cc](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/tst-cancel24.cc;h=1af709a8cab1d422ef4401e2b2d178df86f863c5;hb=HEAD)`.
+The GLIBC test case is [nptl/tst-cancel24.cc](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/tst-cancel24.cc;h=1af709a8cab1d422ef4401e2b2d178df86f863c5;hb=HEAD).
 The test starts in the `do_test` function and it will create a child thread with `pthread_create`.
 The child thread executes function `tf` which waits on a semaphore until the parent thread cancels it.  It
-is expected that the child thread, when cancelled , will call it's catch blocks.
+is expected that the child thread, when cancelled , will call it's catch block.
 
 The failure is that the `catch` block is not getting run as evidenced by the `except_caught` variable
 not being set to `true`.
@@ -113,7 +113,7 @@ How does that work?  Let's move onto the next step.
 
 ### Understanding the Internals
 
-For this case we need to understand how C++ exceptions work.  Also, we need to know
+To solve this case failure we need to understand how C++ exceptions work.  Also, we need to know
 what happens when a thread is cancelled in a multithreaded
 ([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.
 
@@ -134,11 +134,11 @@ ELF binaries provide debugging information in a data format called
 fantasy theme.  Lately the Linux community has a new debug format called
 [ORC](https://lwn.net/Articles/728339/).
 
-Though this is a debugging format and usually stored in `.debug_frame`,
+Though DWARF is a debugging format and usually stored in `.debug_frame`,
 `.debug_info`, etc sections, a stripped down version it is used for exception
 handling.
 
-Each binary file that support unwinding contains the `.eh_frame` section to
+Each ELF binary that supports unwinding contains the `.eh_frame` section to
 provide unwinding information.  This can be seen with the `readelf` program.
 
 ```
@@ -176,8 +176,8 @@ This is not usually as useful as `frames-interp`, but it shows how the DWARF
 format is actually a bytecode.  The DWARF interpreter needs to execute these
 operations to understand how to derive the values of registers based current PC.
 
-There is an interesting talk about [Exploiting the hard-working
-DWARF](https://www.cs.dartmouth.edu/~sergey/battleaxe/hackito_2011_oakley_bratus.pdf).
+There is an interesting talk in [Exploiting the hard-working
+DWARF.pdf](https://www.cs.dartmouth.edu/~sergey/battleaxe/hackito_2011_oakley_bratus.pdf).
 
 An example of the `frames` dump:
 
@@ -220,21 +220,22 @@ $ readelf --debug-dump=frames sysroot/lib/libc.so.6
   DW_CFA_restore: r9
 ```
 
-The `frames-interp` argument is a bit more clear.  We can see
-two things:
+The `frames-interp` argument is a bit more clear as it shows the interpreted output
+of the bytecode.  Below we see two types of entries:
   - `CIE` - Common Information Entry
   - `FDE` - Frame Description Entry
 
 The `CIE` provides starting point information for each child `FDE` entry.  Some
-things to point out we see, `ra=9` indicates the return address is stored in
-register `r9`.  Also we see CFA `r1+0` indicates the frame pointer is stored in
-register `r1`.  We can also see the stack frame size is `4` bytes.
+things to point out: we see `ra=9` indicates the return address is stored in
+register `r9`,  we see CFA `r1+0` indicates the canonical frame pointer is stored in
+register `r1` and we see the stack frame size is `4` bytes.
 
 An example of the `frames-interp` dump:
 
 ```
 $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
 
+...
 00016788 0000000c ffffffff CIE "" cf=4 df=-4 ra=9
    LOC   CFA
 00000000 r1+0
@@ -254,14 +255,14 @@ $ readelf --debug-dump=frames-interp sysroot/lib/libc.so.6
 
 GLIBC provides `pthreads` which when used with C++ needs to support exception
 handling.  The main place exceptions are used with `pthreads` is when cancelling
-threads.  A cancel signal is sent to the thread using [tgkill](https://man7.org/linux/man-pages/man2/tgkill.2.html)
+threads.  When using `pthread_cancel` a cancel signal is sent to the target thread using [tgkill](https://man7.org/linux/man-pages/man2/tgkill.2.html)
 which causes an exception.
 
 This is implemented with the below APIs.
 
   - [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
     Setup during the pthread runtime initialization, it handles cancellation,
-    which calls `__do_cancel()`, which calls `__pthread_unwind()`.
+    which calls `__do_cancel`, which calls `__pthread_unwind`.
   - [`__pthread_unwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l121) -
     Is called with `pd->cancel_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
   - [`_Unwind_ForcedUnwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/nptl/unwind-forcedunwind.c;h=50a089282bc236aa644f40feafd0dacdafe3a4e7;hb=HEAD#l122) - 
@@ -270,25 +271,23 @@ This is implemented with the below APIs.
     - `exc` - the exception context
     - `unwind_stop` - the stop callback to GLIBC, called for each frame of the unwind, with
       the stop argument `ibuf`
-    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cancel_jmp_buf`) in `pthread_create`
-      the unwinder can call this to return back to pthread_create to do
-      the cleanup
+    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cancel_jmp_buf`) in `start_thread`
   - [unwind_stop](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l39) -
     Checks the current state of unwind and call the `cancel_jmp_buf` if
     we are at the end of stack.  When the `cancel_jmp_buf` is called the thread
     exits.
 
-About the `pd->cancel_jmp_buf`.  This is setup during
-[pthread_create](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/pthread_create.c;h=bad4e57a845bd3148ad634acaaccbea08b04dbbd;hb=HEAD#l406)
-using the [setjmp](https://www.man7.org/linux/man-pages/man3/setjmp.3.html) and
+Let's look at `pd->cancel_jmp_buf` in more details.  The `cancel_jmp_buf` is
+setup during `pthread_create` after clone in [start_thread](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/pthread_create.c;h=bad4e57a845bd3148ad634acaaccbea08b04dbbd;hb=HEAD#l406).
+It uses the [setjmp](https://www.man7.org/linux/man-pages/man3/setjmp.3.html) and
 [longjump](https://man7.org/linux/man-pages/man3/longjmp.3.html) non local goto mechanism.
 
 Let's look at some diagrams.
 
 ![Pthread Normal](/content/2020/pthread-normal-seq.png)
 
-The above diagram shows a pthread that exits normally.  When the
-thread is created `setjmp` will create the `cancel_jmp_buf`. After the thread
+The above diagram shows a pthread that exits normally.  During the *Start* phase
+of the thread `setjmp` will create the `cancel_jmp_buf`. After the thread
 routine exits it returns to the `start_thread` routine to do cleanup.
 The `cancel_jmp_buf` is not used.
 
@@ -318,6 +317,8 @@ start_thread()
       /* Store the new cleanup handler info.  */
       THREAD_SETMEM (pd, cleanup_jmp_buf, &unwind_buf);
       ...
+
+      /* Run the user provided thread routine */
       ret = pd->start_routine (pd->arg);
       THREAD_SETMEM (pd, result, ret);
     }
@@ -340,6 +341,7 @@ unwind_stop (_Unwind_Action actions,
     do_longjump = 1;
 
   ...
+  /* If we are at the end, go back start_thread for cleanup */
   if (do_longjump)
     __libc_unwind_longjmp ((struct __jmp_buf_tag *) buf->cancel_jmp_buf, 1);
 
@@ -349,62 +351,57 @@ unwind_stop (_Unwind_Action actions,
 
 #### GCC
 
-GCC provides the exception handling and unwinding cababilities
-to the C++ runtime.  They are provided in the `libgcc_s.so` library and
-implemented by:
+GCC provides the exception handling and unwinding capabilities
+to the C++ runtime.  They are provided in the `libgcc_s.so` and `libstdc++.so.6` libraries.
 
    - In file [libgcc/unwind.inc](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;hb=HEAD)
      - **DWARF** implementations [libgcc/unwind-dw2.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;hb=HEAD)
      - **FDE** lookup code [libgcc.unwind-dw2-fce.c](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2-fde.c;hb=HEAD)
 
 The `libgcc_s.so` library implements the [IA-64 Itanium Exception Handling ABI](https://itanium-cxx-abi.github.io/cxx-abi/abi-eh.html).
-It't interesting that the now defunct [Itanium](https://en.wikipedia.org/wiki/Itanium#Itanium_9700_(Kittson):_2017)
-architecture itroduced this ABI which is now the standard for all processor exception
-handling.
+It's interesting that the now defunct [Itanium](https://en.wikipedia.org/wiki/Itanium#Itanium_9700_(Kittson):_2017)
+architecture introduced this ABI which is now the standard for all processor exception
+handling.  There are two main entry points for the unwinder are:
+
+- `_Unwind_ForcedUnwind` - for forced unwinding
+- `_Unwind_RaiseException` - for raising normal exceptions
 
 *Forced Unwinds*
 
-Exceptions that are raised for thread cancellatin use a single phase forced unwind.
+Exceptions that are raised for thread cancellation use a single phase forced unwind.
 Code execution will not resume, but catch blocks will be run.  This is why
 [cancel exceptions must be rethrown](https://udrepper.livejournal.com/21541.html).
 
-Forced unwinds use the `unwind_stop` handler which GLIBC provides as explaine above.
+Forced unwinds use the `unwind_stop` handler which GLIBC provides as explained in
+the **GLIBC** section above.
 
-- `_Unwind_ForcedUnwind` - calls:
-  - `uw_init_context`           - load details of the current frame, from cpu/stack.
+- [_Unwind_ForcedUnwind](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l201) - calls:
+  - [uw_init_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558) - load details of the current frame from cpu/stack into context.
   - `_Unwind_ForcedUnwind_Phase2` - do the frame iterations
-  - `uw_install_context`        - actually context switch to the final frame.
-- `_Unwind_ForcedUnwind_Phase2` - loops forever doing:
-  - `uw_frame_state_for` - setup FS for the current context (one frame up)
-  - `stop`               - callback to GLIBC to stop the unwind if needed
-  - `fs.personality` (1, exc, context) - called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
-  - `uw_advance_context` - move current context one frame up
+  - [uw_install_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1641) - actually context switch to the final frame.
+- [_Unwind_ForcedUnwind_Phase2](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l144) - loops forever doing:
+  - [uw_frame_state_for](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1244) - populate frame state for the current context (one frame up)
+  - `stop`- callback to GLIBC to stop the unwind if needed
+  - `fs.personality` - The C++ personality routine, see below, called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
+  - [uw_advance_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1558#l1552) - move current context one frame up
 
 *Raising Exceptions*
 
-Exceptions raise programatically run very similar to the forced unwind, but
+Exceptions raise programmatically run very similar to the forced unwind, but
 there is no `stop` function and exception unwinding is 2 phase.
 
 - `_Unwind_RaiseException` - similar to `_Unwind_ForcedUnwind`, but no `stop`, calls:
   - `uw_init_context`         - loaded details of the current frame, from cpu/stack.
   - Do phase 1 loop:
     - `uw_frame_state_for`    - populate FS from current context + DWARF
-    - fs.personality            - called with `_UA_SEARCH_PHASE`
+    - `fs.personality`            - called with `_UA_SEARCH_PHASE`
     - `uw_update_context`     - pupulated CONTEXT from FS
   - `_Unwind_RaiseException_Phase2` - do the frame iterations
   - `uw_install_context`      - Exit unwinder jumping to selected frame
 - `_Unwind_RaiseException_Phase2` - Do phase 2 - loops forever doing:
   - `uw_frame_state_for`  - Populate FS from CONTEXT + DWARF
-  - fs.personality          - called with `_UA_CLEANUP_PHASE`
-  - uw_update_context      - pupulated CONTEXT from FS
-
-*Implementations inside of GCC*
-
-   - The following methods are implemented using the DWARF
-     - `uw_init_context` FDE frame description entry
-     - `uw_install_context`
-     - `uw_frame_state_for`
-     - `uw_advance_context`
+  - `fs.personality`          - called with `_UA_CLEANUP_PHASE`
+  - `uw_update_context`      - pupulated CONTEXT from FS
 
 *Personality*
 
