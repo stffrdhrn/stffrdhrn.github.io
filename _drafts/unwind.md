@@ -483,11 +483,16 @@ Backtrace stopped: frame did not save the PC
 (gdb)
 ```
 
-Debugging when we unwind a signal frame can be done by placing
-a breakpoint on `or1k_fallback_frame_state`.
+In the GDB backtrack we can see it unwinds through, the signal frame, `sem_wait`
+all the way to our thread routine `tf`.  It appears everything, is working fine.
+But we need to remember the backtrace we see above is from GDB's unwinder not
+GCC, also it uses the `.debug_info` DWARF data, not `.eh_frame`.
 
-As we can see the stack trace goes through the signal frame and to
-the original thread.  Debugging this code as well shows it works correctly.
+To really ensure the GCC unwinder is working as expected we need to debug it
+walking the stack.  Debugging when we unwind a signal frame can be done by
+placing a breakpoint on `or1k_fallback_frame_state`.
+
+Debugging this code as well shows it works correctly.
 
 ```
 #0  or1k_fallback_frame_state (context=<optimized out>, context=<optimized out>, fs=<optimized out>) at ../../../libgcc/unwind-dw2.c:1271
@@ -513,19 +518,22 @@ with unwinding signal frames.
 
 ### A second Hypothosis
 
-Debugging showed that the uwinder is working correctly, and it can properly unwind through
-our signal frames.  However, the unwinder is bailing out early before it gets to the `tf`
-frame which has the catch block we need to execute.
+Debugging showed that the uwinder is working correctly, and it can properly
+unwind through our signal frames.  However, the unwinder is bailing out early
+before it gets to the `tf` frame which has the catch block we need to execute.
 
 > **Hypothesis 2**: There is something wrong finding DWARF info for `__futex_abstimed_wait_cancelable64`.
 
 Looking at `libpthread.so` with `readelf` this function was missing completely from the `.eh_frame`
 metadata.  Now we found something.
 
-Who create the `.eh_frame` anyway?  GCC or Binutils (Assembler). If we run GCC
-with the `-S` argument we can see GCC will output `.cfi` directives.  These
-`.cfi` annotations are what gets compiled to the to `.eh_frame`, an example:
+What creates the `.eh_frame` anyway?  GCC or Binutils (Assembler). If we run GCC
+with the `-S` argument we can see GCC will output inline `.cfi` directives.
+These `.cfi` annotations are what gets compiled to the to `.eh_frame`.  GCC
+creates the `.cfi` directives and the Assembler puts them into the `.eh_frame`
+section.
 
+An example of `gcc -S`:
 
 ```c
          .file   "unwind.c"
@@ -598,9 +606,9 @@ __futex_abstimed_wait_cancelable64:
 Looking closer at the build line of these 2 files I see the build of `futex-internal.c`
 is missing `-fexceptions`.
 
-This flag is needed to enabled the `eh_frames` section, which is what powers C++
-exceptions, it is needed even when we are building C code which needs to support
-C++ exceptions.
+This flag is needed to enable the `eh_frame` section, which is what powers C++
+exceptions, the flag is needed when we are building C code which needs to
+support C++ exceptions.
 
 So why is it not enabled?  Is this a problem with the GLIBC build?
 
@@ -646,8 +654,8 @@ to GLIBC but it turns out it was already [fixed upstream](https://sourceware.org
 ## Summary
 
 I hope the investigation into debugging this C++ exception test case proved interesting.
-We can learn a lot when we are forced to understand the deep internals of our tools.
-Like most illusive bugs in the end this was a trivial fix, but required some
+We can learn a lot about the deep internals of our tools when we have to fix bugs in them.
+Like most illusive bugs, in the end this was a trivial fix but required some
 key background knowledge.
 
 ## Additional Reading
