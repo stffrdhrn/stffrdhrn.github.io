@@ -1,5 +1,5 @@
 ---
-title: Unwinding - How the C++ Exceptions Work
+title: Unwinding a Bug - How C++ Exceptions Work
 layout: post
 started: 2020-11-01
 date: 2020-12-13 04:25
