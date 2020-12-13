@@ -33,7 +33,7 @@ multithreaded processes and signal handling; which we are going to need.
 
 ## A Bug
 
-Our story starts when I was trying to fix is a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
+Our story starts when I was trying to fix a failing GLIBC [NPTL](https://en.wikipedia.org/wiki/Native_POSIX_Thread_Library)
 test case.  The test case involves C++ exceptions and POSIX threads.
 The issue is that the `catch` block of a `try/catch` block is not
 being called.  Where do we even start?
