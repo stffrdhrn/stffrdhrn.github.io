@@ -261,22 +261,22 @@ which causes an exception.
 
 This is implemented with the below APIs.
 
-  - [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
-    Setup during the pthread runtime initialization, it handles cancellation,
-    which calls `__do_cancel`, which calls `__pthread_unwind`.
-  - [`__pthread_unwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l121) -
-    Is called with `pd->cancel_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
-  - [`_Unwind_ForcedUnwind`](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/nptl/unwind-forcedunwind.c;h=50a089282bc236aa644f40feafd0dacdafe3a4e7;hb=HEAD#l122) - 
-    Loads GCC's `libgcc_s.so` version of `_Unwind_ForcedUnwind`
-    and calls it with parameters:
-    - `exc` - the exception context
-    - `unwind_stop` - the stop callback to GLIBC, called for each frame of the unwind, with
-      the stop argument `ibuf`
-    - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cancel_jmp_buf`) in `start_thread`
-  - [unwind_stop](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l39) -
-    Checks the current state of unwind and call the `cancel_jmp_buf` if
-    we are at the end of stack.  When the `cancel_jmp_buf` is called the thread
-    exits.
+- [sigcancel_handler](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/nptl-init.c;h=53b817715d58192857ed14450052e16dc34bc01b;hb=HEAD#l126) -
+  Setup during the pthread runtime initialization, it handles cancellation,
+  which calls `__do_cancel`, which calls `__pthread_unwind`.
+- [__pthread_unwind](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l121) -
+  Is called with `pd->cancel_jmp_buf`.  It calls glibc's `__Unwind_ForcedUnwind`.
+- [_Unwind_ForcedUnwind](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/nptl/unwind-forcedunwind.c;h=50a089282bc236aa644f40feafd0dacdafe3a4e7;hb=HEAD#l122) -
+  Loads GCC's `libgcc_s.so` version of `_Unwind_ForcedUnwind`
+  and calls it with parameters:
+  - `exc` - the exception context
+  - `unwind_stop` - the stop callback to GLIBC, called for each frame of the unwind, with
+    the stop argument `ibuf`
+  - `ibuf` - the `jmp_buf`, created by `setjmp` (`self->cancel_jmp_buf`) in `start_thread`
+- [unwind_stop](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/unwind.c;h=8f157e49f4a088ac64722e85ff24514fff7f3c71;hb=HEAD#l39) -
+  Checks the current state of unwind and call the `cancel_jmp_buf` if
+  we are at the end of stack.  When the `cancel_jmp_buf` is called the thread
+  exits.
 
 Let's look at `pd->cancel_jmp_buf` in more details.  The `cancel_jmp_buf` is
 setup during `pthread_create` after clone in [start_thread](https://sourceware.org/git/?p=glibc.git;a=blob;f=nptl/pthread_create.c;h=bad4e57a845bd3148ad634acaaccbea08b04dbbd;hb=HEAD#l406).
