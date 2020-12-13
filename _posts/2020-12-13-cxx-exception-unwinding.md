@@ -651,7 +651,8 @@ libpthread rebuild fixes the issue!
 ```
 
 I [submitted this patch](http://sourceware-org.1504.n7.nabble.com/PATCH-nptl-Fix-issue-unwinding-through-sem-wait-futex-tt653730.html#a653833)
-to GLIBC but it turns out it was already [fixed upstream](https://sourceware.org/git/?p=glibc.git;a=commit;h=a04689ee7a2600a1466354096123c57ccd1e1dc7) a few weeks before.
+to GLIBC but it turns out it was already [fixed upstream](https://sourceware.org/git/?p=glibc.git;a=commit;h=a04689ee7a2600a1466354096123c57ccd1e1dc7)
+a few weeks before. Doh.
 
 ## Summary
 
