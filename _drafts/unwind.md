@@ -85,7 +85,7 @@ debug that?  Let's move onto the next step.
 This one is a bit tricky as it seems C++ `try/catch` blocks are broken. Here, I am
 working on GLIBC testing, what does that have to do with C++?
 
-To get a good idea of where the problem is, I tried to modify the test to test
+To get a better idea of where the problem is I tried to modify the test to test
 some simple ideas. First, maybe there is a problem with catching exceptions
 throws from thread child functions.
 
@@ -113,12 +113,11 @@ How does that work?  Let's move onto the next step.
 
 ### Understanding the Internals
 
-To solve this case failure we need to understand how C++ exceptions work.  Also, we need to know
+To find this bug we need to understand how C++ exceptions work.  Also, we need to know
 what happens when a thread is cancelled in a multithreaded
 ([pthread](https://en.wikipedia.org/wiki/POSIX_Threads)) glibc environment.
 
-C++ Exceptions work using GCC stack frame unwinding infrastructure.  There are a
-few contributors to C++ exceptions and unwinding which are:
+There are a few contributors pthread cancellation and C++ exceptions which are:
 
 - **DWARF** - provided by our program and libraries in the `.eh_frame` ELF
   section
@@ -381,9 +380,9 @@ the **GLIBC** section above.
   - `FS.personality` - the C++ personality routine, see below, called with `_UA_FORCE_UNWIND | _UA_CLEANUP_PHASE`
   - [uw_advance_context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l1552) - advance CONTEXT by populating it from FS
 
-*Raising Exceptions*
+*Normal Exceptions*
 
-Exceptions raised programmatically unwind routine is very similar to the forced unwind, but
+For exceptions raised programmatically unwinding is very similar to the forced unwind, but
 there is no `stop` function and exception unwinding is 2 phase.
 
 - [_Unwind_RaiseException](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind.inc;h=9acead33ffc01e892d6feda2aaeffd9d04e56e74;hb=HEAD#l83) - calls:
@@ -405,7 +404,6 @@ The personality routine is the interface between the unwind routines and the c++
 (or other language) runtime, which handles the exception handling logic for that
 language.
 
-The presonality routin is
 As we saw above the personality routine is executed for each stack frame.  The
 function checks if there is a `catch` block that matches the exception being
 thrown.  If there is a match, it will update the context to prepare it to jump
@@ -420,7 +418,7 @@ loop breaks and calls `uw_install_context`.
 When the GCC unwinder is looping through frames the `uw_frame_state_for`
 function will search DWARF information.  The DWARF lookup will fail for signal
 frames and a fallback mechanism is provided for each architecture to handle
-this.  For OpenRISC linux this is handled by
+this.  For OpenRISC Linux this is handled by
 [or1k_fallback_frame_state](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/config/or1k/linux-unwind.h;h=c7ed043d3a89f2db205fd78fcb5db21f6fb561b2;hb=HEAD).
 To understand how this works let's look into the Linux kernel a bit.
 
