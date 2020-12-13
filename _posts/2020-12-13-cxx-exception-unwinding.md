@@ -294,7 +294,7 @@ The `cancel_jmp_buf` is not used.
 
 ![Pthread Signalled](/content/2020/pthread-signalled-seq.png)
 
-The above diagram shows a pthread that exits normally.  When the
+The above diagram shows a pthread that is cancelled.  When the
 thread is created `setjmp` will create the `cancel_jmp_buf`. In this case
 while the thread routine is running it is cancelled, the unwinder runs
 and at the end it calls `unwind_stop` which calls `longjmp`.  After the
