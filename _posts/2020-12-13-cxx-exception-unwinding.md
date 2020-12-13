@@ -1,7 +1,9 @@
 ---
 title: Unwinding - How the C++ Exceptions Work
 layout: post
-date: 2020-11-01
+started: 2020-11-01
+date: 2020-12-13 04:25
+categories: [ software, toolchain, openrisc ]
 ---
 
 I have been working on porting GLIBC to the OpenRISC architecture.  This has
