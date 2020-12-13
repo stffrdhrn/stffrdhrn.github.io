@@ -439,16 +439,16 @@ it resumes in the signal handler.  In OpenRISC the signal frame is setup by the 
 function which is called inside of `do_signal` which calls `handle_signal`
 which calls `setup_rt_frame`.
 
-After the signal handler routine runs we return to a special bit of code
-called the **Trampoline**.  The trampoline is a bit of code that lives
-on the stack and runs [sigretrun](https://man7.org/linux/man-pages/man2/sigreturn.2.html).
+After the signal handler routine runs we return to a special bit of code called
+the **Trampoline**.  The trampoline code lives on the stack and runs
+[sigretrun](https://man7.org/linux/man-pages/man2/sigreturn.2.html).
 
 Now back to `or1k_fallback_frame_state`.
 
-The `or1k_fallback_frame_state` function checks if the current frame is a *signal frame*
-by confirming the return address is a **Trampoline**.  If it is a trampoline
-it looks into the kernel saved `pt_regs` to find the previous user frame.  Unwinding,
-can then continue as normal.
+The `or1k_fallback_frame_state` function checks if the current frame is a
+*signal frame* by confirming the return address points to a **Trampoline**.  If
+it is a trampoline it looks into the kernel saved `ucontext` and `pt_regs` find
+the previous user frame.  Unwinding, can then continue as normal.
 
 ### Debugging the Issue
 
