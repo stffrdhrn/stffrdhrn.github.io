@@ -363,6 +363,45 @@ handling.  There are two main entry points for the unwinder are:
 - `_Unwind_ForcedUnwind` - for forced unwinding
 - `_Unwind_RaiseException` - for raising normal exceptions
 
+There are also two data structures to be aware of:
+
+- [_Unwind_Context](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.c;h=fe896565d2ec5c43ac683f2c6ed6d5e49fd8242e;hb=HEAD#l12) - register and unwind state for a frame, below referenced as CONTEXT
+- [_Unwind_FrameState](https://gcc.gnu.org/git/?p=gcc.git;a=blob;f=libgcc/unwind-dw2.h;h=2b8c1fd49dbc1bf2c816015ea2fed125774a8ef3;hb=HEAD#l25) - register and unwind state from DWARF, below referenced as FS
+
+The `_Unwind_Context` important parts:
+
+```c
+struct _Unwind_Context {
+  _Unwind_Context_Reg_Val reg[__LIBGCC_DWARF_FRAME_REGISTERS__+1];
+  void *cfa;
+  void *ra;
+  struct dwarf_eh_bases bases;
+  _Unwind_Word flags;
+};
+```
+
+The `_Unwind_FrameState` important parts:
+
+```c
+typedef struct {
+  struct frame_state_reg_info { ... } regs;
+  void *pc;
+
+  /* The information we care about from the CIE/FDE.  */
+  _Unwind_Personality_Fn personality;
+  _Unwind_Sword data_align;
+  _Unwind_Word code_align;
+  _Unwind_Word retaddr_column;
+  unsigned char fde_encoding;
+  unsigned char signal_frame;
+  void *eh_ptr;
+} _Unwind_FrameState;
+```
+
+These two data structures are very similar.  The `_Unwind_FrameState` is for internal
+use and closely ties to the DWARF definitions of the frame.  The `_Unwind_Context`
+struct is more generic and is used as an opaque structure in the public unwind api.
+
 *Forced Unwinds*
 
 Exceptions that are raised for thread cancellation use a single phase forced unwind.
