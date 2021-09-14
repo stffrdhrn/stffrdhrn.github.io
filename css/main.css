@@ -50,6 +50,7 @@ a:hover, a:active {
 
 a:focus {
         text-shadow: 1px 1px 1px #333;
+        border: 1px dotted #222;
 }
 
 h1 a:hover {
