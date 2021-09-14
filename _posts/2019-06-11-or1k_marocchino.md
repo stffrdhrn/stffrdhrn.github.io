@@ -5,6 +5,11 @@ date: 2019-06-11 01:37
 categories: [ hardware, embedded, openrisc ]
 ---
 
+<div class="note">
+<strong>Update 2021:</strong> There are a few fusesoc command's below.  They have been updated
+to work with the latest fusesoc and core versions.
+</div>
+
 The Marocchino is an advanced new OpenRISC soft core CPU.  However, not many
 have heard about it.  Let's try to change this.
 
@@ -82,7 +87,7 @@ you can use any path you like.
 ![fusesoc logo](/content/2019/fusesoc.png)
 
 To get started let's setup *FuseSoC* and install the required cores into the
-FuseSoC library. 
+FuseSoC library.
 
 Here we clone the git repositories used for Marocchino development into
 `/tmp/openrisc/src` feel free to have a look,  If you feel adventurous make some
@@ -104,6 +109,7 @@ git clone https://github.com/openrisc/or1k_marocchino.git
 # As yourself
 fusesoc init -y
 fusesoc library add intgen https://github.com/stffrdhrn/intgen.git
+fusesoc library add elf-loader https://github.com/fusesoc/elf-loader.git
 fusesoc library add mor1kx-generic /tmp/openrisc/src/mor1kx-generic
 fusesoc library add or1k_marocchino /tmp/openrisc/src/or1k_marocchino
 ```
@@ -125,6 +131,11 @@ export PATH=/tmp/openrisc/local/bin:$PATH
 ```
 
 #### Using Docker
+
+<div class="note">
+<strong>Update 2021:</strong> The docker images are out of date and no longer work well, please use the manual
+setup method.
+</div>
 
 If you want to get started very quickly faster we can use the
 [librecores-ci](https://github.com/librecores/docker-images/tree/master/librecores-ci)
@@ -211,7 +222,7 @@ Create a source file `asm-openrisc.s` as follows:
 	.section .vectors, "ax"
 
 /* 0x100: OpenRISC RESET reset vector. */
-        .org 0x100 	
+        .org 0x100
 
 	/* Jump to program initialisation code */
 	.global _main
@@ -291,7 +302,7 @@ options.
  - `::mor1kx-generic:1.1` - specifies which system we want to run.  System's
    represent an SoC that can be simulated or synthesized.  You can see a list of
    system using `list-cores`.
- - `--elf-load` - is `mor1kx-generic` specific option which specifies an elf
+ - `--elf_load` - is `mor1kx-generic` specific option which specifies an elf
    binary that will be loaded into memory before the simulation starts.
  - `--trace_enable` - is a `mor1kx-generic` specific option enabling tracing.
    When specified the simulator will output a trace file to `{fusesoc-builds}/mor1kx-generic_1.1/marocchino_tb-icarus/marocchino-trace.log` [see log](/content/2019/asm-marocchino-trace.log).
@@ -302,7 +313,7 @@ options.
 
 ```
 fusesoc run --target marocchino_tb --tool icarus ::mor1kx-generic:1.1 \
-  --elf-load ./openrisc-asm --trace_enable --trace_to_screen --vcd
+  --elf_load ./openrisc-asm --trace_enable --trace_to_screen --vcd
 
 VCD info: dumpfile testlog.vcd opened for output.
 Program header 0: addr 0x00000000, size 0x000001A0
@@ -442,7 +453,7 @@ Similar to running the assembly example we can run this with `fusesoc` as follow
 
 ```
 fusesoc run --target marocchino_tb --tool icarus ::mor1kx-generic:1.1 \
-  --elf-load ./openrisc-c --trace_enable --vcd
+  --elf_load ./openrisc-c --trace_enable --vcd
 ...
 
 Result is = 1330
@@ -459,7 +470,7 @@ been initialized as part of the newlib c-runtime initialization, great!
 
 In this article we went through a quick introduction to the Marocchino
 development environment.  The development environment would actually be similar
-when developing any OpenRISC core. 
+when developing any OpenRISC core.
 
 This environment will allow the reader to following in future Marocchino
 articles where we go deeper into the architecture.  In this environment you can
