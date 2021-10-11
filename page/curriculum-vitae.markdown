@@ -216,14 +216,24 @@ C programs  to help with this - as well as know how to configure all the
 services on my systems (dhcp, dns, apache, mail, users  etc.)</p>
 
 <h3>Other</h3>
-<p>I have hobbies of guitar, snowboarding, hiking and cycling. I can speak
-Chinese conversationally, Japanese conversationally and get by with German
-. I enjoy speaking and learning foreign languages, as well as travel.</p>
+<p>I have hobbies of guitar, rock climbing, skateboarding and coffee. I can speak
+Mandarin Chinese conversationally, Japanese conversationally and get by with German.
+I enjoy speaking and learning foreign languages, as well as travel.</p>
 
 <h2>Work Experience</h2>
 <h3><strong>SMBC Nikko</strong> - August 2018 - Now (Tokyo, Japan)</h3>
 <ul>
   <li>Work on Algo Trading Platform</li>
+</ul>
+<h3><strong>OpenRISC Project Maintainer</strong> - July 2017 - Now</h3>
+<ul>
+  <li>Update and maintain the OpenRISC CPU architecture specification</li>
+  <li>Attend conferences and speak about the benefits of open source chip design and OpenRISC</li>
+  <li>Rewrote from scratch and maintain the OpenRISC GCC compiler port</li>
+  <li>Upstreamed and maintain the OpenRISC GDB debugger port</li>
+  <li>Maintain the OpenRISC Linux Kernel architecture port</li>
+  <li>Maintain the OpenRISC linker and assembler architecture port</li>
+  <li>Maintain the OpenRISC QEMU simulator port</li>
 </ul>
 <h3><strong>Morgan Stanley Software Engineer</strong> - December 2006 - August 2018 (Tokyo, Japan)</h3>
 <ul>
@@ -267,7 +277,9 @@ Chinese conversationally, Japanese conversationally and get by with German
 </ul>
 
 <h2>General Experience</h2>
-<p>As an avid Linux and open source enthusiast. I have spent many years of my free time administering home computers and learning the ins and outs of the Linux OS kernel, file systems and general architecture.</p>
+<p>As an avid Linux and open source enthusiast. I have spent many years of my
+free time administering home computers and learning the ins and outs of the
+Linux OS kernel, file systems and general architecture.</p>
 
 <h2>Open Source Projects</h2>
 <p>I have been contributing to open source projects since university as a
