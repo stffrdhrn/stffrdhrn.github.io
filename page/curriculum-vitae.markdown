@@ -56,7 +56,7 @@ my Open Source projects.</p>
 <p><strong>2003</strong>: Minor (Mathematics) San Jose State University, California, USA</p>
 
 <h2>Technical Summary</h2>
-<p>I consider myself a full stack engineer, having working experience from 
+<p>I consider myself a full stack engineer, having working experience from
 low level digital design up to robust distributed systems handling millions
 of financial transactions a day.  The below are highlights of the
 technology I am familiar with.</p>
@@ -64,13 +64,14 @@ technology I am familiar with.</p>
 <p>I have experience developing systems using the following programming
 languages. This list is roughly ordered by lines of code.</p>
 <ul>
-  <li>Java (Spring, Hibernate, CXF) [ Excellent Knowledge ]</li>
+  <li>Java (Low GC) [ Excellent Knowledge ]</li>
   <li>C/C++ [ Excellent Knowledge ]</li>
   <li>Shell Scripting [ Excellent knowledge ] (sh, bash)</li>
   <li>Perl (Use Object Oriented "use strict" design)</li>
+  <li>Python</li>
   <li>Javascript / CSS</li>
   <li>HTML / CGI</li>
-  <li>Assembly (x86, ARM, MIPs, 8051)</li>
+  <li>Assembly (x86, OpenRISC)</li>
   <li>Verilog</li>
   <li>PHP</li>
 </ul>
@@ -89,7 +90,6 @@ development.</p>
 <ul>
   <li>X86 PC Hardware</li>
   <li>X86 Server Hardware</li>
-  <li>Arm Based Hardware</li>
   <li>FPGA Hardware (Xilinx, Altera)</li>
   <li>OpenRISC SoC</li>
 </ul>
@@ -97,8 +97,8 @@ development.</p>
 <p>I have experience and am competent with the following aspects of
 electrical engineering.</p>
 <ul>
-  <li>PCB Layout</li>
-  <li>Gate Level Digital Design</li>
+  <li>RTL Digital Design</li>
+  <li>Basic PCB Layout</li>
   <li>Basic Analog Circuit Design</li>
 </ul>
 <h3>Graphics and Design</h3>
@@ -116,8 +116,9 @@ me the following technologies and aspects of layout and design.</p>
 downtime and zero data loss via transaction safe processing.  The
 technologies I am familiar with are the following.</p>
 <ul>
+  <li><a href="https://29west.wordpress.com">Sequenced UDP Multicast (Similar to
+29west)</a></li>
   <li><a href="http://www.linux-ha.org/wiki/Main_Page">Linux HA</a></li>
-  <li><a href="https://en.wikipedia.org/wiki/Veritas_Cluster_Server">VCS</a></li>
   <li>Sybase Relational Database Server</li>
   <li>IBM DB2 on Linux</li>
   <li>IBM MQ Series</li>
@@ -141,13 +142,10 @@ productivity.  Below is a list of what I use on almost a daily basis.</p>
   <li>GCC</li>
   <li>GDB</li>
   <li>Valgrind</li>
-  <li>Memprof</li>
-  <li>Oprofile</li>
   <li>gprof</li>
   <li>Eclipse</li>
   <li>Intelli-J IDEA</li>
   <li>JUnit</li>
-  <li>JProfiler</li>
   <li>GCViewer</li>
   <li>Docker</li>
   <li>Jenkins</li>
@@ -285,13 +283,13 @@ Linux OS kernel, file systems and general architecture.</p>
 <p>I have been contributing to open source projects since university as a
 means to keep learning and work with great people.</p>
 <ul>
-  <li>Webmin - <a href="http://www.webmin.com/">WWW</a></li>
-  <li>Fedora Core - <a href="http://fedora.redhat.com/">WWW</a></li>
-  <li>Enlightenment - <a href="http://www.enlightenment.org/">WWW</a></li>
   <li>OpenRISC [ Active ]- <a href="http://www.openrisc.io/">WWW</a></li>
   <li>Linux [ Active ]- <a href="http://www.kernel.org/">WWW</a></li>
   <li>GDB [ Active ] - <a href="https://www.gnu.org/software/gdb/">WWW</a></li>
   <li>QEMU [ Active ] - <a href="https://www.qemu.org/">WWW</a></li>
+  <li>Enlightenment - <a href="http://www.enlightenment.org/">WWW</a></li>
+  <li>Fedora Core - <a href="http://fedora.redhat.com/">WWW</a></li>
+  <li>Webmin - <a href="http://www.webmin.com/">WWW</a></li>
 </ul>
 
 <h2>University Projects</h2>
