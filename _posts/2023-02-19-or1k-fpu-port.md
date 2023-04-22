@@ -29,12 +29,12 @@ is FPU porting?
 
 ## What is FPU Porting?
 
-The FPU in modern CPU's allows CPU's to do floating point math like addition,
-subtraction, multiplication.  When used in a user application the FPU's
-function becomes more of a math accelerator, accelerating math operations like
-`sin`, `sinf`, `expf`.  Not all FPU's provide the same set
-of FPU operations nor do they have to.  When enabled, the compiler will
-will add floating point instructions where they can be used.
+The FPU in modern CPU's allow the processor to do floating point math like
+addition, subtraction, multiplication.  When used in a user application the
+FPU's function becomes more of a math accelerator, accelerating math operations
+like `sin`, `sinf`, `expf`.  Not all FPU's provide the same set of FPU
+operations nor do they have to.  When enabled, the compiler will insert
+floating point instructions where they can be used.
 
 OpenRISC FPU support was added to GCC [a while back](https://www.phoronix.com/news/GCC-10-OpenRISC-FPU).
 We can see how this works with a simple example.
@@ -79,7 +79,8 @@ Disassembly of section .text:
 ```
 
 The disassembly of the `addf-hf.o` below shows that the FPU instruction
-(hardware) `lf.add.s` is used to perform addition.  One could imagine if this is
+(hardware) `lf.add.s` is used to perform addition, this is because the snippet
+was compiled using the `-mhard-float` argument.  One could imagine if this is
 supported it would be more efficient compared to the software implementation.
 
 ```
@@ -162,10 +163,15 @@ set rounding modes and clear exceptions using for example
 [fesetround](https://pubs.opengroup.org/onlinepubs/9699919799/functions/fesetround.html)
 for setting FPU rounding modes and
 [feholdexcept](https://pubs.opengroup.org/onlinepubs/9699919799/functions/feholdexcept.html) for clearing exceptions.
+If userspace applications need to be able to control the floating point unit
+the having architectures support for this is integral.
 
 Originally [OpenRISC architecture specification](https://openrisc.io/architecture)
 specified the floating point control and status registers (FPCSR) as being
-read only when executing in user mode, again **this is a problem**.
+read only when executing in user mode, again **this is a problem** and needs to
+be addressed.
+
+![OpenRISC FPCSR Privileges](/content/2023/2023-04-22-or1k-fpcsr.png)
 
 Other architectures define the floating point control register as being writable in user-mode.
 For example, ARM has the
@@ -174,12 +180,14 @@ and RISC-V has the
 [FCSR](https://riscv.org/wp-content/uploads/2017/05/riscv-privileged-v1.10.pdf)
 all of which are writable in user-mode.
 
+![RISC-V FCSR Privileges](/content/2023/2023-04-22-riscv-csr-fcsr.png)
+
 ### Tininess Detection
 
 I am skipping ahead a bit here, once the OpenRISC GLIBC port was working we noticed
 many problematic math test failures.  This turned out to be inconsistencies
-between the tininess detection [[pdf]](https://ntrs.nasa.gov/api/citations/19960008463/downloads/19960008463.pdf).
-settings in the toolchain.  Tininess detection and be selected by an FPU
+between the tininess detection [[pdf]](https://ntrs.nasa.gov/api/citations/19960008463/downloads/19960008463.pdf)
+settings in the toolchain.  Tininess detection must be selected by an FPU
 implementation as being done before or after rounding.
 In the toolchain this is configured by:
 
