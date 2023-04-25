@@ -116,11 +116,11 @@ runtime.  As we can see:
    the FPU as per the <span style="color:blue">blue</span> box.  The math routines can also set up rounding of the FPU hardware to
    be in line with rounding of the software routines.  The math routines can
    also detect exceptions by checking the FPU state.  The rounding and exception
-   handling in the <span style="color:blue">purple</span> boxes is what is
+   handling in the <span style="color:purple">purple</span> boxes is what is
    implemented the GLIBC.
  - The kernel must be able to save and restore the FPU state when switching
    between processes.  The OS also has support for signalling the process if
-   enabled.  This is indicated in the <span style="color:blue">purple</span>
+   enabled.  This is indicated in the <span style="color:purple">purple</span>
    box.
 
 In order to compile applications like *Application B* a separate compiler
@@ -247,9 +247,9 @@ in user-mode and we have documented tininess detection to be before rounding.
 
 ## Summary
 
-We gone through an overview of how the FPU accelarates math in
+We've gone through an overview of how the FPU accelarates math in
 an application runtime.  We then looked how the OpenRISC architecture specification needed
-to be updated to support the POSIX runtime.
+to be updated to support the floating point POSIX runtime.
 
 In the next entry we shall look into patches to get QEMU and and CPU
 implementations updated to support the new spec changes.
