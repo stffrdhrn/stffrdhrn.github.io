@@ -246,3 +246,10 @@ As of architecture specification [revision
 in user-mode and we have documented tininess detection to be before rounding.
 
 ## Summary
+
+We gone through an overview of how the FPU accelarates math in
+an application runtime.  We then looked how the OpenRISC architecture specification needed
+to be updated to support the POSIX runtime.
+
+In the next entry we shall look into patches to get QEMU and and CPU
+implementations updated to support the new spec changes.
