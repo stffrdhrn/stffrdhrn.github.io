@@ -1,7 +1,7 @@
 ---
 title: OpenRISC FPU Port - What is It?
 layout: post
-date: 2023-04-25 18:10
+date: 2023-04-25 12:10
 categories: [ hardware, embedded, openrisc ]
 ---
 
