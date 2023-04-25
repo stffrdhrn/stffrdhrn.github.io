@@ -99,17 +99,6 @@ Disassembly of section .text:
 So if the OpenRISC toolchain already has support for FPU instructions what does
 it mean to add glibc support?
 
-When we need to add support for FPU to the OS it means that user land code can
-transparently use the FPU.  This also means that multiple processes can share
-the single FPU transparently, without other processes realizing it.  So this
-boils down to:
-
- - Kernel to Save and Restore process FPU state during context switches
- - Kernel to handle FPU exceptions and deliver signals to user land
- - Teach GLIBC how to setup FPU rounding mode
- - Teach GLIBC how to translate FPU exceptions
- - Tell GCC and GLIBC soft float about our FPU quirks
-
 Below we can see examples of two application runtimes one *Application A* runs
 with software floating point, the other *Application B* run's with full hardware
 floating point.
@@ -120,7 +109,7 @@ Both *Application A* and *Application B* can run on the same system, but
 *Application B* requires a libc and kernel that support the floating point
 runtime.  As we can see:
 
- - In *Application B* it leverages floating point instructions.
+ - In *Application B* it leverages floating point instructions. That should be implemented in the CPU.
  - The math routines in the C Library used by *Application B* are accelarated by
    the FPU.  The math routines can also set up rounding of the FPU hardware to
    be in line with rounding of the software routines.  The math routines can
@@ -131,11 +120,21 @@ runtime.  As we can see:
 
 In order to compile applications like *Application B* a separate compiler
 toolchain is needed.  For highly configurable embredded system CPU's like ARM, RISC-V there
-are multiple toolchains available for build software for the different CPU
-configurations.  Usually there will be one toolchain for soft float and one for hard float support, see below the example
+are multiple toolchains available for building software for the different CPU
+configurations.  Usually there will be one toolchain for soft float and one for hard float support, see the below example
 from the [arm toolchain download](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page.
 
 ![Floating Point Toolchains](/content/2023/2023-04-25-arm-toolchains.png)
+
+To support hardware floating point in the OS it means that multiple user land
+programs can transparently use the FPU.  This requires updates to the kernel and
+the runtime libries; we need to:
+
+ - Make the kernel save and restore process FPU state during context switches
+ - Make the kernel handle FPU exceptions and deliver signals to user land
+ - Teach GLIBC how to setup FPU rounding mode
+ - Teach GLIBC how to translate FPU exceptions
+ - Tell GCC and GLIBC soft float about our FPU quirks
 
 ## Fixing Architecture Issues
 
