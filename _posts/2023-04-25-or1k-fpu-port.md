@@ -96,10 +96,14 @@ Disassembly of section .text:
    8:   15 00 00 00     l.nop 0x0
 ```
 
-So if the OpenRISC toolchain already has support for FPU instructions what does
-it mean to add glibc support?
+So if the OpenRISC toolchain already has support for FPU instructions what else
+needs to be done?  When we add FPU support to glibc we are adding FPU support
+to the OpenRISC POSIX *runtime* and create a *toolchain* that can compile and link
+binaries to run on this runtime.
 
-Below we can see examples of two application runtimes one *Application A* runs
+### The Runtime
+
+Below we can see examples of two application runtimes, one *Application A* runs
 with software floating point, the other *Application B* run's with full hardware
 floating point.
 
@@ -123,6 +127,18 @@ runtime.  As we can see:
    enabled.  This is indicated in the <span style="color:purple">purple</span>
    box.
 
+Another aspect is that supporting hardware floating point in the OS means that
+multiple user land programs can transparently use the FPU.  To do all of this we
+need to update the kernel and the C runtime libraries to:
+
+ - Make the kernel save and restore process FPU state during context switches
+ - Make the kernel handle FPU exceptions and deliver signals to user land
+ - Teach GLIBC how to setup FPU rounding mode
+ - Teach GLIBC how to translate FPU exceptions
+ - Tell GCC and GLIBC soft float about our FPU quirks
+
+### The Toolchain
+
 In order to compile applications like *Application B* a separate compiler
 toolchain is needed.  For highly configurable embredded system CPU's like ARM, RISC-V there
 are multiple toolchains available for building software for the different CPU
@@ -130,16 +146,6 @@ configurations.  Usually there will be one toolchain for soft float and one for 
 from the [arm toolchain download](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page.
 
 ![Floating Point Toolchains](/content/2023/2023-04-25-arm-toolchains.png)
-
-To support hardware floating point in the OS it means that multiple user land
-programs can transparently use the FPU.  This requires updates to the kernel and
-the runtime libries; we need to:
-
- - Make the kernel save and restore process FPU state during context switches
- - Make the kernel handle FPU exceptions and deliver signals to user land
- - Teach GLIBC how to setup FPU rounding mode
- - Teach GLIBC how to translate FPU exceptions
- - Tell GCC and GLIBC soft float about our FPU quirks
 
 ## Fixing Architecture Issues
 
