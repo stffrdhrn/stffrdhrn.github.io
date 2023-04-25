@@ -29,15 +29,18 @@ is FPU porting?
 
 ## What is FPU Porting?
 
-The FPU in modern CPU's allow the processor to do floating point math like
-addition, subtraction, multiplication.  When used in a user application the
-FPU's function becomes more of a math accelerator, accelerating math operations
-like `sin`, `sinf`, `expf`.  Not all FPU's provide the same set of FPU
-operations nor do they have to.  When enabled, the compiler will insert
-floating point instructions where they can be used.
+The FPU in modern CPU's allow the processor to perform [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)
+floating point math like addition, subtraction, multiplication.  When used in a
+user application the FPU's function becomes more of a math accelerator, speeding
+up math operations including
+[trigonometric](https://en.wikipedia.org/wiki/Trigonometry) and
+[complex](https://en.wikipedia.org/wiki/Complex_number) functions such as `sin`,
+`sinf` and `cexpf`.  Not all FPU's provide the same
+set of FPU operations nor do they have to.  When enabled, the compiler will
+insert floating point instructions where they can be used.
 
-OpenRISC FPU support was added to GCC [a while back](https://www.phoronix.com/news/GCC-10-OpenRISC-FPU).
-We can see how this works with a simple example.
+OpenRISC FPU support was added to the GCC compiler [a while back](https://www.phoronix.com/news/GCC-10-OpenRISC-FPU).
+We can see how this works with a simple example using the bare-metal [newlib](https://sourceware.org/newlib/) toolchain.
 
 C code example `addf.c`:
 
@@ -54,9 +57,8 @@ $ or1k-elf-gcc -O2 addf.c -c -o addf-sf.o
 $ or1k-elf-gcc -O2 -mhard-float addf.c -c -o addf-hf.o
 ```
 
-Assembly output of `addf-sf.o` contains the software floating point
-implementation as we can see below.  This is the default for the
-OpenRISC toolchain.  We can see below that a call to `__addsf3` was
+Assembly output of `addf-sf.o` contains the default software floating point
+implementation as we can see below.  We can see below that a call to `__addsf3` was
 added to perform our floating point operation.  The function `__addsf3`
 is [provided](https://gcc.gnu.org/onlinedocs/gccint/Soft-float-library-routines.html)
 by `libgcc` as a software implementation of the single precision
@@ -107,6 +109,33 @@ boils down to:
  - Teach GLIBC how to setup FPU rounding mode
  - Teach GLIBC how to translate FPU exceptions
  - Tell GCC and GLIBC soft float about our FPU quirks
+
+Below we can see examples of two application runtimes one *Application A* runs
+with software floating point, the other *Application B* run's with full hardware
+floating point.
+
+![OpenRISC Floating Point Runtime](/content/2023/2023-04-24-floating-point-runtime.png)
+
+Both *Application A* and *Application B* can run on the same system, but
+*Application B* requires a libc and kernel that support the floating point
+runtime.  As we can see:
+
+ - In *Application B* it leverages floating point instructions.
+ - The math routines in the C Library used by *Application B* are accelarated by
+   the FPU.  The math routines can also set up rounding of the FPU hardware to
+   be in line with rounding of the software routines.  The math routines can
+   also detect exceptions by checking the FPU state.
+ - The kernel must be able to save and restore the FPU state when switching
+   between processes.  It also has support for signalling the process if
+   enabled.
+
+In order to compile applications like *Application B* a separate compiler
+toolchain is needed.  For highly configurable embredded system CPU's like ARM, RISC-V there
+are multiple toolchains available for build software for the different CPU
+configurations.  Usually there will be one toolchain for soft float and one for hard float support, see below the example
+from the [arm toolchain download](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) page.
+
+![Floating Point Toolchains](/content/2023/2023-04-25-arm-toolchains.png)
 
 ## Fixing Architecture Issues
 
