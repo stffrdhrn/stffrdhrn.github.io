@@ -92,15 +92,14 @@ the part of the OpenRISC Linux kernel that handles entry into kernel code.
  2. Handle *syscall* in kernel code
  3. `_syscall_check_work` - Check `thread_info` for work pending
  4. If work pending
-   - Save additional <span style="color:white;background-color:#69f;">INT</span> state
-   - `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
+   * Save additional <span style="color:white;background-color:#69f;">INT</span> state
+   * `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
      - Check if reschedule needed
        - If so, performs `_switch` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
      - Check for pending signals
        - If so, performs `do_signal` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
-   - `RESTORE_ALL` - all <span style="color:white;background-color:#69f;">INT</span> state is restored and return to user space
- 5. `_syscall_resume_userspace` - restore callee saved registers return to
-   user space.
+   * `RESTORE_ALL` - all <span style="color:white;background-color:#69f;">INT</span> state is restored and return to user space
+ 5. `_syscall_resume_userspace` - restore callee saved registers return to user space.
 
 Some key points to note on the above:
 
@@ -115,7 +114,7 @@ Some key points to note on the above:
  - <span style="color:white;background-color:#c6f;">FPU</span> state only needs to be saved and restored for *user mode* programs,
    because *kernel mode* programs, in general, do not use the FPU.
  - The current version of the OpenRISC port as of `v6.8` save and restores both
-   <span style="color:white;background-color:#c6f;">FPU</span> and <span style="color:white;background-color:#c6f;">FPU</span> state
+   <span style="color:white;background-color:#66f;">INT</span> and <span style="color:white;background-color:#c6f;">FPU</span> state
    what is shown before is a more optimized mechanism of only saving FPU state when needed.  Further optimizations could
    be still make to only save FPU state for user space, and not save/restore if it is already done.
 
