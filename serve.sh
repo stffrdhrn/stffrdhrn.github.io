@@ -1,3 +1,3 @@
 #!/bin/bash
 
-jekyll serve -D -H lianli > serve.log 2>&1
+jekyll serve -D -H `hostname` > serve.log 2>&1

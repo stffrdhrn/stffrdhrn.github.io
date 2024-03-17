@@ -68,7 +68,8 @@ Furthermore, exceptions may be categorized into one of two cases: Interrupts and
 
 Below are outlines of the sequence of operations that take place when
 transitioning from Interrupts and System calls into kernel code.  It highlights
-at what point state is saved with the <span style="color:white;background-color:#69f;">INT</span> and <span style="color:white;background-color:#c6f;">FPU</span> labels.
+at what point state is saved with the <span style="color:white;background-color:#69f;">INT</span>,
+<span style="color:white;background-color:black;">kINT</span> and <span style="color:white;background-color:#c6f;">FPU</span> labels.
 
 The `monospace` labels below correspond to the actual assembly labels in [entry.S](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/entry.S),
 the part of the OpenRISC Linux kernel that handles entry into kernel code.
@@ -79,11 +80,12 @@ the part of the OpenRISC Linux kernel that handles entry into kernel code.
  2. Handle *exception* in kernel code
  3. `_resume_userspace` - Check `thread_info` for work pending
  4. If work pending
-   - `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
-     - Check if reschedule needed
-       - If so, performs `_switch` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
-     - Check for pending signals
-       - If so, performs `do_signal` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
+    - `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
+      - Check if reschedule needed
+        - If so, performs `_switch` which save/restores <span style="color:white;background-color:black;">kINT</span>
+          and <span style="color:white;background-color:#c6f;">FPU</span> state
+      - Check for pending signals
+        - If so, performs `do_signal` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
  5. `RESTORE_ALL` - all <span style="color:white;background-color:#69f;">INT</span> state is restored and return to user space
 
 **System calls (fast path)**
@@ -92,17 +94,21 @@ the part of the OpenRISC Linux kernel that handles entry into kernel code.
  2. Handle *syscall* in kernel code
  3. `_syscall_check_work` - Check `thread_info` for work pending
  4. If work pending
-   * Save additional <span style="color:white;background-color:#69f;">INT</span> state
-   * `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
-     - Check if reschedule needed
-       - If so, performs `_switch` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
-     - Check for pending signals
-       - If so, performs `do_signal` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
-   * `RESTORE_ALL` - all <span style="color:white;background-color:#69f;">INT</span> state is restored and return to user space
+    - Save additional <span style="color:white;background-color:#69f;">INT</span> state
+    - `_work_pending` - Call [do_work_pending](https://elixir.bootlin.com/linux/latest/source/arch/openrisc/kernel/signal.c#L298)
+      - Check if reschedule needed
+        - If so, performs `_switch` which save/restores <span style="color:white;background-color:black;">kINT</span>
+          and <span style="color:white;background-color:#c6f;">FPU</span> state
+      - Check for pending signals
+        - If so, performs `do_signal` which save/restores <span style="color:white;background-color:#c6f;">FPU</span> state
+    - `RESTORE_ALL` - all <span style="color:white;background-color:#69f;">INT</span> state is restored and return to user space
  5. `_syscall_resume_userspace` - restore callee saved registers return to user space.
 
 Some key points to note on the above:
 
+ - <span style="color:white;background-color:#69f;">INT</span> denotes the interrupts program's register state.
+ - <span style="color:white;background-color:black;">kINT</span> denotes the kernel's register state before/after a context switch.
+ - <span style="color:white;background-color:#c6f;">FPU</span> deones FPU state
  - In both cases step **4** checks for work pending, which may cause task
    rescheduling in which case a **Context Switch** (or *task switch*) will
    be performed.
@@ -114,7 +120,7 @@ Some key points to note on the above:
  - <span style="color:white;background-color:#c6f;">FPU</span> state only needs to be saved and restored for *user mode* programs,
    because *kernel mode* programs, in general, do not use the FPU.
  - The current version of the OpenRISC port as of `v6.8` save and restores both
-   <span style="color:white;background-color:#66f;">INT</span> and <span style="color:white;background-color:#c6f;">FPU</span> state
+   <span style="color:white;background-color:#69f;">INT</span> and <span style="color:white;background-color:#c6f;">FPU</span> state
    what is shown before is a more optimized mechanism of only saving FPU state when needed.  Further optimizations could
    be still make to only save FPU state for user space, and not save/restore if it is already done.
 
@@ -169,17 +175,19 @@ Below we can see how the kernel stack and user space stack relate.
 *process a*
 
 In the above diagram notice how there are 2 set's of `pt_regs` for process a.
-The *pt_regs'* structure represents the user space registers that were saved during the switch
-from *user mode* to *kernel mode*.  Notice how the *pt_regs'* structure has an arrow pointing the
-user space stack, that's the saved stack pointer.  The second *pt_regs''* structure represents the frozen
-kernel state that was saved before a task *switch* was performed.
+The *pt_regs'* structure represents the user space registers (<span style="color:white;background-color:#69f;">INT</span>)
+that are saved during the switch from *user mode* to *kernel mode*.  Notice how
+the *pt_regs'* structure has an arrow pointing the user space stack, that's the
+saved stack pointer.  The second *pt_regs''* structure represents the frozen
+kernel state (<span style="color:white;background-color:black;">kINT</span>)
+that was saved before a task *switch* was performed.
 
 *process b*
 
-Also in the diagram above we can see process b has only a *pt_regs'* structure saved on
-the stack and does not currently have a *pt_regs''* structure saved.  This indicates
-that that this process is currently running in kernel space and is not yet
-frozen.
+Also in the diagram above we can see process b has only a *pt_regs'* (<span style="color:white;background-color:#69f;">INT</span>)
+structure saved on the stack and does not currently have a *pt_regs''* (<span style="color:white;background-color:black;">kINT</span>)
+structure saved.  This indicates that that this process is currently running in
+kernel space and is not yet frozen.
 
 As we can see here, for OpenRISC there are two places to store state.
   - The *mode switch* context is saved to a `pt_regs` structure on the kernel
@@ -192,11 +200,13 @@ As we can see here, for OpenRISC there are two places to store state.
     structure or to the `thread_info` structure.  This context may store the all
     extra registers including FPU and Vector registers.
 
-*Note* In the above diagram we can see the kernel stack and `thread_info` live in
+<div class="note">
+<b>Note</b> In the above diagram we can see the kernel stack and <code>thread_info</code> live in
 the same memory space.  This is a source of security issues and many
-architectures have moved to support [virtually mapped kernel stacks](https://docs.kernel.org/mm/vmalloced-kernel-stacks.html),
+architectures have moved to support <a href="https://docs.kernel.org/mm/vmalloced-kernel-stacks.html">virtually mapped kernel stacks</a>,
 OpenRISC does not yet support this and it would be a good opportunity
 for improvement.
+</div>
 
 The structure of the `pt_regs` used by OpenRISC is as per below:
 
@@ -227,8 +237,7 @@ The patches to OpenRISC added to support saving and restoring FPU state
 during context switches are below:
 
  - 2023-04-26 [63d7f9f11e5e](https://github.com/stffrdhrn/linux/commit/63d7f9f11e5e81de2ce8f1c7a8aaed5b0288eddf) Stafford Horne   openrisc: Support storing and restoring fpu state
- - 2024-03-14 [14f89b18c117](https://github.com/stffrdhrn/linux/commit/14f89b18c1173fb6664bb338db850f5ad0484b93) Stafford Horne   openrisc: Move FPU state out of pt_regs
-
+ - 2024-03-14 [ead6248f25e1](https://github.com/stffrdhrn/linux/commit/ead6248f25e1) Stafford Horne   openrisc: Move FPU state out of pt_regs
 
 ## Signals and Signal Frames.
 
@@ -289,9 +298,11 @@ or user context which points to the original state of the program, registers and
 all.  It also includes a bit of code, `retcode`, which is a trampoline to bring us
 back into the kernel after the signal handler finishes.
 
-*Note* we could also setup an alternate [signalstack](https://man7.org/linux/man-pages/man2/sigaltstack.2.html)
+<div class="note">
+<b>Note</b> we could also setup an alternate <a href="https://man7.org/linux/man-pages/man2/sigaltstack.2.html">signalstack</a>
 to use instead of stuffing stuff onto the main user stack. The
 above example is the default behaviour.
+</div>
 
 The user `pt_regs` (as we called *pt_regs'*) is updated before returning to user
 space to execute the signal handler code by updating the registers as follows:
@@ -311,10 +322,12 @@ signal handler, which runs within the user process context.
 After the signal handler completes it will execute the `retcode`
 block which is setup to call the special system call [rt_sigreturn](https://man7.org/linux/man-pages/man2/sigreturn.2.html).
 
-*Note* on OpenRISC this means the stack has to be executable. Which is
-a [major security vulnerability](https://en.wikipedia.org/wiki/Stack_buffer_overflow).
-Modern architectures do not have executable stacks and use [vdso](https://man7.org/linux/man-pages/man7/vdso.7.html)
-or is provided by libc in `sa_restorer`.
+<div class="note">
+<b>Note</b> for OpenRISC this means the stack has to be executable. Which is
+a <a href="https://en.wikipedia.org/wiki/Stack_buffer_overflow">major security vulnerability</a>.
+Modern architectures do not have executable stacks and use <a href="https://man7.org/linux/man-pages/man7/vdso.7.html">vdso</a>
+or is provided by libc in <code>sa_restorer</code>.
+</div>
 
 The `rt_sigreturn` system call will restore the `ucontext` registers (which
 may have been updated by the signal handler) to the user `pt_regs` on the
@@ -349,9 +362,6 @@ struct ucontext {
 ```
 From: [uapi/asm/ptrace.h](https://elixir.bootlin.com/linux/v6.8/source/arch/openrisc/include/uapi/asm/ptrace.h)
 
-*Note* originally a union was not used and [caused the ABI to get broken](https://lore.kernel.org/linux-mm/ZL2V77V8xCWTKVR+@antec/T/)
-which was soon fixed.
-
 ```c
 struct sigcontext {
         struct user_regs_struct regs;  /* needs to be first */
@@ -361,6 +371,11 @@ struct sigcontext {
         };
 };
 ```
+
+<div class="note">
+<b>Note</b> In <code>sigcontext</code> originally a <code>union</code> was not used
+and <a href="https://lore.kernel.org/linux-mm/ZL2V77V8xCWTKVR+@antec/T/">caused ABI breakage</a>; which was soon fixed.
+</div>
 
 From: [uapi/asm/sigcontext.h](https://elixir.bootlin.com/linux/v6.8/source/arch/openrisc/include/uapi/asm/sigcontext.h)
 
@@ -373,9 +388,6 @@ struct user_regs_struct {
 ```
 
 The structure that [glibc](https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/or1k/sys/ucontext.h;h=b17e91915461b5f2095682efd174e7612d2ec119;hb=HEAD) expects is.
-
-*Note* This is broken, the `struct mcontext_t` in glibc is
-missing the space for `oldmask`.
 
 ```c
 /* Context to describe whole processor state.  */
@@ -396,6 +408,11 @@ typedef struct ucontext_t
     sigset_t uc_sigmask;
   } ucontext_t;
 ```
+
+<div class="note">
+<b>Note</b> This is broken, the <code>struct mcontext_t</code> in glibc is
+missing the space for <code>oldmask</code>.
+</div>
 
 The structure used by [musl](https://git.musl-libc.org/cgit/musl/tree/arch/or1k/bits/signal.h) is:
 
