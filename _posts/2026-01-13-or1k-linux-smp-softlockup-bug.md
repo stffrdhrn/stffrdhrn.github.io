@@ -36,12 +36,16 @@ snippet of the boot log:
 ```
 
 In the above log we see an [RCU](https://docs.kernel.org/RCU/stallwarn.html)
-stall warning indicating that CPU 1 running but not making progress on work it
-has been assigned.  We can also see that the CPUs are both running but hanging.
-It took until December 2025, 5 months, to locate and fix the bug.  In this
-article we will discuss how we debugged and solved this issue.
+stall warning indicating that CPU 1 running but not making progressing and is
+likely stuck in a tight loop.  We can also see that the CPUs are both running
+but hanging.  It took until December 2025, 5 months, to locate and fix the bug.
+In this article we will discuss how we debugged and solved this issue.
 
 # Reproducting the issue
+
+The software that the user uses is the standard OpenRISC kernel and runtime.  It has
+been stable for some time running on the QEMU simulator that we use for the bulk
+of our software development and testing.
 
 To be honest I haven't run the OpenRISC multicore platform on a physical FGPA
 development board for a few years, so just setting up the environemtn was going
@@ -81,14 +85,19 @@ Some notes about getting the De0 Nano development environment up again:
    projects needed to be updated to get them working again.
 
 Once the development board was loaded and running a simple hello world program
-I could continue try to run Linux.
+as per the tutorial I could continue try to run Linux.
 
-Once we got the environment up we needed to build and load the Linux kernel.
-This requires a devicetree (DTS) file for our De0 Nano multicore board.
+To build and load the Linux kernel requires a kernel config and a devicetree
+(DTS) file for our De0 Nano multicore board.  We don't have one available
+in the upstream kernel source tree, so we need to create one.
 
-I was able to start with the existing simple-smp config.
+I was able to start with the existing simple-smp config then make some
+adjustments.
 
-```
+The following command shows the available openrisc linux configs and
+then selects `simple_smp_defconfig`.
+
+```bash
 make ARCH=openrisc CROSS_COMPILE=or1k-linux- | grep defconfig
   defconfig       - New config with default from ARCH supplied defconfig
   savedefconfig   - Save current config as ./defconfig (minimal config)
@@ -111,7 +120,7 @@ almost the same as the simple SMP board but:
 
 The following is an example dts file.
 
-```
+```dts
 // File: arch/openrisc/boot/dts/de0nano-smp.dts
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
@@ -227,118 +236,24 @@ make -j12 \
   CONFIG_BUILTIN_DTB_NAME="de0nano-smp"
 ```
 
-After this we will have our `elf` binary at `vmlinux` ready to load onto our board.
+```bash
+$ ls -ltr | tail -n5
+-rwxr-xr-x.   1 shorne shorne  104863360 Jan 30 13:30 vmlinux.unstripped
+-rw-r--r--.   1 shorne shorne     971587 Jan 30 13:30 System.map
+-rwxr-xr-x.   1 shorne shorne      11975 Jan 30 13:30 modules.builtin.modinfo
+-rw-r--r--.   1 shorne shorne       1047 Jan 30 13:30 modules.builtin
+-rwxr-xr-x.   1 shorne shorne  104763212 Jan 30 13:30 vmlinux
+```
+
+After this we will have our `elf` binary at `vmlinux` ready to load onto our
+board.
 
 Loading it using the gdb and openocd commands from the tutorial
-we could see the system boot and then hang with the following:
+we could see the system boots.
 
-```
-[   29.070000] This architecture does not have kernel memory protection.
-[   29.080000] Run /init as init process
-[   56.140000] watchdog: BUG: soft lockup - CPU#0 stuck for 22s! [init:1]
-[   56.140000] CPU: 0 UID: 0 PID: 1 Comm: init Not tainted 6.17.0-rc5-simple-smp-00004-g8c30b0018f9d-dirty #208 NONE
-[   56.140000] CPU #: 0
-[   56.140000]    PC: c00de9b8    SR: 0000807f    SP: c102dd04
-[   56.140000] GPR00: 00000000 GPR01: c102dd04 GPR02: c102dd60 GPR03: 00000006
-[   56.140000] GPR04: c1ff8aa0 GPR05: c1ff8aa0 GPR06: 00000000 GPR07: 00000000
-[   56.140000] GPR08: 00000002 GPR09: c00decd0 GPR10: c102c000 GPR11: 00000006
-[   56.140000] GPR12: ffffffff GPR13: 00000002 GPR14: c102de54 GPR15: c098b9d0
-[   56.140000] GPR16: c1fc59e0 GPR17: 00000001 GPR18: c1ff8aa0 GPR19: c1fcfd20
-[   56.140000] GPR20: 00000001 GPR21: ffffffff GPR22: 00000001 GPR23: 00000002
-[   56.140000] GPR24: c0013a70 GPR25: 00000000 GPR26: 00000001 GPR27: 00000000
-[   56.140000] GPR28: 01644000 GPR29: 0000000b GPR30: 0000000b GPR31: 00000002
-[   56.140000]   RES: 00000006 oGPR11: ffffffff
-[   56.140000] Process init (pid: 1, stackpage=c103c000)
-[   56.140000]
-[   56.140000] Stack:
-[   56.140000] Call trace:
-[   56.140000] [<(ptrval)>] smp_call_function_many_cond+0x4d4/0x5b0
-[   56.140000] [<(ptrval)>] ? _raw_spin_unlock_irqrestore+0x28/0x38
-[   56.140000] [<(ptrval)>] on_each_cpu_cond_mask+0x28/0x38
-[   56.140000] [<(ptrval)>] smp_icache_page_inv+0x30/0x40
-[   56.140000] [<(ptrval)>] update_cache+0x12c/0x160
-[   56.140000] [<(ptrval)>] set_pte_range+0xd4/0x170
-[   56.140000] [<(ptrval)>] filemap_map_pages+0x20c/0x708
-[   56.140000] [<(ptrval)>] handle_mm_fault+0xee4/0x1c74
-[   56.140000] [<(ptrval)>] ? __schedule+0x2dc/0x788
-[   56.140000] [<(ptrval)>] ? _raw_spin_lock_irqsave+0x28/0x98
-[   56.140000] [<(ptrval)>] ? _raw_spin_unlock_irqrestore+0x28/0x38
-[   56.140000] [<(ptrval)>] do_page_fault+0x1d0/0x4b4
-[   56.140000] [<(ptrval)>] _data_page_fault_handler+0x104/0x10c
-[   56.140000]
-[   56.140000]  c102dce4:       00000000
-[   56.140000]  c102dce8:       00000000
-[   56.140000]  c102dcec:       00000000
-[   56.140000]  c102dcf0:       00000000
-[   56.140000]  c102dcf4:       c102dd04
-```
-
-CORE 0 has issued a IPI and is waiting for CORE 1 to finish the IPI.
-
-```
-// kernel/smp.c:872
-        if (run_remote && wait) {
-                for_each_cpu(cpu, cfd->cpumask) {
-                        call_single_data_t *csd;
-
-                        csd = per_cpu_ptr(cfd->csd, cpu);
-                        csd_lock_wait(csd);    <--- maybe here?
-                }
-        }
-```
-
-When debugging if I read the lock it appears to be unlocked.  So I suspect an issue
-with the memory bus synchronization!
-
-```
-[   68.220000] watchdog: BUG: soft lockup - CPU#1 stuck for 22s! [kcompactd0:30]
-[   68.220000] CPU: 1 UID: 0 PID: 30 Comm: kcompactd0 Tainted: G             L      6.17.0-rc5-simple-smp-00004-g8c30b0018f9d-dirty #208 NONE
-[   68.220000] Tainted: [L]=SOFTLOCKUP
-[   68.220000] CPU #: 1
-[   68.220000]    PC: c052b5dc    SR: 0000827f    SP: c10c3b5c
-[   68.220000] GPR00: 00000000 GPR01: c10c3b5c GPR02: c10c3b64 GPR03: c11d203c
-[   68.220000] GPR04: c11d40c0 GPR05: 300e8000 GPR06: c10c3b68 GPR07: c10c3b64
-[   68.220000] GPR08: 00000000 GPR09: c013ad00 GPR10: c10c2000 GPR11: c11de1d0
-[   68.220000] GPR12: 00000000 GPR13: 0002003d GPR14: c1fe47a4 GPR15: 00000000
-[   68.220000] GPR16: c10c3b98 GPR17: 00000011 GPR18: 300ea000 GPR19: 00000012
-[   68.220000] GPR20: ff000000 GPR21: 00130011 GPR22: 01000000 GPR23: c0993f8c
-[   68.220000] GPR24: c11d2000 GPR25: c10c3dd8 GPR26: 00000000 GPR27: c1ff31e4
-[   68.220000] GPR28: c1155c6c GPR29: 00000000 GPR30: c11d2000 GPR31: 00000002
-[   68.220000]   RES: c11de1d0 oGPR11: ffffffff
-[   68.220000] Process kcompactd0 (pid: 30, stackpage=c10ad300)
-[   68.220000]
-[   68.220000] Stack:
-[   68.220000] Call trace:
-[   68.220000] [<(ptrval)>] page_vma_mapped_walk+0x250/0x434
-[   68.220000] [<(ptrval)>] try_to_migrate_one+0xe4/0x430
-[   68.220000] [<(ptrval)>] __rmap_walk_file+0x110/0x208
-[   68.220000] [<(ptrval)>] ? compaction_free+0x0/0xfc
-[   68.230000] [<(ptrval)>] rmap_walk+0x80/0x98
-[   68.230000] [<(ptrval)>] try_to_migrate+0x84/0xe8
-[   68.230000] [<(ptrval)>] ? try_to_migrate_one+0x0/0x430
-[   68.230000] [<(ptrval)>] ? folio_not_mapped+0x0/0x70
-[   68.230000] [<(ptrval)>] ? folio_lock_anon_vma_read+0x0/0x2c4
-[   68.230000] [<(ptrval)>] migrate_pages_batch+0x2d0/0xea8
-[   68.230000] [<(ptrval)>] ? compaction_alloc+0x0/0xca4
-[   68.230000] [<(ptrval)>] migrate_pages+0x1c0/0x5bc
-[   68.230000] [<(ptrval)>] ? compaction_free+0x0/0xfc
-[   68.230000] [<(ptrval)>] ? compaction_alloc+0x0/0xca4
-[   68.230000] [<(ptrval)>] compact_zone+0x82c/0xce0
-[   68.230000] [<(ptrval)>] ? compaction_free+0x0/0xfc
-[   68.240000] [<(ptrval)>] compact_node+0x9c/0xe0
-[   68.240000] [<(ptrval)>] kcompactd+0x184/0x398
-[   68.240000] [<(ptrval)>] ? autoremove_wake_function+0x0/0x58
-[   68.240000] [<(ptrval)>] ? kcompactd+0x0/0x398
-[   68.240000] [<(ptrval)>] kthread+0x120/0x270
-[   68.240000] [<(ptrval)>] ? _raw_spin_lock_irq+0x20/0x90
-[   68.240000] [<(ptrval)>] ? kthread+0x0/0x270
-[   68.240000] [<(ptrval)>] ret_from_fork+0x1c/0x80
-[   68.240000]
-[   68.240000]  c10c3b3c:       00000000
-```
-
-The system runs for a while and can execute commands, 2 CPU's are reported online
-but after some time we get the following lockup and the system stops.
+The system runs for a while and maybe we can execute commands, 2 CPU's are
+reported online but after some time we get the following lockup and the system
+stops.
 
 ```
 [  410.790000] rcu: INFO: rcu_sched self-detected stall on CPU
@@ -447,47 +362,68 @@ From the trace we can see both CPU's are in similar code locations.
  - CPU1 : is in `smp_icache_page_inv -> on_each_cpu_cond_mask`
 
 CPU1 is additionally handling a timer which is reporting the RCU stall, we can
-ignore those bits of the stack, as it is the just reporting the problem for us it is not the root cause.  So what is happening?
+ignore those bits of the stack, as it is the just reporting the problem for us
+it is not the root cause.  So what is happening?
 
-Let's try to understand what is happening.
-The `smp_icache_page_inv` function is called to invalidate an icache page, it will force all CPU's to invalidate a cache entry by scheduling
-each CPU to call a cache invalidation function.  This is scheduled with the `smp_call_function_many_cond` call.
+Let's try to understand what is happening.  The `smp_icache_page_inv` function
+is called to invalidate an icache page, it will force all CPU's to invalidate a
+cache entry by scheduling each CPU to call a cache invalidation function.  This
+is scheduled with the `smp_call_function_many_cond` call.
 
-On `CPU0` and `CPU1` this is being initiated by a page fault as we see `do_page_fault` at the bottom of the stack.
-The do_page_fault function will be called when the CPU handles a TLB miss exception or if there was a page fault.
-This must mean that a executable page was not available in memory and caused a fault, once the page
-was mapped the icache needs to be invalidated.
+On `CPU0` and `CPU1` this is being initiated by a page fault as we see
+`do_page_fault` at the bottom of the stack.  The do_page_fault function will be
+called when the CPU handles a TLB miss exception or if there was a page fault.
+This must mean that a executable page was not available in memory and access to
+that page caused a fault, once the page was mapped the icache needs to be
+invalidated, this is done via the kernel's inter-processor interrupt
+([IPI](https://en.wikipedia.org/wiki/Inter-processor_interrupt)) mechanism.
 
-This call ends up:
+The IPI allows onee CPU to request work to be done on other CPUs, this is done
+using the `on_each_cpu_cond_mask` function call.
 
- 1. Creating a function call entry
- 2. Adding the function call entry to a queue
- 3. Raising an IPI
- 4. Waiting for the IPI to finish
-
-Blah Blah, why is it hung?  If we open up the debugger we can see, we are stuck here:
+If we open up the debugger we can see, we are stuck in `csd_lock_wait` here:
 
 ```
+$ or1k-elf-gdb "$HOME/work/linux/vmlinux" -ex 'target remote :3333'i
+GNU gdb (GDB) 17.0.50.20250614-git
+This GDB was configured as "--host=x86_64-pc-linux-gnu --target=or1k-elf".
+
 #0  0xc00ea11c in csd_lock_wait (csd=0xc1fd0000) at kernel/smp.c:351
 351             smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
 ```
 
-The `smp_cond_load_acquire` function calls:
+Checking the backtrace we see `csd_lock_wait` is indeed inside the IPI framework
+function `smp_call_function_many_cond`:
 
 ```
-349     static __always_inline void csd_lock_wait(call_single_data_t *csd)
-350     {
-351             smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
-352     }
-353     #endif
+(gdb) bt
+#0  0xc00ea11c in csd_lock_wait (csd=0xc1fd0000) at kernel/smp.c:351
+#1  smp_call_function_many_cond (mask=<optimized out>, func=0xc0013ca8 <ipi_icache_page_inv>, info=0xc1ff8920, scf_flags=<optimized out>, 
+    cond_func=<optimized out>) at kernel/smp.c:877
+#2  0x0000002e in ?? ()
 ```
+
+Here csd stands for Call Single Data which is part IPI framework's remote
+function call api.  The `csd_lock_wait` function calls `smp_cond_load_acquire`
+which we can see below:
+
+### kernel/smp.c
+
+```
+    static __always_inline void csd_lock_wait(call_single_data_t *csd)
+    {
+        smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
+    }
+```
+
+The `CSD_FLAG_LOCK` flag is defined as seen here:
 
 ### include/linux/smp_types.h
 
 ```
 enum {
         CSD_FLAG_LOCK           = 0x01,
-
+        ...
 ```
 
 The `smp_cond_load_acquire` macro is just a loop waiting for `&csd->node.u_flags`
@@ -500,24 +436,52 @@ If we check the value of the `u_flags`:
 $14 = 0x86330004
 ```
 
-What is this we see?  The value is `0x86330004`, but that means the `0x1` bit is not set.
-It should be exiting the loop.
+What is this we see?  The value is `0x86330004`, but that means the `0x1` bit is *not* set.
+It should be exiting the loop.  As the RCU stall warning predicted our CPU is
+stuck in tight loop.  In this case the loop is in `csd_lock_wait`.
 
-At this point I thought, perhaps this is a hardware issue.  The value in memory does not
-match the value the CPU is reading.  Is the a memory synchonization issue?  Does the CPU cache
-incorrectly have the locked flag?
+The value in memory does not match the value the CPU is reading.  Is the a
+memory synchonization issue?  Does the CPU cache incorrectly have the locked
+flag?
 
-# It's a hardware issue
+# First Hypothesis - It's a hardware issue
 
-Using the debu
+As this software works fine in QEMU, I was first suspecting this was a hardware
+issue.  Perhaps there is an issue with cache coherency.
+
+Luckily on OpenRISC wwe can disable caches.  I built the CPU with the caches
+disabled, this is done by changing the following module parameters from
+`ENABLED` to `NONE`:
+
+```
+$ grep -r FEATURE.*CACHE ../de0_nano-multicore/
+../de0_nano-multicore/rtl/verilog/orpsoc_top.v: .FEATURE_INSTRUCTIONCACHE       ("ENABLED"),
+../de0_nano-multicore/rtl/verilog/orpsoc_top.v: .FEATURE_DATACACHE              ("ENABLED"),
+../de0_nano-multicore/rtl/verilog/orpsoc_top.v: .FEATURE_INSTRUCTIONCACHE       ("ENABLED"),
+../de0_nano-multicore/rtl/verilog/orpsoc_top.v: .FEATURE_DATACACHE              ("ENABLED"),
+```
+
+After this the system booted very slow, but we still had hang's, I was stumped.
 
 ## Gemini to the rescue
 
 Nope, they kept chasing red herrings.
 
-## Using signal tap to really see what was in memory!
+ - Memory barrier, suggested kernel patches.
+ - Bug in verilog of CPU's Load Store Unit module, suggested patches.
 
-# Actually, its a Kernel issue
+None of the suggestions worked.
+
+## Using a hardware debugger
+
+I had some doubt that the values I was seeing in the GDB debug session actually were
+correct.  As a last ditch effort I brought up SignalTap a FPGA virtual logic
+analyser.  In other words this is a hardware debugger.
+
+Signal tap showed me that the value being read from memory was not `0x86330004`
+but actually `0x00000011`.  This matches what the CPu was reading.
+
+# Actually, it's a Kernel issue
 
 # The Fix
 
