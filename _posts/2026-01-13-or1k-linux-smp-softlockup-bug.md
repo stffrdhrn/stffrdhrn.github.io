@@ -120,6 +120,8 @@ almost the same as the simple SMP board but:
 
 The following is an example dts file.
 
+[de0nano-smp.dts](/content/2026/de0nano-smp.dts)
+
 ```dts
 // File: arch/openrisc/boot/dts/de0nano-smp.dts
 #include <dt-bindings/gpio/gpio.h>
@@ -384,7 +386,7 @@ using the `on_each_cpu_cond_mask` function call.
 If we open up the debugger we can see, we are stuck in `csd_lock_wait` here:
 
 ```
-$ or1k-elf-gdb "$HOME/work/linux/vmlinux" -ex 'target remote :3333'i
+$ or1k-elf-gdb "$HOME/work/linux/vmlinux" -ex 'target remote :3333'
 GNU gdb (GDB) 17.0.50.20250614-git
 This GDB was configured as "--host=x86_64-pc-linux-gnu --target=or1k-elf".
 
@@ -470,7 +472,7 @@ Nope, they kept chasing red herrings.
  - Memory barrier, suggested kernel patches.
  - Bug in verilog of CPU's Load Store Unit module, suggested patches.
 
-None of the suggestions worked.
+None of the suggestions were correct.  I humored the patches but they did not work.
 
 ## Using a hardware debugger
 
@@ -478,8 +480,59 @@ I had some doubt that the values I was seeing in the GDB debug session actually 
 correct.  As a last ditch effort I brought up SignalTap a FPGA virtual logic
 analyser.  In other words this is a hardware debugger.
 
+What to look for in signaltap? There are multiple ways to do this.  I could look at the
+LSU or I could look at the ALU or both.  But first lets look at the assembly to know what to look for in the CPU.
+
+From our GDB session above we recall the `csd_lock_wait` lock loop was around address `0xc00ea11c`.
+If we dump this area of the Linux binary we see the following:
+
+```
+$ or1k-elf-objdump -d vmlinux | grep -C5 c00ea11c
+c00ea108:       0c 00 00 07     l.bnf c00ea124 <smp_call_function_many_cond+0x1c4>
+c00ea10c:       15 00 00 00     l.nop 0x0
+c00ea110:       86 33 00 04     l.lwz r17,4(r19)  <---------------------------------+
+c00ea114:       a6 31 00 01     l.andi r17,r17,0x1                                  |
+c00ea118:       bc 11 00 00     l.sfeqi r17,0                                       |
+c00ea11c:<--    0f ff ff fd     l.bnf c00ea110 <smp_call_function_many_cond+0x1b0> -+
+c00ea120:       15 00 00 00      l.nop 0x0
+c00ea124:       22 00 00 00     l.msync
+c00ea128:       bc 17 00 02     l.sfeqi r23,2
+c00ea12c:       0f ff ff e1     l.bnf c00ea0b0 <smp_call_function_many_cond+0x150>
+c00ea130:       aa 20 00 01     l.ori r17,r0,0x1
+```
+
+We can see the `l.andi` intruction uses the `r17` register. Let's setup the logic
+analyzer to capture that.
+
+In module `mor1kx_execute_alu`  select signals:
+ - `pc_execute_i` - The current PC, this will help us know which instruction is executing
+ - `alu_valid_o` - This will help us know when the instruction results are ready.
+ - `padv_execute_i` - This will help us know when the instruction inputs are ready.
+ - `opc_alu_i` - When this is `0x3` the ALU is doing an `AND` operation.
+ - `rfa_i` - The first register argument of the instruction
+ - `rfb_i` - The second register argument of the instruction
+
+*Note:* I found that if I added too many signals to SignalTap that Linux would fail to boot
+as the CPU would get stuck with BUS errors. So be aware.
+
+![SignalTap Selecting Signals](/content/2026/2026-signal-tap-alu-signals.png)
+
+
 Signal tap showed me that the value being read from memory was not `0x86330004`
 but actually `0x00000011`.  This matches what the CPu was reading.
+
+After the setup we can try to boot the kernel and observe the lockup.  When the lockup occurs
+if we capture data we see the below.
+
+
+![SignalTap Reading Data](/content/2026/2026-signal-tap-alu.png)
+
+Here we see a few addresses pass by in our trace.
+
+ - `c00ea114` - `rfa_i` becomes `0x11` and we see `opc_alu_i` is `0x3`.  It's the `l.andi` instruction.
+ - `c00ea118` - `rfa_i` is `0x1`. It's the `l.sfeqi` instruction.
+
+So here we see kernel is reding the locked value `0x11`.
 
 # Actually, it's a Kernel issue
 
