@@ -476,12 +476,12 @@ None of the suggestions were correct.  I humored the patches but they did not wo
 
 ## Using a hardware debugger
 
-I had some doubt that the values I was seeing in the GDB debug session actually were
-correct.  As a last ditch effort I brought up SignalTap a FPGA virtual logic
-analyser.  In other words this is a hardware debugger.
+I had some doubt that the values I was seeing in the GDB debug session were
+correct.  As a last ditch effort I brought up SignalTap, an FPGA virtual logic
+analyzer.  In other words this is a hardware debugger.
 
-What to look for in signaltap? There are multiple ways to do this.  I could look at the
-LSU or I could look at the ALU or both.  But first lets look at the assembly to know what to look for in the CPU.
+What to look for in SignalTap? We want to confirm what is really in memory when
+the CPU is reading the flags variable from memory in the lock loop.
 
 From our GDB session above we recall the `csd_lock_wait` lock loop was around address `0xc00ea11c`.
 If we dump this area of the Linux binary we see the following:
@@ -501,40 +501,51 @@ c00ea12c:       0f ff ff e1     l.bnf c00ea0b0 <smp_call_function_many_cond+0x15
 c00ea130:       aa 20 00 01     l.ori r17,r0,0x1
 ```
 
-We can see the `l.andi` intruction uses the `r17` register. Let's setup the logic
-analyzer to capture that.
+We can see the `l.lwz` instruction is used to read in the flags value from
+memory.  The `l.lwz` instruction instructs the CPU to load data at an address in
+memory to a CPU register.  The CPU module that handles memory access is called
+the Load Store Unit (LSU).  Let's setup the logic analyzer to capture the LSU
+signals.
 
-In module `mor1kx_execute_alu`  select signals:
- - `pc_execute_i` - The current PC, this will help us know which instruction is executing
- - `alu_valid_o` - This will help us know when the instruction results are ready.
- - `padv_execute_i` - This will help us know when the instruction inputs are ready.
- - `opc_alu_i` - When this is `0x3` the ALU is doing an `AND` operation.
- - `rfa_i` - The first register argument of the instruction
- - `rfb_i` - The second register argument of the instruction
+In CPU core 0's module `mor1kx_lsu_cappuccino` select signals:
+ - `pc_execute_i` - The PC for the execute stage, this lets us know which instruction is waiting to execute
+ - `exec_op_lsu_load_i` - Signal that is asserted when the LSU is being asked to perform a load
+ - `dbus_adr_o` - The address being communicated from the LSU to the memory bus for the data load
+ - `dbus_dat_i` - The data being communicated from the memory bus back to the LSU
+ - `lsu_result_o` - The data captured by the LSU to be written to the register file
 
-*Note:* I found that if I added too many signals to SignalTap that Linux would fail to boot
+*Note 1* During this build, we disable the data cache to make sure loads are not
+cached.  Otherwise our load would go out to the memory bus one time and be hard
+to capture in the logic analyzer.
+
+*Note 2* We select only signals on CPU 0, as the `csd_lock_wait` lock loop is occurring on both CPUs.
+
+*Note 3* I found that if I added too many signals to SignalTap that Linux would fail to boot
 as the CPU would get stuck with BUS errors. So be aware.
 
-![SignalTap Selecting Signals](/content/2026/2026-signal-tap-alu-signals.png)
+In SignalTap our setup looks like the following:
 
-
-Signal tap showed me that the value being read from memory was not `0x86330004`
-but actually `0x00000011`.  This matches what the CPu was reading.
+![SignalTap Selecting Signals](/content/2026/2026-signaltap-lsu-load-setup.png)
 
 After the setup we can try to boot the kernel and observe the lockup.  When the lockup occurs
-if we capture data we see the below.
+if we capture data we see the below:
 
+![SignalTap Reading Data](/content/2026/2026-signaltap-lsu-load.png)
 
-![SignalTap Reading Data](/content/2026/2026-signal-tap-alu.png)
+I have annotated the transitions in the trace:
 
-Here we see a few addresses pass by in our trace.
+  1. Moments after the `exec_op_lsu_load_i` signal is asserted, the `dbus_adr_o` is set to
+     `0x011cc47c`.  This is the memory address to be read.
+  2. Next we see `0x11` on `dbus_dat_i`.  This is the value read from memory.
+  3. After this the value `0x11` is outputted on `lsu_result_o` confirming this is the value read.
+  4. Finally after a few instructions the loop continues again and `exec_op_lsu_load_i` is asserted.
 
- - `c00ea114` - `rfa_i` becomes `0x11` and we see `opc_alu_i` is `0x3`.  It's the `l.andi` instruction.
- - `c00ea118` - `rfa_i` is `0x1`. It's the `l.sfeqi` instruction.
-
-So here we see kernel is reding the locked value `0x11`.
+So here we confirm the CPU is properly reading `0x11`, the lock is still held.  What does this mean
+does it mean that CPU 1 (the secondary CPU) did not handle the IPI and release the lock?
 
 # Actually, it's a Kernel issue
+
+# What went wrong with GDB?
 
 # The Fix
 
