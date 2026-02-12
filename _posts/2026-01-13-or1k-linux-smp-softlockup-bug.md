@@ -58,7 +58,7 @@ To get the environment running we need a bunch of stuff:
 
  - De0 Nano Cyclone IV FPGA dev board with assortment of USB and serial device cables
  - [fusesoc](https://fusesoc.readthedocs.io/en/stable/) 2.4.3 - Tool for RTL
-   packange mangement, building and device programming.
+   package management, building and device programming.
  - [Quartus Prime Design Software](https://www.altera.com/products/development-tools/quartus) 24.1 - for verilog synthesis and place and route
  - The fusesoc OpenRISC multicore SoC - https://github.com/stffrdhrn/de0_nano-multicore
  - [OpenOCD](https://openocd.org) 0.11.0 for debugging and loading software onto the board
@@ -104,7 +104,7 @@ make
 ```
 
 This gives us a good baseline.
-We then need to create a device tree that works for the de0 nano, it is also
+We then need to create a device tree that works for the De0 Nano, it is also
 almost the same as the simple SMP board but:
 
  - The FPGA SoC runs at 50Mhz instead of 20Mhz
@@ -367,7 +367,7 @@ It should be exiting the loop.  As the RCU stall warning predicted our CPU is
 stuck in tight loop.  In this case the loop is in `csd_lock_wait`.
 
 The value in memory does not match the value the CPU is reading.  Is this a
-memory synchonization issue?  Does the CPU cache incorrectly have the locked
+memory synchronization issue?  Does the CPU cache incorrectly have the locked
 flag?
 
 # First Hypothesis - It's a hardware issue
@@ -541,7 +541,7 @@ index 86da4bc5ee0b..db3f6ff0b54a 100644
 
 # The Fix
 
-Simply unmasking the interrupts in Linux as I did above in the hack would not be excepted upstream.
+Simply unmasking the interrupts in Linux as I did above in the hack would not be accepted upstream.
 There are irqchip APIs that handle interrupt unmasking.
 
 The [OpenRISC IPI patch](https://github.com/stffrdhrn/linux/commit/eea1a28f93c8c78b961aca2012dedfd5c528fcac)
@@ -618,14 +618,14 @@ $5 = 0xc1fd0000
 0xc1fd0020:     0x862a0008      0x862a0008      0x862a0008      0x862a0008
 ```
 
-Here we see `r19` is `0xc1fd0000` and if we inepct the memory at this loction
+Here we see `r19` is `0xc1fd0000` and if we inspect the memory at this location
 we see values like `0x862a0008`, which is strange.
 
 Above we discussed these are kernel addresses, offset by `0xc0000000`.
 When the kernel does memory reads these will be mapped by the MMU to a physical address, in this case
 `0x01fd0004`.
 
-If can do the offset ourselves and inspect memory as follows.
+We can apply the offset ourselves and inspect memory as follows.
 
 ```
 (gdb) x/12x $r19-0xc0000000
@@ -639,7 +639,7 @@ indeed contain `0x11` the same as the value read by the CPU.
 
 When GDB does memory reads the debug interface issues reads directly to the
 memory bus.   The CPU and MMU are not involved.  This means, at the moment, we
-need to be careful when inspectng memory and be sure to perform the offsets
+need to be careful when inspecting memory and be sure to perform the offsets
 ourselves.
 
 Now we have covered:
@@ -649,7 +649,7 @@ Now we have covered:
  - Debugging at the hardware level using SignalTap
  - Identifying the IPI unmasking bug by adding kernel stats and debug statements.
  - Fixing the IPI bug
- - Understanding by GDB was showing strange results
+ - Understanding why GDB was showing strange results
 
 # Followups
 
