@@ -288,8 +288,8 @@ From the trace we can see both CPU's are in similar code locations.
  - CPU1 : is in `smp_icache_page_inv -> on_each_cpu_cond_mask`
 
 CPU1 is additionally handling a timer which is reporting the RCU stall, we can
-ignore those bits of the stack, as it is the just reporting the problem for us
-it is not the root cause.  So what is happening?
+ignore those bits of the stack, as it is reporting the problem for us it is not
+the root cause.  So what is happening?
 
 Let's try to understand what is happening.  The `smp_icache_page_inv` function
 is called to invalidate an icache page, it will force all CPU's to invalidate a
