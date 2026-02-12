@@ -7,7 +7,7 @@ categories: [ hardware, linux, embedded, openrisc ]
 
 This is the story of figuring out why OpenRISC Linux was no longer booting on FPGA boards.
 
-In July 2025 we received a bug report: [https://github.com/openrisc/mor1kx/issues/168](mor1kx pipeline is stuck in dualcore iverilog RTL simulation).
+In July 2025 we received a bug report: [#168 mor1kx pipeline is stuck in dualcore iverilog RTL simulation](https://github.com/openrisc/mor1kx/issues/168).
 
 The report showed a hang on the second CPU of a custom
 [multicore](https://en.wikipedia.org/wiki/Multi-core_processor) platform.  The
@@ -87,122 +87,66 @@ Some notes about getting the De0 Nano development environment up again:
 Once the development board was loaded and running a simple hello world program
 as per the tutorial I could continue try to run Linux.
 
-To build and load the Linux kernel requires a kernel config and a devicetree
-(DTS) file for our De0 Nano multicore board.  We don't have one available
+## Compiling a Kernel
+
+To build and load the Linux kernel requires the kernel source, a kernel config and a
+[devicetree](https://www.devicetree.org/)
+(DTS) file for our De0 Nano multicore board.  At the time of this writing we didn't have one available
 in the upstream kernel source tree, so we need to create one.
 
-I was able to start with the existing simple-smp config then make some
-adjustments.
-
-The following command shows the available openrisc linux configs and
-then selects `simple_smp_defconfig`.
+We can start with the existing OpenRISC multicore kernel config then make some
+adjustments.  To get started we can configure the kernel with `simple_smp_defconfig`
+as follows.
 
 ```bash
-make ARCH=openrisc CROSS_COMPILE=or1k-linux- | grep defconfig
-  defconfig       - New config with default from ARCH supplied defconfig
-  savedefconfig   - Save current config as ./defconfig (minimal config)
-  alldefconfig    - New config with all symbols set to default
-  olddefconfig    - Same as oldconfig but sets new symbols to their
-  or1klitex_defconfig         - Build for or1klitex
-  or1ksim_defconfig           - Build for or1ksim
-  simple_smp_defconfig        - Build for simple_smp
-  virt_defconfig              - Build for virt
 make ARCH=openrisc CROSS_COMPILE=or1k-linux- simple_smp_defconfig
 make
 ```
 
+This gives us a good baseline.
 We then need to create a device tree that works for the de0 nano, it is also
 almost the same as the simple SMP board but:
 
  - The FPGA SoC runs at 50Mhz instead of 20Mhz
  - The FPGA SoC has no ethernet
- - The FPGA SoC has gpios which we would like to wire up
 
-The following is an example dts file.
+Starting with the existing `simple_smp.dts` I modified it creating
+[de0nano-smp.dts](/content/2026/de0nano-smp.dts) and placed it in
+the `arch/openrisc/boot/dts` directory.
 
-[de0nano-smp.dts](/content/2026/de0nano-smp.dts)
-
-```dts
-// File: arch/openrisc/boot/dts/de0nano-smp.dts
-#include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/leds/common.h>
-
-/dts-v1/;
-/ {
-	compatible = "opencores,or1ksim";
-	#address-cells = <1>;
-	#size-cells = <1>;
-	interrupt-parent = <&pic>;
-
-	aliases {
-		uart0 = &serial0;
-	};
-
-	chosen {
-		bootargs = "earlycon";
-		stdout-path = "uart0:115200";
-	};
-
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		cpu0: cpu@0 {
-			compatible = "opencores,or1200-rtlsvn481";
-			reg = <0>;
-			clock-frequency = <50000000>;
-		};
-		cpu1: cpu@1 {
-			compatible = "opencores,or1200-rtlsvn481";
-			reg = <1>;
-			clock-frequency = <50000000>;
-		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		led-heartbeat {
-			gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
-			color = <LED_COLOR_ID_GREEN>;
-			function = LED_FUNCTION_HEARTBEAT;
-			linux,default-trigger = "heartbeat";
-			label = "heartbeat";
-		};
-	};
-
-	pic: pic {
-		compatible = "opencores,or1k-pic-level";
-		#interrupt-cells = <1>;
-		interrupt-controller;
-	};
-
-	memory@0 {
-		device_type = "memory";
-		reg = <0x00000000 0x02000000>;
-	};
-
-	serial0: serial@90000000 {
-		compatible = "opencores,uart16550-rtlsvn105", "ns16550a";
-		reg = <0x90000000 0x100>;
-		interrupts = <2>;
-		clock-frequency = <50000000>;
-	};
-
-	gpio0: gpio@91000000 {
-		compatible = "brcm,bcm6345-gpio";
-		reg = <0x91000000 0x1>, <0x91000001 0x1>;
-		reg-names = "dat", "dirout";
-		gpio-controller;
-		#gpio-cells = <2>;
-	};
-
-	ompic: ompic@98000000 {
-		compatible = "openrisc,ompic";
-		reg = <0x98000000 16>;
-		interrupt-controller;
-		#interrupt-cells = <0>;
-		interrupts = <1>;
-	};
-};
+```diff
+--- arch/openrisc/boot/dts/simple_smp.dts       2026-02-11 20:15:20.244628708 +0000
++++ arch/openrisc/boot/dts/de0nano-smp.dts      2026-02-12 17:24:15.959947375 +0000
+@@ -25,12 +25,12 @@
+                cpu@0 {
+                        compatible = "opencores,or1200-rtlsvn481";
+                        reg = <0>;
+-                       clock-frequency = <20000000>;
++                       clock-frequency = <50000000>;
+                };
+                cpu@1 {
+                        compatible = "opencores,or1200-rtlsvn481";
+                        reg = <1>;
+-                       clock-frequency = <20000000>;
++                       clock-frequency = <50000000>;
+                };
+        };
+ 
+@@ -57,13 +57,6 @@
+                compatible = "opencores,uart16550-rtlsvn105", "ns16550a";
+                reg = <0x90000000 0x100>;
+                interrupts = <2>;
+-               clock-frequency = <20000000>;
+-       };
+-
+-       enet0: ethoc@92000000 {
+-               compatible = "opencores,ethoc";
+-               reg = <0x92000000 0x800>;
+-               interrupts = <4>;
+-               big-endian;
++               clock-frequency = <50000000>;
+        };
+ };
 ```
 
 ### Configuring the kernel
@@ -227,16 +171,17 @@ The `CONFIG_KALLSYMS` seems conspicuous, but it is one of the most important con
 to enable.  This enables our stack traces to show symbol information, which makes it easier to understand
 where our crashes happen.
 
-
 With all of that configured we can build the kernel.
 
-```
+```bash
 make -j12 \
   ARCH=openrisc \
   CROSS_COMPILE=or1k-linux- \
   CONFIG_INITRAMFS_SOURCE="$HOME/work/openrisc/busybox-rootfs/initramfs $HOME/work/openrisc/busybox-rootfs/initramfs.devnodes" \
   CONFIG_BUILTIN_DTB_NAME="de0nano-smp"
 ```
+
+When the kernel build is complete we should see our `vmlinux` image as follows.
 
 ```bash
 $ ls -ltr | tail -n5
@@ -247,11 +192,15 @@ $ ls -ltr | tail -n5
 -rwxr-xr-x.   1 shorne shorne  104763212 Jan 30 13:30 vmlinux
 ```
 
-After this we will have our `elf` binary at `vmlinux` ready to load onto our
-board.
+The `vmlinux` image is an [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) 
+binary ready to load onto our
+board.  I have also uploaded a [patch for adding the device tree file and a defconfig](https://github.com/stffrdhrn/linux/commit/47d4f4ce21ddb1a99e72016f130377a265ec3622)
+to github for easy reproduction.
 
-Loading it using the gdb and openocd commands from the tutorial
-we could see the system boots.
+## Booting the Image
+
+Loading the kernel onto our FPGA board using the gdb and openocd commands from the
+tutorial the system boots.
 
 The system runs for a while and maybe we can execute commands, 2 CPU's are
 reported online but after some time we get the following lockup and the system
@@ -265,32 +214,7 @@ stops.
 [  410.790000] rcu:     Unless rcu_sched kthread gets sufficient CPU time, OOM is now expected behavior.
 [  410.790000] rcu: RCU grace-period kthread stack dump:
 [  410.790000] task:rcu_sched       state:R  running task     stack:0     pid:13    tgid:13    ppid:2      task_flags:0x208040 flags:0x00000000
-[  410.850000] Call trace:
-[  410.850000] [<(ptrval)>] sched_show_task.part.0+0x104/0x138
-[  410.850000] [<(ptrval)>] sched_show_task+0x2c/0x3c
-[  410.850000] [<(ptrval)>] rcu_check_gp_kthread_starvation+0x144/0x1e4
-[  410.850000] [<(ptrval)>] rcu_sched_clock_irq+0xd00/0xe9c
-[  410.850000] [<(ptrval)>] ? ipi_icache_page_inv+0x0/0x24
-[  410.850000] [<(ptrval)>] update_process_times+0xa8/0x128
-[  410.850000] [<(ptrval)>] tick_nohz_handler+0xd8/0x264
-[  410.900000] [<(ptrval)>] ? tick_program_event+0x78/0x100
-[  410.900000] [<(ptrval)>] tick_nohz_lowres_handler+0x54/0x80
-[  410.900000] [<(ptrval)>] timer_interrupt+0x88/0xc8
-[  410.900000] [<(ptrval)>] _timer_handler+0x84/0x8c
-[  410.900000] [<(ptrval)>] ? smp_call_function_many_cond+0x4d4/0x5b0
-[  410.900000] [<(ptrval)>] ? ipi_icache_page_inv+0x0/0x24
-[  410.900000] [<(ptrval)>] ? smp_call_function_many_cond+0x1bc/0x5b0
-[  410.950000] [<(ptrval)>] ? __alloc_frozen_pages_noprof+0x118/0xde8
-[  410.950000] [<(ptrval)>] ? ipi_icache_page_inv+0x14/0x24
-[  410.950000] [<(ptrval)>] ? smp_call_function_many_cond+0x4d4/0x5b0
-[  410.950000] [<(ptrval)>] on_each_cpu_cond_mask+0x28/0x38
-[  410.950000] [<(ptrval)>] smp_icache_page_inv+0x30/0x40
-[  410.950000] [<(ptrval)>] update_cache+0x12c/0x160
-[  410.950000] [<(ptrval)>] handle_mm_fault+0xc48/0x1cc0
-[  410.950000] [<(ptrval)>] ? _raw_spin_unlock_irqrestore+0x28/0x38
-[  411.000000] [<(ptrval)>] do_page_fault+0x1d0/0x4b4
-[  411.000000] [<(ptrval)>] ? sys_setpgid+0xe4/0x1f8
-[  411.000000] [<(ptrval)>] ? _data_page_fault_handler+0x104/0x10c
+...
 [  411.000000] rcu: Stack dump where RCU GP kthread last ran:
 [  411.000000] Task dump for CPU 1:
 [  411.000000] task:kcompactd0      state:R  running task     stack:0     pid:29    tgid:29    ppid:2      task_flags:0x218040 flags:0x00000008
@@ -411,7 +335,7 @@ which we can see below:
 
 ### kernel/smp.c
 
-```
+```c
     static __always_inline void csd_lock_wait(call_single_data_t *csd)
     {
         smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
@@ -422,7 +346,7 @@ The `CSD_FLAG_LOCK` flag is defined as seen here:
 
 ### include/linux/smp_types.h
 
-```
+```c
 enum {
         CSD_FLAG_LOCK           = 0x01,
         ...
@@ -544,6 +468,76 @@ So here we confirm the CPU is properly reading `0x11`, the lock is still held.  
 does it mean that CPU 1 (the secondary CPU) did not handle the IPI and release the lock?
 
 # Actually, it's a Kernel issue
+
+I added a [patch to capture and dump IPI stats](https://github.com/stffrdhrn/linux/commit/a7fc4d4778a70461fb28fb2e3216d3a85513fd62) 
+when OpenRISC crashes.  What we see below is that CPU 1 is receiving no IPIs while
+CPU 0 has received all IPIs sent by CPU 1.
+
+```
+[  648.180000] CPU: 0 UID: 0 PID: 1 Comm: init Tainted: G             L      6.19.0-rc4-de0nano-smp-00002-ga7fc4d
+[  648.180000] Tainted: [L]=SOFTLOCKUP
+[  648.180000] CPU #: 0
+[  648.180000]    PC: c00ea100    SR: 0000807f    SP: c1031cf8
+[  648.180000] GPR00: 00000000 GPR01: c1031cf8 GPR02: c1031d54 GPR03: 00000006
+[  648.180000] GPR04: c1fe4ae0 GPR05: c1fe4ae0 GPR06: 00000000 GPR07: 00000000
+[  648.180000] GPR08: 00000002 GPR09: c00ea420 GPR10: c1030000 GPR11: 00000006
+[  648.180000] GPR12: 00000029 GPR13: 00000002 GPR14: c1fe4ae0 GPR15: 0000000b
+[  648.180000] GPR16: c1fc1b60 GPR17: 00000011 GPR18: c1fe4ae0 GPR19: c1fd0010
+[  648.180000] GPR20: 00000001 GPR21: ffffffff GPR22: 00000001 GPR23: 00000002
+[  648.180000] GPR24: c0013c98 GPR25: 00000000 GPR26: 00000001 GPR27: c09cd7b0
+[  648.180000] GPR28: 01608000 GPR29: c09c4524 GPR30: 00000006 GPR31: 00000000
+[  648.180000]   RES: 00000006 oGPR11: ffffffff
+...
+[  648.180000] IPI stats:
+[  648.180000] Wakeup IPIs                sent:        1 recv:        0
+[  648.180000] Rescheduling IPIs          sent:        8 recv:        0
+[  648.180000] Function call IPIs         sent:        0 recv:        0
+[  648.180000] Function single call IPIs  sent:       41 recv:       46
+...
+[  660.260000] CPU: 1 UID: 0 PID: 29 Comm: kcompactd0 Tainted: G             L      6.19.0-rc4-de0nano-smp-00002-
+[  660.260000] Tainted: [L]=SOFTLOCKUP
+[  660.260000] CPU #: 1
+[  660.260000]    PC: c053ca40    SR: 0000827f    SP: c1095b58
+[  660.260000] GPR00: 00000000 GPR01: c1095b58 GPR02: c1095b60 GPR03: c11f003c
+[  660.260000] GPR04: c11f20c0 GPR05: 3002e000 GPR06: c1095b64 GPR07: c1095b60
+[  660.260000] GPR08: 00000000 GPR09: c0145c00 GPR10: c1094000 GPR11: c11fc05c
+[  660.260000] GPR12: 00000000 GPR13: 0002003d GPR14: c1095d2c GPR15: 00000000
+[  660.260000] GPR16: c1095b98 GPR17: 0000001d GPR18: c11f0000 GPR19: 0000001e
+[  660.260000] GPR20: 30030000 GPR21: 001f001d GPR22: c1fe401c GPR23: c09cd7b0
+[  660.260000] GPR24: ff000000 GPR25: 00000001 GPR26: 01000000 GPR27: c1ff21a4
+[  660.260000] GPR28: 00000000 GPR29: c1095dd8 GPR30: 3002e000 GPR31: 00000002
+[  660.260000]   RES: c11fc05c oGPR11: ffffffff
+...
+[  660.300000] IPI stats:
+[  660.300000] Wakeup IPIs                sent:        0 recv:        0
+[  660.310000] Rescheduling IPIs          sent:        0 recv:        0
+[  660.310000] Function call IPIs         sent:        0 recv:        0
+[  660.310000] Function single call IPIs  sent:       46 recv:        0
+```
+
+Why is this?  With some extra debugging I found that the programmable interrupt
+controller mask register (`PICMR`) was `0x0` on CPU 1.  This means that all interrupts
+on CPU 1 are masked and CPU 1 will never receive any interrupts.
+
+After a [quick patch to unmask IPIs](https://github.com/stffrdhrn/linux/commit/d2533084299085b9b602b8b78d6827a2411ef05b)
+on secondary CPUs the system stability was fixed.
+
+```patch
+diff --git a/arch/openrisc/kernel/smp.c b/arch/openrisc/kernel/smp.c
+index 86da4bc5ee0b..db3f6ff0b54a 100644
+--- a/arch/openrisc/kernel/smp.c
++++ b/arch/openrisc/kernel/smp.c
+@@ -138,6 +138,9 @@ asmlinkage __init void secondary_start_kernel(void)
+        synchronise_count_slave(cpu);
+        set_cpu_online(cpu, true);
+ 
++       // Enable IPIs, hack
++       mtspr(SPR_PICMR, mfspr(SPR_PICMR) | 0x2);
++
+        local_irq_enable();
+        /*
+         * OK, it's off to the idle thread for us
+```
 
 # What went wrong with GDB?
 
