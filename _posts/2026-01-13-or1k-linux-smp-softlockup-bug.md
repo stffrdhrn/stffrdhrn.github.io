@@ -41,14 +41,14 @@ likely stuck in a tight loop.  We can also see that the CPUs are both running
 but hanging.  It took until December 2025, 5 months, to locate and fix the bug.
 In this article we will discuss how we debugged and solved this issue.
 
-# Reproducting the issue
+# Reproducing the issue
 
 The software that the user uses is the standard OpenRISC kernel and runtime.  It has
 been stable for some time running on the QEMU simulator that we use for the bulk
 of our software development and testing.
 
 To be honest I haven't run the OpenRISC multicore platform on a physical FGPA
-development board for a few years, so just setting up the environemtn was going
+development board for a few years, so just setting up the environment was going
 to be a significant undertaking.
 
 For the past few years I have been concentrating on OpenRISC software
@@ -195,7 +195,7 @@ $ ls -ltr | tail -n5
 The `vmlinux` image is an [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) 
 binary ready to load onto our
 board.  I have also uploaded a [patch for adding the device tree file and a defconfig](https://github.com/stffrdhrn/linux/commit/47d4f4ce21ddb1a99e72016f130377a265ec3622)
-to github for easy reproduction.
+to GitHub for easy reproduction.
 
 ## Booting the Image
 
@@ -304,7 +304,7 @@ that page caused a fault, once the page was mapped the icache needs to be
 invalidated, this is done via the kernel's inter-processor interrupt
 ([IPI](https://en.wikipedia.org/wiki/Inter-processor_interrupt)) mechanism.
 
-The IPI allows onee CPU to request work to be done on other CPUs, this is done
+The IPI allows one CPU to request work to be done on other CPUs, this is done
 using the `on_each_cpu_cond_mask` function call.
 
 If we open up the debugger we can see, we are stuck in `csd_lock_wait` here:
@@ -366,7 +366,7 @@ What is this we see?  The value is `0x86330004`, but that means the `0x1` bit is
 It should be exiting the loop.  As the RCU stall warning predicted our CPU is
 stuck in tight loop.  In this case the loop is in `csd_lock_wait`.
 
-The value in memory does not match the value the CPU is reading.  Is the a
+The value in memory does not match the value the CPU is reading.  Is this a
 memory synchonization issue?  Does the CPU cache incorrectly have the locked
 flag?
 
@@ -539,13 +539,121 @@ index 86da4bc5ee0b..db3f6ff0b54a 100644
          * OK, it's off to the idle thread for us
 ```
 
+# The Fix
+
+Simply unmasking the interrupts in Linux as I did above in the hack would not be excepted upstream.
+There are irqchip APIs that handle interrupt unmasking.
+
+The [OpenRISC IPI patch](https://github.com/stffrdhrn/linux/commit/eea1a28f93c8c78b961aca2012dedfd5c528fcac)
+for the Linux 6.20/7.0 release converts the IPI interrupt driver to
+register a percpu_irq which allows us to unmask the irq handler on each CPU.
+
+In the patch series I also added De0 Nano single core and De0 Nano multicore board
+configurations to allow for easier board bring up.
+
 # What went wrong with GDB?
 
-# The Fix
+Why did GDB return the incorrect values when we were debugging initially?
+
+GDB is not broken, but it could be improved when debugging kernel code.
+Let's look again at the GDB session and look at the addresses of our variables.
+
+```
+(gdb) l
+346     {
+347     }
+348
+349     static __always_inline void csd_lock_wait(call_single_data_t *csd)
+350     {
+351             smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
+352     }
+353     #endif
+
+(gdb) p/x csd->node.u_flags
+$14 = 0x86330004
+
+(gdb) p/x &csd->node.u_flags
+$15 = 0xc1fd0004
+```
+
+Here we see the value gdb reads is `0x86330004`, but the address of the variable is
+`0xc1fd0004`.  This is a kernel address as we see the `0xc0000000` address offset.
+
+Let's inspect the assembly code that is running.
+
+```
+(gdb) p/x $npc
+$11 = 0xc00ea11c
+
+(gdb) x/12i $npc-0xc000000c
+   0xea110:     l.lwz r17,4(r19)
+   0xea114:     l.andi r17,r17,0x1
+   0xea118:     l.sfeqi r17,0
+-->0xea11c:     l.bnf 0xea110
+   0xea120:     l.nop 0x0
+   0xea124:     l.msync
+   0xea128:     l.sfeqi r23,2
+   0xea12c:     l.bnf 0xea0b0
+   0xea130:     l.ori r17,r0,0x1
+   0xea134:     l.lwz r16,56(r1)
+   0xea138:     l.lwz r18,60(r1)
+   0xea13c:     l.lwz r20,64(r1)
+```
+
+Here we see the familiar loop, the register `r19` stores the address of
+`csd->node` and `u_flags` is at a 4 byte offset, hence `l.lwz r17,4(r19)`.
+
+The register `r17` stores the value read from memory, then masked with `0x1`.
+We can see this below.
+
+```
+(gdb) p/x $r17
+$4 = 0x1
+(gdb) p/x $r19
+$5 = 0xc1fd0000
+
+(gdb) x/12x $r19
+0xc1fd0000:     0x862a0008      0x862a0008      0x862a0008      0x862a0008
+0xc1fd0010:     0x862a0008      0x862a0008      0x862a0008      0x862a0008
+0xc1fd0020:     0x862a0008      0x862a0008      0x862a0008      0x862a0008
+```
+
+Here we see `r19` is `0xc1fd0000` and if we inepct the memory at this loction
+we see values like `0x862a0008`, which is strange.
+
+Above we discussed these are kernel addresses, offset by `0xc0000000`.
+When the kernel does memory reads these will be mapped by the MMU to a physical address, in this case
+`0x01fd0004`.
+
+If can do the offset ourselves and inspect memory as follows.
+
+```
+(gdb) x/12x $r19-0xc0000000
+0x1fd0000:      0x00000000      0x00000011      0xc0013ca8      0xc1ff8920
+0x1fd0010:      0x0000fe00      0x00000000      0x00000400      0x00000000
+0x1fd0020:      0x01fd01fd      0x00000005      0x0000002e      0x0000002e
+```
+
+Bingo, this shows that we have `0x11` at `0x1fd0004` the lock value.  Memory does
+indeed contain `0x11` the same as the value read by the CPU.
+
+When GDB does memory reads the debug interface issues reads directly to the
+memory bus.   The CPU and MMU are not involved.  This means, at the moment, we
+need to be careful when inspectng memory and be sure to perform the offsets
+ourselves.
+
+Now we have covered:
+
+ - Reproducing the issue by bringing up linux
+ - Debugging the kernel with GDB showing strange results
+ - Debugging at the hardware level using SignalTap
+ - Identifying the IPI unmasking bug by adding kernel stats and debug statements.
+ - Fixing the IPI bug
+ - Understanding by GDB was showing strange results
 
 # Followups
 
  - Tutorials and Upstreaming patches
  - OpenOCD is currently broken for OpenRISC
- - OpenOCD doesnt support multicore
+ - OpenOCD doesn't support multicore
  - OpenOCD / GDB bugs
