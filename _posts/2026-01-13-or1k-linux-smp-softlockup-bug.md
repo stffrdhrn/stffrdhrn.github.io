@@ -14,7 +14,7 @@ The report showed a hang on the second CPU of a custom
 CPU cores that we use in FPGA based
 [SoCs](https://en.wikipedia.org/wiki/System_on_a_chip) are highly configurable,
 we can change cache sizes, MMU set sizes, memory synchronization strategies and
-other settings.  The first steps were to ensure that these settings were
+other settings.  Our first step were to ensure that these settings were
 correct.   After some initial discussions and adjustments the user was able to
 make progress, but Linux booted and hung with an error.  The following is a
 snippet of the boot log:
@@ -167,7 +167,7 @@ and enable the following.
      [*]   Load all symbols for debugging/ksymoops      CONFIG_KALLSYMS=y
 ```
 
-The `CONFIG_KALLSYMS` seems conspicuous, but it is one of the most important config switches
+The `CONFIG_KALLSYMS` seems unremarkable, but it is one of the most important config switches
 to enable.  This enables our stack traces to show symbol information, which makes it easier to understand
 where our crashes happen.
 
@@ -370,14 +370,14 @@ The value in memory does not match the value the CPU is reading.  Is this a
 memory synchronization issue?  Does the CPU cache incorrectly have the locked
 flag?
 
-# First Hypothesis - It's a hardware issue
+# It's a Hardware Issue
 
 As this software works fine in QEMU, I was first suspecting this was a hardware
 issue.  Perhaps there is an issue with cache coherency.
 
-Luckily on OpenRISC wwe can disable caches.  I built the CPU with the caches
+Luckily on OpenRISC we can disable caches.  I built the CPU with the caches
 disabled, this is done by changing the following module parameters from
-`ENABLED` to `NONE`:
+`ENABLED` to `NONE` as below, then re-synthesizing.
 
 ```
 $ grep -r FEATURE.*CACHE ../de0_nano-multicore/
@@ -389,25 +389,44 @@ $ grep -r FEATURE.*CACHE ../de0_nano-multicore/
 
 After this the system booted very slow, but we still had hang's, I was stumped.
 
-## Gemini to the rescue
+## Gemini to the Rescue
 
-Nope, they kept chasing red herrings.
+I thought I would try out Gemini AI to help debug the issue.  I was able to paste
+in the kernel crash dumps and AI was able to come to the same conclusion
+I did.  It thought that it may be a memory synchonization issue.
 
- - Memory barrier, suggested kernel patches.
- - Bug in verilog of CPU's Load Store Unit module, suggested patches.
+But Gemini was not able to help, it kept chasing red herrings.
 
-None of the suggestions were correct.  I humored the patches but they did not work.
+ - At first it suggsted looking at the memory barriers in the `csd_lock_wait` code.
+   I uploaded some of the OpenRISC kernel source code.  It was certain it found the
+   issue, I was not convinced but humored it. It suggested kernel patches
+   I applied them and confirmed they didn't help.
+ - I asked if it could be a hardware bug, Gemini thought this was a great idea.
+   If there was an issue with the CPU's Load Store Unit (LSU) not flushing or
+   losing writes it could be the cause of the lock not being released.  I uploaded 
+   some of the OpenRISC CPU verilog source code.  It was certain it found the bug
+   in the LSU, again I was not concinced looking at it's patches.
+   The patches did not improve anything.
 
-## Using a hardware debugger
+We went through several iterations of this, none of the suggestions were correct.
+I humored the patches but they did not work.
+
+Gemini does help with discussing the issues, highlighting details, and process
+of elimination, but it's not able think much beyond the evidence I provide.
+They seem lack the ability to think beyond it's current context.
+
+We will need to figure this out on our own.
+
+## Using a Hardware Debugger
 
 I had some doubt that the values I was seeing in the GDB debug session were
 correct.  As a last ditch effort I brought up SignalTap, an FPGA virtual logic
 analyzer.  In other words this is a hardware debugger.
 
-What to look for in SignalTap? We want to confirm what is really in memory when
-the CPU is reading the flags variable from memory in the lock loop.
+What should we look for in SignalTap? We want to confirm what is really in memory
+when the CPU is reading the flags variable from memory in the lock loop.
 
-From our GDB session above we recall the `csd_lock_wait` lock loop was around address `0xc00ea11c`.
+From our GDB session above we recall the `csd_lock_wait` lock loop was around PC address `0xc00ea11c`.
 If we dump this area of the Linux binary we see the following:
 
 ```
@@ -464,10 +483,16 @@ I have annotated the transitions in the trace:
   3. After this the value `0x11` is outputted on `lsu_result_o` confirming this is the value read.
   4. Finally after a few instructions the loop continues again and `exec_op_lsu_load_i` is asserted.
 
-So here we confirm the CPU is properly reading `0x11`, the lock is still held.  What does this mean
+Here we have confirmed the CPU is properly reading `0x11`, the lock is still held.  What does this mean
 does it mean that CPU 1 (the secondary CPU) did not handle the IPI and release the lock?
 
-# Actually, it's a Kernel issue
+It does mean that our GDB analysis is wrong.  There is no memory synchonization issue
+and the hardware is behaving as expect.  We need another idea.
+
+# Actually, it's a Kernel Issue
+
+Since we know that is seems some IPIs are not getting handled properly
+it would be good to be able to know how many IPIs are getting sent and lost.
 
 I added a [patch to capture and dump IPI stats](https://github.com/stffrdhrn/linux/commit/a7fc4d4778a70461fb28fb2e3216d3a85513fd62) 
 when OpenRISC crashes.  What we see below is that CPU 1 is receiving no IPIs while
@@ -520,7 +545,7 @@ controller mask register (`PICMR`) was `0x0` on CPU 1.  This means that all inte
 on CPU 1 are masked and CPU 1 will never receive any interrupts.
 
 After a [quick patch to unmask IPIs](https://github.com/stffrdhrn/linux/commit/d2533084299085b9b602b8b78d6827a2411ef05b)
-on secondary CPUs the system stability was fixed.
+on secondary CPUs the system stability was fixed.  This is the simple patch:
 
 ```patch
 diff --git a/arch/openrisc/kernel/smp.c b/arch/openrisc/kernel/smp.c
@@ -539,16 +564,17 @@ index 86da4bc5ee0b..db3f6ff0b54a 100644
          * OK, it's off to the idle thread for us
 ```
 
-# The Fix
+# Fixing the Bug Upstream
 
 Simply unmasking the interrupts in Linux as I did above in the hack would not be accepted upstream.
 There are irqchip APIs that handle interrupt unmasking.
 
-The [OpenRISC IPI patch](https://github.com/stffrdhrn/linux/commit/eea1a28f93c8c78b961aca2012dedfd5c528fcac)
-for the Linux 6.20/7.0 release converts the IPI interrupt driver to
+The [OpenRISC IPI patch](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/arch/openrisc?id=eea1a28f93c8c78b961aca2012dedfd5c528fcac)
+for the Linux 6.20/7.0 release updates the IPI interrupt driver to
 register a percpu_irq which allows us to unmask the irq handler on each CPU.
 
-In the patch series I also added De0 Nano single core and De0 Nano multicore board
+In the [patch series](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=a67594c977234b0ad6887202740e9e8b9821473a)
+I also added De0 Nano single core and multicore board
 configurations to allow for easier board bring up.
 
 # What went wrong with GDB?
@@ -642,18 +668,26 @@ memory bus.   The CPU and MMU are not involved.  This means, at the moment, we
 need to be careful when inspecting memory and be sure to perform the offsets
 ourselves.
 
-Now we have covered:
+# Conclusion
 
- - Reproducing the issue by bringing up linux
- - Debugging the kernel with GDB showing strange results
- - Debugging at the hardware level using SignalTap
- - Identifying the IPI unmasking bug by adding kernel stats and debug statements.
- - Fixing the IPI bug
- - Understanding why GDB was showing strange results
+Debugging accross the hardware-software boundary requires a bit of experience
+and a whole lot of parience.  We initially thought that this was a harware
+issue, but then eventually found a trivial issue in the OpenRISC multicore support
+drivers.  It took time and a few different tools to convince ourselves that the
+hardware was fine.  After refocusing on the kernel and building some tools
+(the IPI stats report) we found the clue we needed.
+
+This highlights the importance in embedded systems to know your tools and
+architecturte.  Or, in our case, remember that the MMU does not translate memory
+reads over the JTAG interface.  With the bug fixed and De0 Nano support merged upstream
+Linux on the OpenRISC platform not now more accessible and stable than before.
 
 # Followups
 
+Working on this issue highlighted that there are a few things to improve
+in OpenRISC including:
+
  - Tutorials and Upstreaming patches
  - OpenOCD is currently broken for OpenRISC
- - OpenOCD doesn't support multicore
+ - OpenOCD doesn't support multicore ([multicore patches](https://github.com/stffrdhrn/openocd/commits/or1k-multicore/) never upstreamed)
  - OpenOCD / GDB bugs
