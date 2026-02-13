@@ -1,0 +1,81 @@
+// File: arch/openrisc/boot/dts/de0nano-smp.dts
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+
+/dts-v1/;
+/ {
+	compatible = "opencores,or1ksim";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&pic>;
+
+	aliases {
+		uart0 = &serial0;
+	};
+
+	chosen {
+		bootargs = "earlycon";
+		stdout-path = "uart0:115200";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu0: cpu@0 {
+			compatible = "opencores,or1200-rtlsvn481";
+			reg = <0>;
+			clock-frequency = <50000000>;
+		};
+		cpu1: cpu@1 {
+			compatible = "opencores,or1200-rtlsvn481";
+			reg = <1>;
+			clock-frequency = <50000000>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-heartbeat {
+			gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_HEARTBEAT;
+			linux,default-trigger = "heartbeat";
+			label = "heartbeat";
+		};
+	};
+
+	pic: pic {
+		compatible = "opencores,or1k-pic-level";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x02000000>;
+	};
+
+	serial0: serial@90000000 {
+		compatible = "opencores,uart16550-rtlsvn105", "ns16550a";
+		reg = <0x90000000 0x100>;
+		interrupts = <2>;
+		clock-frequency = <50000000>;
+	};
+
+	gpio0: gpio@91000000 {
+		compatible = "brcm,bcm6345-gpio";
+		reg = <0x91000000 0x1>, <0x91000001 0x1>;
+		reg-names = "dat", "dirout";
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	ompic: ompic@98000000 {
+		compatible = "openrisc,ompic";
+		reg = <0x98000000 16>;
+		interrupt-controller;
+		#interrupt-cells = <0>;
+		interrupts = <1>;
+	};
+};
+i
