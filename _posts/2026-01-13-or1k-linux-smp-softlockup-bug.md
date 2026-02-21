@@ -71,11 +71,11 @@ There is a lot of information about how to get your FPGA board working with
 openrisc in our [De0 Nano tutorials](https://openrisc.io/tutorials/de0_nano/).
 Please refer to the tutorials if you would like to follow up.
 
-Some notes about getting the De0 Nano development environment up again:
+Some notes about what I had to figure out when getting the De0 Nano development environment up again:
 
  - OpenOCD versions after 0.11 no longer work with OpenRISC and it's
    adv_debug_sys debug interface.
-   OpenOCD will connect over the USB Blaster JTAG connection but
+   Never versions of OpenOCD will connect over the USB Blaster JTAG connection but
    requests to write and read fail with CDC failures.
  - While debugging the OpenOCD issues I verified our simulated
    JTAG connectivity which uses OpenOCD to connect over
@@ -87,12 +87,15 @@ Some notes about getting the De0 Nano development environment up again:
 Once the development board was loaded and running a simple hello world program
 as per the tutorial I could continue try to run Linux.
 
-## Compiling a Kernel
+## Building the Linux Kernel
 
 To build and load the Linux kernel requires the kernel source, a kernel config and a
 [devicetree](https://www.devicetree.org/)
 (DTS) file for our De0 Nano multicore board.  At the time of this writing we didn't have one available
-in the upstream kernel source tree, so we need to create one.
+in the upstream kernel source tree, so we need to create one.  This means we
+need to patch and configure the Linux kernel for De0 Nano support.
+
+### Patching the Kernel
 
 We can start with the existing OpenRISC multicore kernel config then make some
 adjustments.  To get started we can configure the kernel with `simple_smp_defconfig`
@@ -192,14 +195,14 @@ $ ls -ltr | tail -n5
 -rwxr-xr-x.   1 shorne shorne  104763212 Jan 30 13:30 vmlinux
 ```
 
-The `vmlinux` image is an [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format) 
+The `vmlinux` image is an [ELF](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
 binary ready to load onto our
 board.  I have also uploaded a [patch for adding the device tree file and a defconfig](https://github.com/stffrdhrn/linux/commit/47d4f4ce21ddb1a99e72016f130377a265ec3622)
 to GitHub for easy reproduction.
 
 ## Booting the Image
 
-Loading the kernel onto our FPGA board using the gdb and openocd commands from the
+Loading the kernel onto our FPGA board using the GDB and OpenOCD commands from the
 tutorial the system boots.
 
 The system runs for a while and maybe we can execute commands, 2 CPU's are
@@ -403,7 +406,7 @@ But Gemini was not able to help, it kept chasing red herrings.
    I applied them and confirmed they didn't help.
  - I asked if it could be a hardware bug, Gemini thought this was a great idea.
    If there was an issue with the CPU's Load Store Unit (LSU) not flushing or
-   losing writes it could be the cause of the lock not being released.  I uploaded 
+   losing writes it could be the cause of the lock not being released.  I uploaded
    some of the OpenRISC CPU verilog source code.  It was certain it found the bug
    in the LSU, again I was not concinced looking at it's patches.
    The patches did not improve anything.
@@ -602,7 +605,7 @@ $14 = 0x86330004
 $15 = 0xc1fd0004
 ```
 
-Here we see the value gdb reads is `0x86330004`, but the address of the variable is
+Here we see the value GDB reads is `0x86330004`, but the address of the variable is
 `0xc1fd0004`.  This is a kernel address as we see the `0xc0000000` address offset.
 
 Let's inspect the assembly code that is running.
